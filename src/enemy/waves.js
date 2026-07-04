@@ -9,6 +9,8 @@ import { clamp01 } from '../juice/springs.js';
 import {
   LANE_HALF, BASE_Z, RED_WIN_Z, MAX_RED,
   GIANT_MIN_LEVEL, GIANT_PROBA, GIANT_HP, GIANT_SPEED, GIANT_LINE_DAMAGE,
+  BOSS_HP, BOSS_SPEED, BOSS_LINE_DAMAGE, BOSS_SCALE, BOSS_RADIUS, BOSS_SPAWN_Z,
+  CHAMPION_KILL_CHARGE, CHAMPION_GIANT_CHARGE, CHAMPION_BOSS_CHARGE,
   UNIT_RADIUS, GIANT_RADIUS, DANGER_DIST,
   TRAUMA, COLORS, RED_BOB, RED_WOBBLE, SPAWN_SQUASH, UNIT_FACING_FIX,
   wavePeriodForLevel, waveSizeForLevel, redSpeedForLevel,
@@ -17,7 +19,7 @@ import {
 /**
  * Vagues rouges + collisions.
  * @param {object} ctx contexte partagé (CONTRACT §4)
- * @returns {{ spawnStep(dt:number):void, spawnWave():void, moveStep(dt:number,t:number):void,
+ * @returns {{ spawnStep(dt:number):void, spawnWave():void, spawnBoss():void, moveStep(dt:number,t:number):void,
  *   collideStep():void, render(t:number):void, reset():void }}
  */
 export function createWaves(ctx) {
@@ -50,7 +52,9 @@ export function createWaves(ctx) {
         z,
         pz: z,
         hp: 1,
+        hpMax: 1,
         giant: false,
+        boss: false,
         wob: Math.random() * 6.28,
         spawnT: 0,
         flashT: 0,
@@ -64,7 +68,9 @@ export function createWaves(ctx) {
         z: gz,
         pz: gz,
         hp: GIANT_HP,
+        hpMax: GIANT_HP,
         giant: true,
+        boss: false,
         wob: 0,
         spawnT: 0,
         flashT: 0,
@@ -72,19 +78,44 @@ export function createWaves(ctx) {
     }
   }
 
+  function spawnBoss() {
+    if (ctx.state.bossSpawned || ctx.state.reds.length >= MAX_RED) return;
+    ctx.state.bossSpawned = true;
+    ctx.state.bossDefeated = false;
+    ctx.state.reds.push({
+      id: nextId(),
+      x: 0,
+      z: BOSS_SPAWN_Z,
+      pz: BOSS_SPAWN_Z,
+      hp: BOSS_HP,
+      hpMax: BOSS_HP,
+      giant: true,
+      boss: true,
+      scale: BOSS_SCALE,
+      radius: BOSS_RADIUS,
+      speed: BOSS_SPEED,
+      lineDamage: BOSS_LINE_DAMAGE,
+      wob: 0,
+      spawnT: 0,
+      flashT: 0,
+    });
+    ctx.particles.ring(0, BOSS_SPAWN_Z, COLORS.gold);
+    ctx.floatingText.spawn('BOSS', 0, 3.2, BOSS_SPAWN_Z, { color: '#ffe66d' });
+  }
+
   function moveStep(dt, t) {
     if (!ctx.state.playing) return;
     const reds = ctx.state.reds;
     for (let i = reds.length - 1; i >= 0; i--) {
       const r = reds[i];
-      const sp = r.giant ? GIANT_SPEED : redSpeedForLevel(ctx.state.level);
+      const sp = r.speed || (r.giant ? GIANT_SPEED : redSpeedForLevel(ctx.state.level));
       r.pz = r.z;
       r.z += sp * dt;
       r.spawnT += dt;
       if (!r.giant) r.x += Math.sin(t * RED_WOBBLE.freq + r.wob) * dt * RED_WOBBLE.amp;
       if (r.z >= RED_WIN_Z) {
         reds.splice(i, 1);
-        ctx.state.playerHp -= r.giant ? GIANT_LINE_DAMAGE : 1;
+        ctx.state.playerHp -= r.lineDamage || (r.giant ? GIANT_LINE_DAMAGE : 1);
         ctx.particles.pop(r.x, RED_WIN_Z);
         ctx.audio.synth?.alarm();
         ctx.cameraRig.addTrauma(TRAUMA.redCross);
@@ -115,7 +146,7 @@ export function createWaves(ctx) {
     const blues = ctx.state.blues;
     for (let i = reds.length - 1; i >= 0; i--) {
       const r = reds[i];
-      const rad = r.giant ? GIANT_RADIUS : UNIT_RADIUS;
+      const rad = r.radius || (r.giant ? GIANT_RADIUS : UNIT_RADIUS);
       for (let j = blues.length - 1; j >= 0; j--) {
         const b = blues[j];
         const dz = b.z - r.z;
@@ -132,8 +163,15 @@ export function createWaves(ctx) {
           }
           if (r.hp <= 0) {
             reds.splice(i, 1);
+            ctx.sys.champion?.addCharge(r.boss ? CHAMPION_BOSS_CHARGE : (r.giant ? CHAMPION_GIANT_CHARGE : CHAMPION_KILL_CHARGE));
             if (r.giant) {
               ctx.sys.giants.onGiantDeath(r);
+              if (r.boss) {
+                ctx.state.bossDefeated = true;
+                ctx.state.gems += 1;
+                ctx.floatingText.spawn('+1', r.x, 3.4, r.z, { color: '#b9ffd7' });
+                ctx.sys.hud.refresh();
+              }
             } else {
               ctx.particles.burst(r.x, 0.5, r.z, { color: COLORS.red, shape: 'star', count: 4 });
               ctx.audio.synth?.beep(500, 0.06, 'triangle', 0.06);
@@ -171,9 +209,11 @@ export function createWaves(ctx) {
 
   function reset() {
     ctx.state.reds.length = 0;
+    ctx.state.bossSpawned = false;
+    ctx.state.bossDefeated = false;
     redMesh.count = 0;
     redMesh.instanceMatrix.needsUpdate = true;
   }
 
-  return { spawnStep, spawnWave, moveStep, collideStep, render, reset };
+  return { spawnStep, spawnWave, spawnBoss, moveStep, collideStep, render, reset };
 }

@@ -12,6 +12,7 @@ import {
   SPAWN_SQUASH,
   UNIT_LEAN,
   UNIT_FACING_FIX,
+  BOOST_SPEED_MULT,
   COLORS,
 } from '../core/constants.js';
 import { teamMaterial } from '../assets/recolor.js';
@@ -48,6 +49,8 @@ export function createCrowd(ctx) {
         wob: Math.random() * TWO_PI,
         spawnT: 0,
         viaGate,
+        boostT: 0,
+        lastBoostId: '',
       });
       return true;
     },
@@ -62,7 +65,9 @@ export function createCrowd(ctx) {
       for (let i = 0; i < blues.length; i++) {
         const u = blues[i];
         u.pz = u.z;                                   // z de début de frame (test de franchissement)
-        u.z -= BLUE_SPEED * dt;
+        const speedMult = u.boostT > 0 ? BOOST_SPEED_MULT : 1;
+        u.z -= BLUE_SPEED * speedMult * dt;
+        if (u.boostT > 0) u.boostT = Math.max(0, u.boostT - dt);
         u.x += Math.sin(t * BLUE_WOBBLE.freq + u.wob) * dt * BLUE_WOBBLE.amp;
         u.spawnT += dt;
       }
@@ -90,6 +95,12 @@ export function createCrowd(ctx) {
           sx = lerp(fx, 1, p);
           sy = lerp(fy, 1, p);
           sz = lerp(fz, 1, p);
+        }
+        if (u.boostT > 0) {
+          y += 0.05;
+          sx *= 1.08;
+          sy *= 1.04;
+          sz *= 1.2;
         }
 
         dummy.position.set(u.x, y, u.z);

@@ -46,6 +46,7 @@ const CHUNK_TARGET_BLOCK = 1.7;// taille cible (u) d'un bloc de tour éjecté
  * Base ennemie : tour composite, états de dégâts, séquence de destruction en chunks.
  * @param {object} ctx — contexte partagé (CONTRACT §4)
  * @returns {{ build(level:number):void, impactStep(dt:number,t:number):void,
+ *             damage(amount:number,x:number,z:number,opts?:object):boolean,
  *             update(dt:number,t:number):void, reset(level:number):void }}
  */
 export function createBase(ctx) {
@@ -353,6 +354,26 @@ export function createBase(ctx) {
     ctx.scene.add(group);
   }
 
+  function damage(amount, x, z, opts = {}) {
+    const state = ctx.state;
+    if (!group || destroyed) return false;
+    const dmg = Math.max(1, Math.floor(amount || 1));
+    state.enemyHp = Math.max(0, state.enemyHp - dmg);
+    ctx.particles.pop(x, z);
+    group.scale.set(BASE_SQUASH[0], BASE_SQUASH[1], BASE_SQUASH[2]);   // squash (retour lerp k=8)
+    ctx.audio.play('baseHit');
+    ctx.floatingText.spawn('-' + dmg, x, opts.y || 3.2, BASE_Z + 2, { color: opts.color || '#ff8fa3' });
+    ctx.sys.hud.refresh();
+
+    updateDamageState();   // paliers 66 % / 33 %
+
+    if (state.enemyHp <= 0) {
+      triggerDestruction();
+      return true;
+    }
+    return false;
+  }
+
   // ---- Impacts (APRÈS gates.crossStep) ----
   function impactStep(dt, t) {   // eslint-disable-line no-unused-vars
     const state = ctx.state;
@@ -362,20 +383,8 @@ export function createBase(ctx) {
     for (let i = blues.length - 1; i >= 0; i--) {
       const u = blues[i];
       if (u.z <= BLUE_HIT_Z) {
-        state.enemyHp--;
-        ctx.particles.pop(u.x, u.z);
         ctx.sys.crowd.killBlue(i);
-        group.scale.set(BASE_SQUASH[0], BASE_SQUASH[1], BASE_SQUASH[2]);   // squash (retour lerp k=8)
-        ctx.audio.play('baseHit');
-        ctx.floatingText.spawn('-1', u.x, 3.2, BASE_Z + 2, { color: '#ff8fa3' });
-        ctx.sys.hud.refresh();
-
-        updateDamageState();   // paliers 66 % / 33 %
-
-        if (state.enemyHp <= 0) {
-          triggerDestruction();
-          return;
-        }
+        if (damage(1, u.x, u.z)) return;
       }
     }
   }
@@ -429,5 +438,5 @@ export function createBase(ctx) {
     build(level);   // build() purge déjà chunks / états / timers
   }
 
-  return { build, impactStep, update, reset };
+  return { build, impactStep, damage, update, reset };
 }

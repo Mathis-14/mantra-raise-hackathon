@@ -4,7 +4,7 @@
 // Ids DOM EXACTS (index.html) : startOverlay startBtn winOverlay winCoins nextBtn loseOverlay retryBtn.
 // Aucun effet de bord à l'import.
 
-import { STAR_STAGGER, COIN_FLY_COUNT, LOSE_BTN_DELAY } from '../core/constants.js';
+import { STAR_STAGGER, COIN_FLY_COUNT, LOSE_BTN_DELAY, LOADOUTS, LOADOUT_DEFAULT } from '../core/constants.js';
 import { easeOutBack, clamp01 } from '../juice/springs.js';
 
 // --- Chemins des sprites UI (CONTRACT §8.3, servis à la racine par Vite). ---
@@ -12,6 +12,7 @@ const BTN_BLUE_URL     = '/ui/ui-pack/PNG/Blue/Default/button_rectangle_depth_gr
 const BTN_RED_URL      = '/ui/ui-pack/PNG/Red/Default/button_rectangle_depth_gradient.png';
 const STAR_FILL_URL    = '/ui/ui-pack/PNG/Yellow/Default/star.png';
 const STAR_OUTLINE_URL = '/ui/ui-pack/PNG/Grey/Default/star_outline_depth.png';
+const COIN_ICON_URL    = '/models/platformer-kit/Previews/coin-gold.png';
 
 // --- Constantes de présentation locales (chrome/anim DOM, hors gameplay : ce ne sont
 //     PAS des littéraux magiques de jeu ; core/constants.js ne les couvre pas). ---
@@ -43,6 +44,7 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
   const nextBtn = $('nextBtn');
   const loseOverlay = $('loseOverlay');
   const retryBtn = $('retryBtn');
+  const loadoutBtns = Array.from(document.querySelectorAll('[data-loadout]'));
 
   // Séquence de victoire.
   let winElapsed = 0;           // s réelles depuis showWin (pulse + révélation des étoiles)
@@ -85,9 +87,21 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
   function wireButton(btn, cb) {
     if (!btn) return;
     btn.onclick = () => {
-      if (ctx.audio) ctx.audio.play('click');
+      if (ctx.audio) {
+        ctx.audio.unlock();
+        ctx.audio.play('click');
+      }
       if (typeof cb === 'function') cb();
     };
+  }
+
+  function selectLoadout(mode) {
+    const next = LOADOUTS[mode] ? mode : LOADOUT_DEFAULT;
+    ctx.state.loadout = next;
+    for (const btn of loadoutBtns) {
+      btn.classList.toggle('selected', btn.dataset.loadout === next);
+    }
+    ctx.sys.hud?.refresh();
   }
 
   function ensureStars() {
@@ -114,9 +128,10 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
       starsRow.appendChild(slot);
       stars.push({ fill, revealAt: i * STAR_STAGGER, triggered: false, animT: 0, done: false });
     }
-    // Sous le titre, au-dessus du compteur de gain.
-    if (winCoins) winOverlay.insertBefore(starsRow, winCoins);
-    else winOverlay.appendChild(starsRow);
+    // Sous le titre, au-dessus du compteur de gain, même si le compteur est dans une carte.
+    const parent = winCoins && winCoins.parentNode ? winCoins.parentNode : winOverlay;
+    if (winCoins && parent) parent.insertBefore(starsRow, winCoins);
+    else if (parent) parent.appendChild(starsRow);
   }
 
   function resetStars() {
@@ -137,6 +152,14 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
     if (startBtn) { apply9Slice(startBtn, BTN_BLUE_URL); wireButton(startBtn, onStart); }
     if (nextBtn) { apply9Slice(nextBtn, BTN_BLUE_URL); wireButton(nextBtn, onNext); }
     if (retryBtn) { apply9Slice(retryBtn, BTN_RED_URL); wireButton(retryBtn, onRetry); }
+    for (const btn of loadoutBtns) {
+      btn.onclick = () => {
+        ctx.audio?.unlock();
+        ctx.audio?.play('click');
+        selectLoadout(btn.dataset.loadout);
+      };
+    }
+    selectLoadout(ctx.state.loadout);
   }
 
   function showStart() {
@@ -151,7 +174,7 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
     winElapsed = 0;
     resetStars();
     if (nextBtn) nextBtn.style.setProperty('--btn-pulse', '1');
-    if (winCoins) winCoins.textContent = '+' + gain + ' 🪙';
+    if (winCoins) winCoins.innerHTML = '+' + gain + ' <img class="rewardIcon" src="' + COIN_ICON_URL + '" alt="">';
     if (winOverlay) winOverlay.classList.remove('hidden');
     // Pièces volantes : onTick a été câblé au createFlyingCoins (voir handleCoinTick).
     if (ctx.flyingCoins && typeof ctx.flyingCoins.fly === 'function') {

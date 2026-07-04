@@ -9,6 +9,8 @@ import {
   WAVE_FIRST_DELAY,
   GIANT_MIN_LEVEL,
   GATE_X_MIN_LEVEL,
+  BOSS_LEVEL_INTERVAL,
+  BOSS_HP,
   enemyHpForLevel,
   coinsForLevel,
   wavePeriodForLevel,
@@ -40,14 +42,16 @@ export function createLevels(ctx) {
 
   /** Formules pures dérivées du niveau (constants.js). */
   function configFor(level) {
+    const bossLevel = level % BOSS_LEVEL_INTERVAL === 0;
     return {
-      enemyHpMax: enemyHpForLevel(level),
+      enemyHpMax: enemyHpForLevel(level) + (bossLevel ? BOSS_HP : 0),
       coinGain: coinsForLevel(level),
       wavePeriod: wavePeriodForLevel(level),
       waveSize: waveSizeForLevel(level),
       redSpeed: redSpeedForLevel(level),
       giantAllowed: level >= GIANT_MIN_LEVEL,
       xGateAllowed: level >= GATE_X_MIN_LEVEL,
+      bossLevel,
     };
   }
 
@@ -59,6 +63,7 @@ export function createLevels(ctx) {
     ctx.confetti.reset();
     ctx.floatingText.reset();
     ctx.sys.giants.reset();
+    ctx.sys.champion.reset();
     ctx.sys.heroes.reset();
     ctx.sys.cannon.reset();
     ctx.time.reset();
@@ -66,15 +71,18 @@ export function createLevels(ctx) {
     setGameFilter(''); // retire la désaturation de défaite
 
     state.playerHp = PLAYER_HP_START;
-    state.enemyHpMax = state.enemyHp = enemyHpForLevel(state.level);
+    state.bossLevel = state.level % BOSS_LEVEL_INTERVAL === 0;
+    state.enemyHpMax = state.enemyHp = enemyHpForLevel(state.level) + (state.bossLevel ? BOSS_HP : 0);
     state.waveTimer = WAVE_FIRST_DELAY;
 
     ctx.sys.gates.build(state.level);
+    ctx.sys.obstacles.reset(state.level);
     ctx.sys.base.reset(state.level);
     ctx.sys.hud.refresh();
     ctx.sys.hud.flashLevel();
 
     state.playing = true;
+    if (state.bossLevel) ctx.sys.waves.spawnBoss();
   }
 
   /** Appelé par base APRÈS la séquence de destruction (base a déjà mis state.playing=false). */

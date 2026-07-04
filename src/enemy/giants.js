@@ -31,20 +31,33 @@ export function createGiants(ctx) {
   const _white = new THREE.Color(0xffffff);
   const FACING = UNIT_FACING_FIX + Math.PI; // face +Z (sens de progression du géant)
 
-  function clipByName(name) {
-    const anims = ctx.assets.gltf.maleA.animations || [];
+  function clipByName(gltf, name) {
+    const anims = gltf && gltf.animations ? gltf.animations : [];
     return anims.find((c) => c.name === name) || null;
   }
 
+  function forceFlatColor(root, hex) {
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const list = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of list) {
+        if (m && m.color && !m.map) m.color.setHex(hex);
+      }
+    });
+  }
+
   function makeClone(red) {
-    const root = skeletonClone(ctx.assets.gltf.maleA.scene);
-    retintClone(root, COLORS.red);
+    const sourceGltf = red.boss && ctx.assets.gltf.bossChar ? ctx.assets.gltf.bossChar : ctx.assets.gltf.maleA;
+    const tint = red.boss ? COLORS.gold : COLORS.red;
+    const root = skeletonClone(sourceGltf.scene);
+    retintClone(root, tint);
+    forceFlatColor(root, tint);
 
     // Normalisation hauteur → UNIT_HEIGHT puis échelle géante ; pieds au sol.
     _box.setFromObject(root);
     _box.getSize(_size);
     const nativeH = _size.y || 1;
-    const s = (UNIT_HEIGHT / nativeH) * GIANT_SCALE;
+    const s = (UNIT_HEIGHT / nativeH) * (red.scale || GIANT_SCALE);
     root.scale.setScalar(s);
     const footY = -_box.min.y * s;
     root.position.set(red.x, footY, red.z);
@@ -61,13 +74,13 @@ export function createGiants(ctx) {
 
     // Lunettes attachées au bone 'head'.
     const head = root.getObjectByName('head');
-    if (head && ctx.assets.gltf.sunglasses) {
+    if (head && ctx.assets.gltf.sunglasses && !red.boss) {
       head.add(skeletonClone(ctx.assets.gltf.sunglasses.scene));
     }
 
     const mixer = new THREE.AnimationMixer(root);
     let action = null;
-    const sprint = clipByName('sprint');
+    const sprint = clipByName(sourceGltf, 'sprint');
     if (sprint) {
       action = mixer.clipAction(sprint);
       action.timeScale = 0.7;
@@ -133,7 +146,8 @@ export function createGiants(ctx) {
       entry.dying = true;
       entry.dieTimer = 0;
       if (entry.action) entry.action.stop();
-      const dieClip = clipByName('die');
+      const sourceGltf = red.boss && ctx.assets.gltf.bossChar ? ctx.assets.gltf.bossChar : ctx.assets.gltf.maleA;
+      const dieClip = clipByName(sourceGltf, 'die');
       if (dieClip) {
         const die = entry.mixer.clipAction(dieClip);
         die.reset();
@@ -145,7 +159,7 @@ export function createGiants(ctx) {
     }
     ctx.time.pulse(HITSTOP_GIANT.scale, HITSTOP_GIANT.dur); // SEUL hit-stop du jeu
     ctx.cameraRig.addTrauma(TRAUMA.giantDeath);
-    ctx.particles.burst(red.x, 1.2, red.z, { color: COLORS.red, shape: 'star', count: 4 });
+    ctx.particles.burst(red.x, 1.2, red.z, { color: red.boss ? COLORS.gold : COLORS.red, shape: 'star', count: red.boss ? 8 : 4 });
   }
 
   function reset() {

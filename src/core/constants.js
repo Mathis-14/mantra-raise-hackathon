@@ -28,6 +28,12 @@ export const FIRE_SPAWN_DZ    = 1.2;               // spawn à PLAYER_Z - 1.2
 export const BARREL_PUNCH     = 1.25;              // scale au tir
 export const BARREL_RETURN_K  = 10;                // lerp retour min(1, dt*10)
 export const BARREL_RECOIL    = 0.3;               // recul spring du fût (spec 5.1), en u
+export const LOADOUT_DEFAULT  = 'single';
+export const LOADOUTS = Object.freeze({
+  single: Object.freeze({ fireDelay: FIRE_DELAY, offsets: Object.freeze([0]) }),
+  double: Object.freeze({ fireDelay: 0.19, offsets: Object.freeze([-0.32, 0.32]) }),
+  triple: Object.freeze({ fireDelay: 0.25, offsets: Object.freeze([-0.46, 0, 0.46]) }),
+});
 
 // niveaux (formules — fonctions pures)
 export const enemyHpForLevel    = (lv) => 40 + lv * 15;
@@ -45,9 +51,31 @@ export const GIANT_SPEED       = 2.2;
 export const GIANT_LINE_DAMAGE = 3;
 export const GIANT_SCALE       = 2.1;
 
+// boss
+export const BOSS_LEVEL_INTERVAL = 3;
+export const BOSS_HP          = 24;
+export const BOSS_SPEED       = 1.55;
+export const BOSS_LINE_DAMAGE = 5;
+export const BOSS_SCALE       = 3.0;
+export const BOSS_RADIUS      = 1.65;
+export const BOSS_SPAWN_Z     = BASE_Z + 3.4;
+
 // collisions
 export const UNIT_RADIUS  = 0.7;
 export const GIANT_RADIUS = 1.1;
+
+// champion bleu
+export const CHAMPION_MAX           = 100;
+export const CHAMPION_PASSIVE_RATE  = 7;
+export const CHAMPION_KILL_CHARGE   = 8;
+export const CHAMPION_GIANT_CHARGE  = 20;
+export const CHAMPION_BOSS_CHARGE   = 35;
+export const CHAMPION_HP            = 8;
+export const CHAMPION_DAMAGE        = 2;
+export const CHAMPION_BASE_DAMAGE   = 10;
+export const CHAMPION_SPEED         = 7.4;
+export const CHAMPION_SCALE         = 2.45;
+export const CHAMPION_RADIUS        = 1.25;
 
 // portes
 export const GATE_ROWS_Z      = Object.freeze([7, -5]);
@@ -59,6 +87,20 @@ export const GATE_CLONE_JITTER_X = 0.6;   // ±0.6  ((Math.random()-0.5)*1.2)
 export const GATE_CLONE_BACK_Z   = 0.5;   // z - Math.random()*0.5
 export const GATE_FLASH_DUR   = 0.1;      // flash panneau ×2, 100 ms
 export const GATE_PUNCH_DUR   = 0.25;     // punch texte 1→1.3→1
+export const GATE_CHAIN_MIN_LEVEL = 2;
+export const GATE_ADVANCED_MIN_LEVEL = 4;
+export const GATE_CHAIN_PROBA = 0.65;
+
+// obstacles / boost
+export const OBSTACLE_MIN_LEVEL     = 2;
+export const OBSTACLE_HIT_RADIUS    = 0.82;
+export const OBSTACLE_SAW_RADIUS    = 1.0;
+export const OBSTACLE_SPIKE_RADIUS  = 0.9;
+export const BOOST_MIN_LEVEL        = 2;
+export const BOOST_ZONE_HALF_W      = 1.45;
+export const BOOST_ZONE_DEPTH       = 2.0;
+export const BOOST_SPEED_MULT       = 1.75;
+export const BOOST_DURATION         = 1.0;
 
 // caméra
 export const CAM = Object.freeze({ fov: 55, near: 0.1, far: 200,
@@ -71,7 +113,8 @@ export const TRAUMA = Object.freeze({ decay: 1.5, maxOffset: 0.5, maxRoll: 0.06,
 export const COLORS = Object.freeze({
   bg: 0x2B1D6B, track: 0xEDE7FF, rail: 0x7C5CFF, dash: 0xCFC2FF,
   blue: 0x38B6FF, blueDark: 0x2D7DFF, red: 0xFF4D6D, redDark: 0xD63354,
-  gold: 0xFFD54A, gateGood: 0x00E5FF, gateBad: 0xFF3C5A,
+  gold: 0xFFD54A, yellow: 0xFFE66D, green: 0x45E28D, steel: 0x7C8A99,
+  gateGood: 0x00E5FF, gateBad: 0xFF3C5A,
 });
 export const FOG = Object.freeze({ color: 0x2B1D6B, near: 55, far: 90 });
 export const LIGHTS = Object.freeze({

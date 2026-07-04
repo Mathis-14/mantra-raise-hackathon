@@ -14,6 +14,8 @@ import {
   BARREL_PUNCH,
   BARREL_RETURN_K,
   BARREL_RECOIL,
+  LOADOUTS,
+  LOADOUT_DEFAULT,
   COLORS,
 } from '../core/constants.js';
 import { protoLerp, spring, clamp } from '../juice/springs.js';
@@ -40,6 +42,7 @@ const MICRO_AMP = 0.05;          // amplitude du micro-tremblement du canon au t
 const MICRO_DECAY = 9;           // décroissance du micro-tremblement (/s)
 const BARREL_SPRING_STIFF = 120; // recul du fût — raideur du ressort
 const BARREL_SPRING_DAMP = 18;   // recul du fût — amortissement
+const SIDE_BARREL_X = 0.52;      // écart visuel des canons latéraux (présentation loadout)
 
 export function createCannon(ctx) {
   const { scene } = ctx;
@@ -98,6 +101,18 @@ export function createCannon(ctx) {
   muzzlePoint.position.set(0, 0, muzzleLocalZ);
   barrelPivot.add(muzzlePoint);
 
+  const leftBarrel = barrelModel.clone(true);
+  leftBarrel.position.copy(barrelModel.position);
+  leftBarrel.position.x -= SIDE_BARREL_X;
+  leftBarrel.visible = false;
+  barrelPivot.add(leftBarrel);
+
+  const rightBarrel = barrelModel.clone(true);
+  rightBarrel.position.copy(barrelModel.position);
+  rightBarrel.position.x += SIDE_BARREL_X;
+  rightBarrel.visible = false;
+  barrelPivot.add(rightBarrel);
+
   scene.add(group);
 
   // --- État interne (jamais dans state) ---
@@ -109,6 +124,17 @@ export function createCannon(ctx) {
   function applyBarrel() {
     barrelPivot.scale.setScalar(barrelScale);
     barrelPivot.position.set(0, BARREL_Y, BARREL_PIVOT_Z + recoil.x);
+  }
+
+  function currentLoadout() {
+    return LOADOUTS[ctx.state.loadout] || LOADOUTS[LOADOUT_DEFAULT];
+  }
+
+  function applyLoadoutVisual() {
+    const mode = LOADOUTS[ctx.state.loadout] ? ctx.state.loadout : LOADOUT_DEFAULT;
+    barrelModel.visible = mode !== 'double';
+    leftBarrel.visible = mode !== 'single';
+    rightBarrel.visible = mode !== 'single';
   }
 
   return {
@@ -149,6 +175,7 @@ export function createCannon(ctx) {
 
     update(dt, t) {
       const state = ctx.state;
+      applyLoadoutVisual();
 
       // Respiration idle — TOUJOURS (spec 5.8), même hors partie.
       group.scale.set(1, 1 + BREATH_AMP * Math.sin(t * BREATH_W), 1);
@@ -173,10 +200,13 @@ export function createCannon(ctx) {
       // Tir maintenu à cadence FIRE_DELAY.
       state.fireTimer -= dt;
       if (state.holding && state.fireTimer <= 0) {
-        state.fireTimer = FIRE_DELAY;
-        // jitter x ±FIRE_JITTER_X (équivaut au proto (rand-0.5)*0.5, distribution ±0.25).
-        const jx = (Math.random() * 2 - 1) * FIRE_JITTER_X;
-        ctx.sys.crowd.spawnBlue(state.cannonX + jx, PLAYER_Z - FIRE_SPAWN_DZ);
+        const loadout = currentLoadout();
+        state.fireTimer = loadout.fireDelay || FIRE_DELAY;
+        for (const off of loadout.offsets) {
+          // jitter x ±FIRE_JITTER_X (équivaut au proto (rand-0.5)*0.5, distribution ±0.25).
+          const jx = (Math.random() * 2 - 1) * FIRE_JITTER_X;
+          ctx.sys.crowd.spawnBlue(state.cannonX + off + jx, PLAYER_Z - FIRE_SPAWN_DZ);
+        }
 
         // Juice 5.1 : punch du fût, recul spring, micro-tremble, muzzle flash, son.
         barrelScale = BARREL_PUNCH;
@@ -184,9 +214,11 @@ export function createCannon(ctx) {
         microTrauma = 1;
         applyBarrel();
 
-        muzzlePoint.updateWorldMatrix(true, false);
-        muzzlePoint.getWorldPosition(tmpVec);
-        ctx.particles.muzzle(tmpVec.x, tmpVec.y, tmpVec.z);
+        for (const off of loadout.offsets) {
+          tmpVec.set(off, 0, muzzleLocalZ);
+          barrelPivot.localToWorld(tmpVec);
+          ctx.particles.muzzle(tmpVec.x, tmpVec.y, tmpVec.z);
+        }
 
         ctx.audio.play('shoot', { rateJitter: 0.1 });
       }

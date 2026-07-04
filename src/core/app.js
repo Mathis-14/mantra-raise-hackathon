@@ -15,12 +15,14 @@ import { createVignette } from '../juice/vignette.js';
 import { createFlyingCoins } from '../ui/flying-coins.js';
 import { createCannon } from '../crowd/cannon.js';
 import { createCrowd } from '../crowd/crowd.js';
+import { createChampion } from '../crowd/champion.js';
 import { createHeroes } from '../crowd/heroes.js';
 import { createGates } from '../gates/gates.js';
 import { createWaves } from '../enemy/waves.js';
 import { createGiants } from '../enemy/giants.js';
 import { createBase } from '../enemy/base.js';
 import { createLevels } from '../levels/levels.js';
+import { createObstacles } from '../levels/obstacles.js';
 import { createHud } from '../ui/hud.js';
 import { createOverlays } from '../ui/overlays.js';
 
@@ -37,6 +39,11 @@ const ASSET_URLS = {
   maleE: `${MC}/character-male-e.glb`,
   sunglasses: `${MC}/aid-sunglasses.glb`,
   blaster: `${BK}/blaster-b.glb`,
+  bossChar: `${PK}/character-oozi.glb`,
+  saw: `${PK}/saw.glb`,
+  trapSpikes: `${PK}/trap-spikes.glb`,
+  trapSpikesLarge: `${PK}/trap-spikes-large.glb`,
+  conveyor: `${PK}/conveyor-belt.glb`,
   blockTall: `${PK}/block-grass-large-tall.glb`,
   blockLow: `${PK}/block-grass-low-large.glb`,
   flag: `${PK}/flag.glb`,
@@ -160,10 +167,12 @@ export async function createApp({ container = document.getElementById('game') } 
 
   // 5. état (CONTRACT §2)
   const state = {
-    level: 1, coins: 0, playerHp: C.PLAYER_HP_START,
-    enemyHp: 50, enemyHpMax: 50, playing: false,
+    level: 1, coins: 0, gems: 0, playerHp: C.PLAYER_HP_START,
+    enemyHp: 50, enemyHpMax: 50, playing: false, bossLevel: false, bossSpawned: false, bossDefeated: false,
+    loadout: C.LOADOUT_DEFAULT,
+    championCharge: 0, championReady: false, championActive: false,
     fireTimer: 0, waveTimer: 0, holding: false, cannonX: 0, targetX: 0,
-    blues: [], reds: [], gates: [], pops: particles.pops, // alias (A4)
+    blues: [], reds: [], champions: [], gates: [], obstacles: [], boosts: [], pops: particles.pops, // alias (A4)
   };
 
   // 6. contexte partagé (CONTRACT §4)
@@ -184,15 +193,21 @@ export async function createApp({ container = document.getElementById('game') } 
   // 7. systèmes → ctx.sys (aucune interaction inter-système avant que ctx.sys soit complet)
   ctx.sys.cannon = createCannon(ctx);
   ctx.sys.crowd = createCrowd(ctx);
+  ctx.sys.champion = createChampion(ctx);
   ctx.sys.heroes = createHeroes(ctx);
   ctx.sys.gates = createGates(ctx);
+  ctx.sys.obstacles = createObstacles(ctx);
   ctx.sys.waves = createWaves(ctx);
   ctx.sys.giants = createGiants(ctx);
   ctx.sys.base = createBase(ctx);
   ctx.sys.levels = createLevels(ctx);
   ctx.sys.hud = createHud(ctx);
   ctx.sys.overlays = createOverlays(ctx, {
-    onStart: () => { ctx.sys.hud.showGameHud(); ctx.sys.levels.startLevel(); },
+    onStart: () => {
+      ctx.sys.overlays.hideAll();
+      ctx.sys.hud.showGameHud();
+      ctx.sys.levels.startLevel();
+    },
     onNext: () => ctx.sys.levels.next(),
     onRetry: () => ctx.sys.levels.retry(),
   });
@@ -200,6 +215,7 @@ export async function createApp({ container = document.getElementById('game') } 
   // 8. inputs + overlays
   ctx.sys.cannon.attachInput(renderer.domElement);
   ctx.sys.overlays.bind();
+  ctx.sys.hud.bindChampion(() => ctx.sys.champion.release());
 
   if (isDebug) window.__MOB__ = ctx;
 
@@ -232,14 +248,16 @@ export async function createApp({ container = document.getElementById('game') } 
     // ordre d'update CONTRACT §7.2 ; steps 2-7 re-testent state.playing (parité returns proto)
     ctx.sys.cannon.update(dt, t);                                    // 2 (tir gated interne ; respiration toujours)
     if (state.playing) ctx.sys.waves.spawnStep(dt);                 // 3
-    if (state.playing) { ctx.sys.crowd.moveStep(dt, t); ctx.sys.gates.crossStep(dt, t); } // 4
+    if (state.playing) { ctx.sys.crowd.moveStep(dt, t); ctx.sys.gates.crossStep(dt, t); ctx.sys.obstacles.hitStep(dt, t); } // 4
     if (state.playing) ctx.sys.base.impactStep(dt, t);              // 5
     if (state.playing) ctx.sys.waves.moveStep(dt, t);               // 6
     if (state.playing) ctx.sys.waves.collideStep();                 // 7
 
+    ctx.sys.champion.update(dt, t);
     ctx.sys.giants.update(dt, t);                                   // 8 (toujours)
     // 9 juice (toujours)
     ctx.sys.gates.update(dt, t);
+    ctx.sys.obstacles.update(dt, t);
     ctx.sys.base.update(dt, t);
     particles.update(dt);
     confetti.update(dt);
@@ -266,9 +284,9 @@ export async function createApp({ container = document.getElementById('game') } 
     if (dbgEl) {
       dbgEl.textContent =
         `playing=${state.playing} t=${t.toFixed(2)} dt=${dt.toFixed(3)}\n` +
-        `blues=${state.blues.length} reds=${state.reds.length} gates=${state.gates.length}\n` +
+        `blues=${state.blues.length} reds=${state.reds.length} champs=${state.champions.length} gates=${state.gates.length}\n` +
         `cannonX=${state.cannonX.toFixed(2)} targetX=${state.targetX.toFixed(2)} fireT=${state.fireTimer.toFixed(2)} hold=${state.holding}\n` +
-        `bakedVerts=${bakedVerts} hp=${state.enemyHp}/${state.enemyHpMax} pHp=${state.playerHp}`;
+        `bakedVerts=${bakedVerts} hp=${state.enemyHp}/${state.enemyHpMax} pHp=${state.playerHp} champ=${state.championCharge.toFixed(0)}`;
     }
   }
 

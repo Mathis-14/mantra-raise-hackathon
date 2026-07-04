@@ -9,6 +9,9 @@ import {
   GATE_WIDTH,
   GATE_X_MIN_LEVEL,
   GATE_X_PROBA,
+  GATE_CHAIN_MIN_LEVEL,
+  GATE_ADVANCED_MIN_LEVEL,
+  GATE_CHAIN_PROBA,
   GATE_CLONE_JITTER_X,
   GATE_CLONE_BACK_Z,
   GATE_FLASH_DUR,
@@ -35,7 +38,7 @@ const PANEL_PULSE_FREQ = 2;    // rad/s (respiration lente)
 
 /**
  * Panneau de porte en CanvasTexture (parité `gateTexture` du prototype).
- * @param {'x2'|'x3'|'✕'} txt texte à peindre
+ * @param {string} txt texte à peindre
  * @param {boolean} good porte bénéfique (teinte cyan) vs piège ✕ (teinte rouge)
  * @returns {THREE.CanvasTexture}
  */
@@ -129,16 +132,40 @@ export function createGates(ctx) {
   }
 
   /** Parité buildGates : clear(), puis 2 portes par rangée avec ops mélangées + règle ✕. */
+  function goodOpsForLevel(level) {
+    const ops = ['x2', 'x3'];
+    if (level >= GATE_ADVANCED_MIN_LEVEL) ops.push('x4');
+    if (level >= GATE_ADVANCED_MIN_LEVEL + 1) ops.push('x5');
+    if (level >= GATE_ADVANCED_MIN_LEVEL + 3) ops.push('x7');
+    if (level >= GATE_ADVANCED_MIN_LEVEL + 5) ops.push('x10');
+    return ops;
+  }
+
+  function pickOp(level) {
+    const ops = goodOpsForLevel(level);
+    return ops[Math.floor(Math.random() * ops.length)];
+  }
+
   function build(level) {
     clear();
     for (const z of GATE_ROWS_Z) {
-      const ops = Math.random() < 0.5 ? ['x2', 'x3'] : ['x3', 'x2'];
+      const ops = [pickOp(level), pickOp(level)];
       if (level >= GATE_X_MIN_LEVEL && Math.random() < GATE_X_PROBA) {
         ops[Math.floor(Math.random() * 2)] = 'X';
       }
       makeGate(-GATE_OFFSET_X, z, ops[0]);
       makeGate(+GATE_OFFSET_X, z, ops[1]);
     }
+    if (level >= GATE_CHAIN_MIN_LEVEL && Math.random() < GATE_CHAIN_PROBA) {
+      makeGate(0, 13, '+1');
+      if (level >= GATE_ADVANCED_MIN_LEVEL + 1) makeGate(0, -15, '+2');
+    }
+  }
+
+  function clonesForOp(op) {
+    if (op[0] === '+') return Math.max(1, parseInt(op.slice(1), 10) || 1);
+    if (op[0] === 'x') return Math.max(1, (parseInt(op.slice(1), 10) || 2) - 1);
+    return 0;
   }
 
   /**
@@ -160,7 +187,7 @@ export function createGates(ctx) {
             ctx.audio.play('gateBad');
             break; // parité proto : le piège consomme l'unité et stoppe l'examen des autres portes
           }
-          const clones = g.op === 'x3' ? 2 : 1;
+          const clones = clonesForOp(g.op);
           for (let c = 0; c < clones; c++) {
             ctx.sys.crowd.spawnBlue(
               u.x + (Math.random() - 0.5) * (GATE_CLONE_JITTER_X * 2),
@@ -172,7 +199,7 @@ export function createGates(ctx) {
           g.flashT = GATE_FLASH_DUR;
           g.punchT = GATE_PUNCH_DUR;
           ctx.particles.ring(g.x, g.z, COLORS.gateGood);
-          ctx.floatingText.spawn(g.op === 'x3' ? '+2' : '+1', u.x, FLOAT_TEXT_Y, g.z);
+          ctx.floatingText.spawn('+' + clones, u.x, FLOAT_TEXT_Y, g.z);
           ctx.audio.synth?.ding();
           // pas de break : parité proto (une unité peut théoriquement recouper une 2e porte)
         }

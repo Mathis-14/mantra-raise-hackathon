@@ -5,7 +5,7 @@
 //                               enemyHp playerHp hint levelFlash levelFlashTxt.
 // Aucun effet de bord à l'import.
 
-import { LEVEL_FLASH_DUR, GHOST_DELAY } from '../core/constants.js';
+import { LEVEL_FLASH_DUR, GHOST_DELAY, CHAMPION_MAX, LOADOUTS, LOADOUT_DEFAULT } from '../core/constants.js';
 import { damp, clamp01 } from '../juice/springs.js';
 
 // --- Constantes de présentation locales (timings/échelles d'anim DOM, hors gameplay :
@@ -14,9 +14,12 @@ const COIN_PUNCH_SCALE = 1.25;  // échelle du punch du compteur de pièces (spe
 const COIN_PUNCH_S     = 0.2;   // durée (s) de la transition CSS retour 1.25 → 1
 const GHOST_LAMBDA     = 8;     // λ du damp du ghost fill vers enemyFill (spec §6.9)
 
-const GAME_HUD_IDS = ['enemyHp', 'playerHp', 'hint'];
+const GAME_HUD_IDS = ['enemyHp', 'playerHp', 'championHud'];
+const COIN_ICON = '/models/platformer-kit/Previews/coin-gold.png';
+const GEM_ICON = '/models/platformer-kit/Previews/jewel.png';
 
 const $ = (id) => document.getElementById(id);
+const iconValue = (src, value) => '<img class="hudIcon" src="' + src + '" alt="">' + Math.round(value);
 
 /**
  * @param {object} ctx — contexte partagé (CONTRACT §4) ; on n'utilise que ctx.state.
@@ -32,9 +35,17 @@ export function createHud(ctx) {
   const el = {
     levelPill:    $('levelPill'),
     coinPill:     $('coinPill'),
+    gemPill:      $('gemPill'),
+    loadoutPill:  $('loadoutPill'),
     playerHpVal:  $('playerHpVal'),
     enemyFill:    $('enemyFill'),
     enemyGhost:   $('enemyGhost'),
+    enemyHpText:  $('enemyHpText'),
+    enemyName:    $('enemyName'),
+    enemyLvl:     $('enemyLvl'),
+    championFill: $('championFill'),
+    championLabel: $('championLabel'),
+    releaseBtn:   $('releaseBtn'),
     levelFlash:   $('levelFlash'),
     levelFlashTxt: $('levelFlashTxt'),
   };
@@ -50,8 +61,16 @@ export function createHud(ctx) {
 
   function refresh() {
     if (el.levelPill) el.levelPill.textContent = 'NIV ' + state.level;
-    if (el.coinPill) el.coinPill.textContent = '🪙 ' + Math.round(displayedCoins);
+    if (el.coinPill) el.coinPill.innerHTML = iconValue(COIN_ICON, displayedCoins);
+    if (el.gemPill) el.gemPill.innerHTML = iconValue(GEM_ICON, state.gems || 0);
+    if (el.loadoutPill) {
+      const mode = LOADOUTS[state.loadout] ? state.loadout : LOADOUT_DEFAULT;
+      el.loadoutPill.textContent = mode === 'triple' ? '3x' : (mode === 'double' ? '2x' : '1x');
+    }
     if (el.playerHpVal) el.playerHpVal.textContent = state.playerHp;
+    if (el.enemyName) el.enemyName.textContent = state.bossLevel ? 'KILL BOSS' : 'BASE ENNEMIE';
+    if (el.enemyLvl) el.enemyLvl.textContent = 'LVL ' + state.level;
+    if (el.enemyHpText) el.enemyHpText.textContent = formatHp(state.enemyHp);
     // Parité refreshUI : largeur du fill = max(0, hp/hpMax*100)%. Ne touche PAS le ghost.
     if (el.enemyFill) {
       el.enemyFill.style.width = Math.max(0, (state.enemyHp / state.enemyHpMax) * 100) + '%';
@@ -82,7 +101,23 @@ export function createHud(ctx) {
 
   function setDisplayedCoins(v) {
     displayedCoins = v;
-    if (el.coinPill) el.coinPill.textContent = '🪙 ' + Math.round(displayedCoins);
+    if (el.coinPill) el.coinPill.innerHTML = iconValue(COIN_ICON, displayedCoins);
+  }
+
+  function formatHp(value) {
+    const v = Math.max(0, Math.round(value || 0));
+    if (v >= 1000) return (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'K';
+    return String(v);
+  }
+
+  function bindChampion(onRelease) {
+    if (!el.releaseBtn) return;
+    el.releaseBtn.onclick = () => {
+      if (!state.championReady) return;
+      ctx.audio?.unlock();
+      ctx.audio?.play('click');
+      if (typeof onRelease === 'function') onRelease();
+    };
   }
 
   function showGameHud() {
@@ -114,7 +149,15 @@ export function createHud(ctx) {
     prevFill = fill;
 
     if (el.enemyGhost) el.enemyGhost.style.width = (ghostRatio * 100) + '%';
+
+    const champRatio = clamp01((state.championCharge || 0) / CHAMPION_MAX);
+    if (el.championFill) el.championFill.style.width = (champRatio * 100) + '%';
+    if (el.championLabel) el.championLabel.textContent = state.championReady ? 'CHAMPION PRÊT' : 'CHAMPION';
+    if (el.releaseBtn) {
+      el.releaseBtn.disabled = !state.championReady;
+      el.releaseBtn.classList.toggle('ready', !!state.championReady);
+    }
   }
 
-  return { refresh, flashLevel, punchCoins, setDisplayedCoins, showGameHud, hideGameHud, update };
+  return { refresh, flashLevel, punchCoins, setDisplayedCoins, bindChampion, showGameHud, hideGameHud, update };
 }

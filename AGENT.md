@@ -49,4 +49,4 @@ Relire `INTEGRATION.md` et le code contre `PLAN.md` et la spec. Tester mentaleme
 - Ne jamais dégrader une feature du prototype pour gagner du temps : la parité est le plancher, pas l'objectif.
 - Tout asset utilisé doit provenir de `./assets/` (tout est CC0) ; aucun téléchargement externe, aucun asset inventé.
 - Commits atomiques par tâche, messages en français, préfixés `[plan]` ou `[integ]`.
-- En cas de doute entre deux interprétations : choisir celle du prototype, et noter le doute dans le rapport de phase.
+- En cas de doute entre deux interprétations : choisir celle du prototype, et noter le doute dans le rapport de phase.;
