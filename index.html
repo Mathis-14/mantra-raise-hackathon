@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -86,7 +86,7 @@
 
 <div id="topbar" class="hud">
   <div class="topGroup">
-    <div class="pill" id="levelPill">NIV 1</div>
+    <div class="pill" id="levelPill">LVL 1</div>
     <div class="pill" id="loadoutPill">1x</div>
   </div>
   <div class="topGroup">
@@ -95,11 +95,11 @@
   </div>
 </div>
 <div id="enemyHp" class="hud hidden">
-  <div class="label"><span id="enemyName">BASE ENNEMIE</span><span id="enemyLvl">LVL 1</span></div>
+  <div class="label"><span id="enemyName">ENEMY BASE</span><span id="enemyLvl">LVL 1</span></div>
   <div id="enemyBar"><div id="enemyGhost"></div><div id="enemyFill"></div><div id="enemyHpText">50</div></div>
 </div>
 <div id="playerHp" class="hud hidden">🛡️ <span id="playerHpVal">10</span></div>
-<div id="hint" class="hud hidden">👆 Maintiens et glisse pour viser</div>
+<div id="hint" class="hud hidden">👆 Hold and drag to aim</div>
 <div id="championHud" class="hud hidden">
   <div id="championPanel">
     <div id="championLabel">CHAMPION</div>
@@ -107,28 +107,28 @@
   </div>
   <button id="releaseBtn" disabled>RELEASE</button>
 </div>
-<div id="levelFlash"><span id="levelFlashTxt">NIVEAU 1</span></div>
+<div id="levelFlash"><span id="levelFlashTxt">LEVEL 1</span></div>
 <div id="dangerVignette"></div>
 
 <div id="startOverlay" class="overlay">
   <h1>MOB&nbsp;RUSH</h1>
-  <p>Envoie ta foule bleue à travers les portes multiplicatrices et détruis la base rouge !</p>
-  <div class="loadoutSelect" aria-label="Choix du canon">
+  <p>Send your blue crowd through the multiplier gates and destroy the red base!</p>
+  <div class="loadoutSelect" aria-label="Cannon choice">
     <button class="loadoutBtn selected" data-loadout="single">1x</button>
     <button class="loadoutBtn" data-loadout="double">2x</button>
     <button class="loadoutBtn" data-loadout="triple">3x</button>
   </div>
-  <button class="btn" id="startBtn">JOUER</button>
+  <button class="btn" id="startBtn">PLAY</button>
 </div>
 <div id="winOverlay" class="overlay hidden">
-  <h1>VICTOIRE ! 🎉</h1>
+  <h1>VICTORY! 🎉</h1>
   <p class="coins" id="winCoins">+0 <img class="rewardIcon" src="/models/platformer-kit/Previews/coin-gold.png" alt=""></p>
-  <button class="btn" id="nextBtn">NIVEAU SUIVANT</button>
+  <button class="btn" id="nextBtn">NEXT LEVEL</button>
 </div>
 <div id="loseOverlay" class="overlay hidden">
-  <h1>DÉFAITE 💥</h1>
-  <p>Les rouges ont franchi ta ligne…</p>
-  <button class="btn" id="retryBtn">RÉESSAYER</button>
+  <h1>DEFEAT 💥</h1>
+  <p>The reds crossed your line…</p>
+  <button class="btn" id="retryBtn">RETRY</button>
 </div>
 
 <script type="module" src="/src/main.js"></script>
