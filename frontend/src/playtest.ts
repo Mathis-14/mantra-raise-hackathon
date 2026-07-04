@@ -82,11 +82,25 @@ function tickGame() {
   // Scroll road
   gs.roadOffset = (gs.roadOffset + speed) % 60
 
-  // Move obstacles
-  for (const ob of gs.obstacles) ob.y += speed
-  // Recycle off-screen
+  // Move obstacles + deflect if they would hit the car
+  const carY = h * 0.72
   for (const ob of gs.obstacles) {
-    if (ob.y > h + 30) { ob.y = -100 - Math.random() * 200; ob.lane = Math.floor(Math.random() * 3); ob.hit = false }
+    ob.y += speed
+    // If this obstacle is in the car's lane and approaching the car zone, push it to a free lane
+    if (!ob.hit && ob.lane === gs.carLane && ob.y > carY - 90 && ob.y < carY + 10) {
+      const freeLanes = [0, 1, 2].filter(l => l !== gs.carLane)
+      ob.lane = freeLanes[Math.floor(Math.random() * freeLanes.length)]
+    }
+  }
+  // Recycle off-screen — never spawn in the car's current lane if another obstacle is already close above
+  for (const ob of gs.obstacles) {
+    if (ob.y > h + 30) {
+      ob.y = -120 - Math.random() * 180
+      // Pick a lane different from current car lane to avoid instant collision
+      const safeLanes = [0, 1, 2].filter(l => l !== gs.carLane)
+      ob.lane = safeLanes[Math.floor(Math.random() * safeLanes.length)]
+      ob.hit = false
+    }
   }
   for (const bn of gs.bonuses) bn.y += speed
 
@@ -170,7 +184,6 @@ function tickGame() {
   }
 
   // Car (white/blue)
-  const carY = h * 0.72
   ctx.save()
   ctx.shadowColor = gs.boost ? 'rgba(37,99,235,0.9)' : 'rgba(200,220,255,0.4)'
   ctx.shadowBlur = gs.boost ? 20 : 8
@@ -219,6 +232,7 @@ export function renderPlaytest(root: HTMLElement) {
 
   root.innerHTML = `
     <div class="shell">
+      <button class="back-fab" id="back-btn" title="Back">←</button>
       <nav class="shell-nav">
         <a href="#" class="logo">mantra<span class="dot">.</span></a>
         <div class="breadcrumb">
@@ -226,7 +240,6 @@ export function renderPlaytest(root: HTMLElement) {
           <span class="bc-sep">›</span>
           <span class="bc-next">02 Pipeline</span>
         </div>
-        <button class="btn-ghost-sm" id="back-btn">← Back</button>
       </nav>
 
       <div class="playtest-layout">

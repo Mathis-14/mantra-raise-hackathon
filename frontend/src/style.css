@@ -263,18 +263,29 @@ a.logo {
 .bc-next { color: var(--text-faint); }
 .bc-sep  { color: var(--border-strong); }
 
-.btn-ghost-sm {
-  font-size: 13px;
+.back-fab {
+  position: fixed;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-md);
+  font-size: 16px;
   color: var(--text-muted);
-  background: none;
-  border: none;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.13s, color 0.13s, box-shadow 0.13s;
   font-family: var(--font);
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 0.13s, color 0.13s;
 }
-.btn-ghost-sm:hover { background: var(--bg-subtle); color: var(--text); }
+.back-fab:hover { color: var(--text); background: #fff; box-shadow: var(--shadow-lg); }
 
 .col-title {
   font-size: 11px;

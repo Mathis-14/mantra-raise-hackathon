@@ -18,14 +18,14 @@ const PIPELINE_NODES = [
 export function renderPipeline(root: HTMLElement) {
   root.innerHTML = `
     <div class="shell">
+      <button class="back-fab" id="back-btn" title="Back to Playtest">←</button>
       <nav class="shell-nav">
         <a href="#" class="logo">mantra<span class="dot">.</span></a>
         <div class="breadcrumb">
-          <span class="bc-done" data-href="#playtest">01 Playtest</span>
+          <span class="bc-done">01 Playtest</span>
           <span class="bc-sep">›</span>
           <span class="bc-done active">02 Pipeline</span>
         </div>
-        <button class="btn-ghost-sm" id="back-btn">← Playtest</button>
       </nav>
 
       <div class="pipeline-layout">
