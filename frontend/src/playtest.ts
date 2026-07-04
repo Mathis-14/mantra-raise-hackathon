@@ -245,10 +245,15 @@ export function renderPlaytest(root: HTMLElement) {
             <div class="panel-title">Agent log</div>
             <div class="log-list" id="log-list"></div>
           </div>
-          <div class="panel-section" id="report-section" style="display:none">
-            <div class="panel-title">Playtest report</div>
-            <div class="report-list" id="report-list"></div>
-            <button class="btn btn-primary btn-full" id="next-btn">Generate creatives →</button>
+          <div class="panel-section" id="next-section" style="display:none">
+            <button class="btn-generate" id="next-btn">
+              <span class="btn-generate-icon">🎬</span>
+              <span class="btn-generate-text">
+                <span class="btn-generate-title">Generate creatives</span>
+                <span class="btn-generate-sub">4 variants · Veo · Google Ads</span>
+              </span>
+              <span class="btn-generate-arrow">→</span>
+            </button>
           </div>
         </div>
       </div>
@@ -262,8 +267,7 @@ export function renderPlaytest(root: HTMLElement) {
   const clickRing   = document.getElementById('click-ring')!
   const actionLabel = document.getElementById('action-label')!
   const logList     = document.getElementById('log-list')!
-  const reportSec   = document.getElementById('report-section')!
-  const reportList  = document.getElementById('report-list')!
+  const nextSection = document.getElementById('next-section')!
   const canvas      = document.getElementById('fake-game') as HTMLCanvasElement
 
   startCarGame(canvas)
@@ -302,21 +306,8 @@ export function renderPlaytest(root: HTMLElement) {
 
   const lastT = STEPS[STEPS.length - 1].t
   setTimeout(() => {
-    actionLabel.textContent = 'Session complete — generating report'
-    reportSec.style.display = 'flex'
-    REPORT.forEach((r, i) => {
-      setTimeout(() => {
-        const el = document.createElement('div')
-        el.className = 'report-row'
-        el.innerHTML = `
-          <span class="r-icon">${r.icon}</span>
-          <span class="r-label">${r.label}</span>
-          <span class="r-value">${r.value}</span>
-          <span class="r-note">${r.note}</span>
-        `
-        reportList.appendChild(el)
-      }, i * 180)
-    })
+    actionLabel.textContent = 'Session complete — ready to generate'
+    nextSection.style.display = 'flex'
   }, lastT + 600)
 }
 
