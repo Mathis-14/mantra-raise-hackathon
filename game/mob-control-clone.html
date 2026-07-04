@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MOB RUSH — clone Mob Control</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#1a1240;
+    font-family:'Arial Rounded MT Bold','Helvetica Rounded',ui-rounded,'Nunito',Arial,sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none; }
+  #game { position:fixed; inset:0; }
+  .hud { position:fixed; z-index:10; color:#fff; pointer-events:none;
+    text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #topbar { top:0; left:0; right:0; display:flex; justify-content:space-between;
+    align-items:flex-start; padding:14px 16px; }
+  .pill { background:rgba(20,12,60,.55); border-radius:999px; padding:8px 16px;
+    font-size:17px; font-weight:bold; backdrop-filter:blur(4px); }
+  #enemyHp { position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    text-align:center; z-index:10; pointer-events:none; }
+  #enemyHp .label { font-size:11px; letter-spacing:2px; color:#ffb3c0; font-weight:bold;
+    text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #enemyBar { width:160px; height:14px; background:rgba(0,0,0,.4); border-radius:8px;
+    margin-top:4px; overflow:hidden; border:2px solid rgba(255,255,255,.25); }
+  #enemyFill { height:100%; width:100%; border-radius:6px;
+    background:linear-gradient(90deg,#ff4d6d,#ff8fa3); transition:width .15s; }
+  #playerHp { bottom:18px; left:50%; transform:translateX(-50%); font-size:18px;
+    letter-spacing:1px; }
+  #hint { bottom:52px; left:50%; transform:translateX(-50%); font-size:14px;
+    opacity:.85; animation:bob 1.6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform:translate(-50%,-6px); } }
+  .overlay { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; text-align:center; color:#fff;
+    background:rgba(18,10,54,.78); backdrop-filter:blur(6px); }
+  .overlay h1 { font-size:44px; text-shadow:0 4px 0 rgba(0,0,0,.4); letter-spacing:1px; }
+  .overlay p { font-size:18px; opacity:.9; max-width:280px; line-height:1.5; }
+  .overlay .coins { font-size:24px; color:#ffd54a; font-weight:bold; }
+  .btn { pointer-events:auto; cursor:pointer; border:none; color:#fff; font:inherit;
+    font-size:22px; font-weight:bold; padding:16px 44px; border-radius:999px;
+    background:linear-gradient(180deg,#4dc9ff,#2d7dff); box-shadow:0 6px 0 #1c4fd6,0 10px 24px rgba(0,0,0,.35);
+    transition:transform .08s; letter-spacing:1px; }
+  .btn:active { transform:translateY(4px); box-shadow:0 2px 0 #1c4fd6; }
+  #levelFlash { position:fixed; inset:0; z-index:15; display:flex; align-items:center;
+    justify-content:center; pointer-events:none; opacity:0; }
+  #levelFlash span { font-size:52px; font-weight:bold; color:#fff;
+    text-shadow:0 5px 0 rgba(0,0,0,.4); letter-spacing:2px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="topbar" class="hud">
+  <div class="pill" id="levelPill">NIV 1</div>
+  <div class="pill" id="coinPill">🪙 0</div>
+</div>
+<div id="enemyHp" class="hud hidden">
+  <div class="label">BASE ENNEMIE</div>
+  <div id="enemyBar"><div id="enemyFill"></div></div>
+</div>
+<div id="playerHp" class="hud hidden">🛡️ <span id="playerHpVal">10</span></div>
+<div id="hint" class="hud hidden">👆 Maintiens et glisse pour viser</div>
+<div id="levelFlash"><span id="levelFlashTxt">NIVEAU 1</span></div>
+
+<div id="startOverlay" class="overlay">
+  <h1>MOB&nbsp;RUSH</h1>
+  <p>Envoie ta foule bleue à travers les portes multiplicatrices et détruis la base rouge !</p>
+  <button class="btn" id="startBtn">JOUER</button>
+</div>
+<div id="winOverlay" class="overlay hidden">
+  <h1>VICTOIRE ! 🎉</h1>
+  <p class="coins" id="winCoins">+0 🪙</p>
+  <button class="btn" id="nextBtn">NIVEAU SUIVANT</button>
+</div>
+<div id="loseOverlay" class="overlay hidden">
+  <h1>DÉFAITE 💥</h1>
+  <p>Les rouges ont franchi ta ligne…</p>
+  <button class="btn" id="retryBtn">RÉESSAYER</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+"use strict";
+
+/* ---------- constantes ---------- */
+const LANE_HALF = 4.5;          // demi-largeur de la piste
+const PLAYER_Z = 20;            // position du canon
+const BASE_Z = -24;             // base ennemie
+const BLUE_HIT_Z = -22.4;       // ligne d'impact sur la base
+const RED_WIN_Z = 20.5;         // ligne de défaite
+const MAX_BLUE = 380, MAX_RED = 160;
+const BLUE_SPEED = 9, FIRE_DELAY = 0.14;
+
+/* ---------- état ---------- */
+let level = 1, coins = 0, playerHp = 10, enemyHp = 50, enemyHpMax = 50;
+let playing = false, fireTimer = 0, waveTimer = 0, holding = false;
+let cannonX = 0, targetX = 0;
+const blues = [], reds = [], gates = [], pops = [];
+
+/* ---------- three.js ---------- */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2b1d6b);
+scene.fog = new THREE.Fog(0x2b1d6b, 55, 90);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .1, 200);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.getElementById('game').appendChild(renderer.domElement);
+
+function fitCamera() {
+  const a = innerWidth/innerHeight;
+  camera.aspect = a;
+  const k = Math.max(0, 1/a - 0.55);       // compense les écrans étroits
+  camera.position.set(0, 17 + k*10, 30 + k*12);
+  camera.lookAt(0, 0, -3);
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+fitCamera();
+addEventListener('resize', fitCamera);
+
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x3a2a7a, 0.95));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+sun.position.set(6, 14, 8);
+scene.add(sun);
+
+/* ---------- décor ---------- */
+const track = new THREE.Mesh(
+  new THREE.BoxGeometry(LANE_HALF*2 + 1, 1, 52),
+  new THREE.MeshLambertMaterial({ color:0xEDE7FF })
+);
+track.position.set(0, -0.5, -2);
+scene.add(track);
+
+// bandes latérales
+[-1, 1].forEach(s => {
+  const rail = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 1.3, 52),
+    new THREE.MeshLambertMaterial({ color:0x7c5cff })
+  );
+  rail.position.set(s*(LANE_HALF + 0.7), -0.3, -2);
+  scene.add(rail);
+});
+// pointillés centraux
+const dashMat = new THREE.MeshLambertMaterial({ color:0xcfc2ff });
+for (let z = 16; z > -22; z -= 4) {
+  const d = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.05, 1.6), dashMat);
+  d.position.set(0, 0.03, z);
+  scene.add(d);
+}
+
+/* ---------- base ennemie ---------- */
+const baseGroup = new THREE.Group();
+const towerMat = new THREE.MeshLambertMaterial({ color:0xff4d6d });
+const tower = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.1, 4.5, 24), towerMat);
+tower.position.y = 2.25;
+const roof = new THREE.Mesh(new THREE.ConeGeometry(3, 2.2, 24),
+  new THREE.MeshLambertMaterial({ color:0xd63354 }));
+roof.position.y = 5.6;
+baseGroup.add(tower, roof);
+baseGroup.position.set(0, 0, BASE_Z);
+scene.add(baseGroup);
+
+/* ---------- canon joueur ---------- */
+const cannon = new THREE.Group();
+const cBase = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1, 2),
+  new THREE.MeshLambertMaterial({ color:0x2d7dff }));
+cBase.position.y = 0.5;
+const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 2.4, 16),
+  new THREE.MeshLambertMaterial({ color:0x4dc9ff }));
+barrel.rotation.x = -Math.PI/2 + 0.25;
+barrel.position.set(0, 1.05, -0.9);
+cannon.add(cBase, barrel);
+cannon.position.set(0, 0, PLAYER_Z);
+scene.add(cannon);
+
+/* ---------- unités instanciées (blobs) ---------- */
+const blobGeo = new THREE.SphereGeometry(0.42, 10, 10);
+const blueMesh = new THREE.InstancedMesh(blobGeo,
+  new THREE.MeshLambertMaterial({ color:0x38b6ff }), MAX_BLUE);
+const redMesh = new THREE.InstancedMesh(blobGeo,
+  new THREE.MeshLambertMaterial({ color:0xff4d6d }), MAX_RED);
+blueMesh.frustumCulled = redMesh.frustumCulled = false;
+scene.add(blueMesh, redMesh);
+const dummy = new THREE.Object3D();
+
+/* ---------- petites explosions ---------- */
+const popGeo = new THREE.SphereGeometry(0.3, 8, 8);
+const popMesh = new THREE.InstancedMesh(popGeo,
+  new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.85 }), 60);
+popMesh.frustumCulled = false;
+scene.add(popMesh);
+function addPop(x, z) { pops.push({ x, z, t:0 }); if (pops.length > 60) pops.shift(); }
+
+/* ---------- portes ---------- */
+function gateTexture(txt, good) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = good ? 'rgba(0,229,255,0.28)' : 'rgba(255,60,90,0.30)';
+  g.fillRect(0, 0, 256, 128);
+  g.font = 'bold 84px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 10; g.strokeStyle = 'rgba(0,0,0,0.35)';
+  g.strokeText(txt, 128, 68);
+  g.fillStyle = good ? '#aefcff' : '#ffd0d8';
+  g.fillText(txt, 128, 68);
+  const t = new THREE.CanvasTexture(c);
+  return t;
+}
+function makeGate(x, z, op) {
+  const good = op !== 'X';
+  const w = LANE_HALF - 0.3;
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, 2.4),
+    new THREE.MeshBasicMaterial({ map:gateTexture(op === 'X' ? '✕' : op, good),
+      transparent:true, side:THREE.DoubleSide, depthWrite:false })
+  );
+  panel.position.set(x, 1.3, z);
+  const postMat = new THREE.MeshLambertMaterial({ color: good ? 0x00e5ff : 0xff3c5a });
+  const g = new THREE.Group();
+  g.add(panel);
+  [-w/2, w/2].forEach(px => {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 2.8, 10), postMat);
+    post.position.set(x + px, 1.4, z);
+    g.add(post);
+  });
+  scene.add(g);
+  gates.push({ x, z, halfW:w/2, op, group:g });
+}
+function clearGates() { gates.forEach(g => scene.remove(g.group)); gates.length = 0; }
+
+function buildGates() {
+  clearGates();
+  const rows = [7, -5];
+  rows.forEach(z => {
+    let ops = Math.random() < 0.5 ? ['x2', 'x3'] : ['x3', 'x2'];
+    if (level >= 3 && Math.random() < 0.4) ops[Math.floor(Math.random()*2)] = 'X';
+    makeGate(-LANE_HALF/2 - 0.1, z, ops[0]);
+    makeGate( LANE_HALF/2 + 0.1, z, ops[1]);
+  });
+}
+
+/* ---------- audio minimal ---------- */
+let AC = null;
+function beep(f, dur, type, vol) {
+  if (!AC) return;
+  try {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+    o.connect(g).connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  } catch(e) {}
+}
+
+/* ---------- UI ---------- */
+const $ = id => document.getElementById(id);
+function refreshUI() {
+  $('levelPill').textContent = 'NIV ' + level;
+  $('coinPill').textContent = '🪙 ' + coins;
+  $('playerHpVal').textContent = playerHp;
+  $('enemyFill').style.width = Math.max(0, enemyHp/enemyHpMax*100) + '%';
+}
+function flashLevel() {
+  const el = $('levelFlash');
+  $('levelFlashTxt').textContent = 'NIVEAU ' + level;
+  el.animate([{opacity:0},{opacity:1,offset:.2},{opacity:1,offset:.7},{opacity:0}],
+    { duration:1400 });
+}
+
+/* ---------- gestion de niveau ---------- */
+function startLevel() {
+  blues.length = 0; reds.length = 0; pops.length = 0;
+  playerHp = 10;
+  enemyHpMax = enemyHp = 40 + level * 15;
+  waveTimer = 1.2;
+  buildGates();
+  refreshUI();
+  flashLevel();
+  playing = true;
+}
+
+function spawnBlue(x, z) {
+  if (blues.length >= MAX_BLUE) return;
+  blues.push({ x: Math.max(-LANE_HALF+0.3, Math.min(LANE_HALF-0.3, x)),
+    z, wob: Math.random()*6.28 });
+}
+function spawnRedWave() {
+  const count = 2 + Math.floor(level * 1.3);
+  for (let i = 0; i < count && reds.length < MAX_RED; i++) {
+    reds.push({
+      x: (Math.random()*2 - 1) * (LANE_HALF - 0.6),
+      z: BASE_Z + 2 + Math.random()*1.5,
+      hp: 1, giant: false, wob: Math.random()*6.28
+    });
+  }
+  if (level >= 2 && Math.random() < 0.35 && reds.length < MAX_RED) {
+    reds.push({ x:(Math.random()*2-1)*(LANE_HALF-1), z:BASE_Z+2, hp:5, giant:true, wob:0 });
+  }
+}
+
+/* ---------- entrées ---------- */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+const hit = new THREE.Vector3();
+function aimFromEvent(e) {
+  const t = e.touches ? e.touches[0] : e;
+  ndc.set(t.clientX/innerWidth*2 - 1, -(t.clientY/innerHeight)*2 + 1);
+  ray.setFromCamera(ndc, camera);
+  if (ray.ray.intersectPlane(groundPlane, hit))
+    targetX = Math.max(-LANE_HALF+0.8, Math.min(LANE_HALF-0.8, hit.x));
+}
+const cv = renderer.domElement;
+cv.addEventListener('pointerdown', e => { holding = true; aimFromEvent(e);
+  if (!AC) { try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(_){} } });
+cv.addEventListener('pointermove', e => { if (holding) aimFromEvent(e); });
+addEventListener('pointerup', () => holding = false);
+addEventListener('pointercancel', () => holding = false);
+
+/* ---------- fin de partie ---------- */
+function win() {
+  playing = false;
+  const gain = 25 + level * 5;
+  coins += gain;
+  $('winCoins').textContent = '+' + gain + ' 🪙';
+  $('winOverlay').classList.remove('hidden');
+  beep(660,.12,'triangle',.2); setTimeout(()=>beep(880,.15,'triangle',.2),130);
+  setTimeout(()=>beep(1100,.25,'triangle',.2),280);
+  refreshUI();
+}
+function lose() {
+  playing = false;
+  $('loseOverlay').classList.remove('hidden');
+  beep(200,.4,'sawtooth',.15);
+}
+
+$('startBtn').onclick = () => {
+  $('startOverlay').classList.add('hidden');
+  ['enemyHp','playerHp','hint'].forEach(id => $(id).classList.remove('hidden'));
+  startLevel();
+};
+$('nextBtn').onclick = () => { level++; $('winOverlay').classList.add('hidden'); startLevel(); };
+$('retryBtn').onclick = () => { $('loseOverlay').classList.add('hidden'); startLevel(); };
+
+/* ---------- boucle ---------- */
+const clock = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  if (playing) {
+    // canon
+    cannonX += (targetX - cannonX) * Math.min(1, dt*14);
+    cannon.position.x = cannonX;
+    cannon.rotation.z = (targetX - cannonX) * 0.08;
+
+    // tir
+    fireTimer -= dt;
+    if (holding && fireTimer <= 0) {
+      fireTimer = FIRE_DELAY;
+      spawnBlue(cannonX + (Math.random()-0.5)*0.5, PLAYER_Z - 1.2);
+      barrel.scale.set(1.25, 1.25, 1.25);
+      beep(240 + Math.random()*60, .05, 'square', .05);
+    }
+    barrel.scale.lerp(new THREE.Vector3(1,1,1), Math.min(1, dt*10));
+
+    // vagues rouges
+    waveTimer -= dt;
+    if (waveTimer <= 0) {
+      waveTimer = Math.max(1.1, 2.4 - level*0.12);
+      spawnRedWave();
+    }
+
+    // blues : avance + portes
+    for (let i = blues.length - 1; i >= 0; i--) {
+      const u = blues[i];
+      const pz = u.z;
+      u.z -= BLUE_SPEED * dt;
+      u.x += Math.sin(t*7 + u.wob) * dt * 0.4;
+      for (const g of gates) {
+        if (pz > g.z && u.z <= g.z && Math.abs(u.x - g.x) < g.halfW) {
+          if (g.op === 'X') { addPop(u.x, u.z); blues.splice(i,1); beep(150,.06,'square',.06); break; }
+          const clones = g.op === 'x3' ? 2 : 1;
+          for (let c = 0; c < clones; c++)
+            spawnBlue(u.x + (Math.random()-0.5)*1.2, u.z - Math.random()*0.5);
+        }
+      }
+      if (i < blues.length && blues[i] === u && u.z <= BLUE_HIT_Z) {
+        enemyHp--; addPop(u.x, u.z); blues.splice(i,1);
+        baseGroup.scale.set(1.08,0.94,1.08);
+        beep(420,.05,'triangle',.07);
+        if (enemyHp <= 0) { refreshUI(); win(); return; }
+        refreshUI();
+      }
+    }
+    baseGroup.scale.lerp(new THREE.Vector3(1,1,1), Math.min(1, dt*8));
+
+    // reds : avance + ligne de défaite
+    for (let i = reds.length - 1; i >= 0; i--) {
+      const r = reds[i];
+      const sp = r.giant ? 2.2 : 3.6 + level*0.12;
+      r.z += sp * dt;
+      if (!r.giant) r.x += Math.sin(t*5 + r.wob) * dt * 0.5;
+      if (r.z >= RED_WIN_Z) {
+        reds.splice(i,1);
+        playerHp -= r.giant ? 3 : 1;
+        addPop(r.x, RED_WIN_Z);
+        beep(120,.15,'sawtooth',.12);
+        refreshUI();
+        if (playerHp <= 0) { lose(); return; }
+      }
+    }
+
+    // collisions bleu / rouge (rejet rapide sur z)
+    for (let i = reds.length - 1; i >= 0; i--) {
+      const r = reds[i];
+      const rad = r.giant ? 1.1 : 0.7;
+      for (let j = blues.length - 1; j >= 0; j--) {
+        const b = blues[j];
+        if (Math.abs(b.z - r.z) > rad) continue;
+        const dx = b.x - r.x;
+        if (dx*dx + (b.z-r.z)*(b.z-r.z) < rad*rad) {
+          blues.splice(j,1);
+          r.hp--;
+          addPop(r.x, r.z);
+          if (r.hp <= 0) { reds.splice(i,1); beep(500,.06,'triangle',.06); break; }
+        }
+      }
+    }
+  }
+
+  /* ---- rendu des instances ---- */
+  let n = 0;
+  for (const u of blues) {
+    dummy.position.set(u.x, 0.42 + Math.abs(Math.sin(t*10 + u.wob))*0.15, u.z);
+    dummy.scale.set(1, 1.35, 1);
+    dummy.rotation.set(0,0,0);
+    dummy.updateMatrix();
+    blueMesh.setMatrixAt(n++, dummy.matrix);
+  }
+  blueMesh.count = n;
+  blueMesh.instanceMatrix.needsUpdate = true;
+
+  n = 0;
+  for (const r of reds) {
+    const s = r.giant ? 2.1 : 1;
+    dummy.position.set(r.x, 0.42*s + Math.abs(Math.sin(t*8 + r.wob))*0.12, r.z);
+    dummy.scale.set(s, 1.35*s, s);
+    dummy.updateMatrix();
+    redMesh.setMatrixAt(n++, dummy.matrix);
+  }
+  redMesh.count = n;
+  redMesh.instanceMatrix.needsUpdate = true;
+
+  n = 0;
+  for (let i = pops.length - 1; i >= 0; i--) {
+    const p = pops[i];
+    p.t += dt;
+    if (p.t > 0.3) { pops.splice(i,1); continue; }
+    const s = 0.5 + p.t*4;
+    dummy.position.set(p.x, 0.6, p.z);
+    dummy.scale.set(s, s, s);
+    dummy.updateMatrix();
+    popMesh.setMatrixAt(n++, dummy.matrix);
+  }
+  popMesh.count = n;
+  popMesh.instanceMatrix.needsUpdate = true;
+
+  renderer.render(scene, camera);
+}
+loop();
+refreshUI();
+})();
+</script>
+</body>
+</html>
