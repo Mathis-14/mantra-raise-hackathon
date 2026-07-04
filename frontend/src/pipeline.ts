@@ -1,5 +1,6 @@
 // ── Page 3 : Creative pipeline ──
 import { SESSIONS, GAME_FNS } from './games'
+import { createGlobe, type GlobePoint, type GlobeArc } from './globe'
 
 // One creative per game session, with simulated ad metrics + keep/kill verdict.
 interface Variant {
@@ -36,6 +37,10 @@ interface Competitor {
   cpi: string
   ctr: string
   installs: string   // last 30d
+  city: string
+  lat: number
+  lng: number
+  color: string
 }
 
 const MARKET = {
@@ -43,18 +48,32 @@ const MARKET = {
   medianCpi: '$0.58',
   medianCtr: '3.4%',
   competitors: [
-    { name: 'Lane Rush 3D',   publisher: 'Voodoo',    genre: 'Arcade', cpi: '$0.51', ctr: '4.1%', installs: '2.4M' },
-    { name: 'Sky Jumper',     publisher: 'Homa',      genre: 'Arcade', cpi: '$0.44', ctr: '4.9%', installs: '1.8M' },
-    { name: 'Brick Smash!',   publisher: 'Azur Games', genre: 'Arcade', cpi: '$0.72', ctr: '2.7%', installs: '640K' },
-    { name: 'Astro Blaster',  publisher: 'CrazyLabs', genre: 'Shooter', cpi: '$0.63', ctr: '3.2%', installs: '910K' },
+    { name: 'Lane Rush 3D',  publisher: 'Voodoo',     genre: 'Arcade',  cpi: '$0.51', ctr: '4.1%', installs: '2.4M', city: 'Paris, FR',     lat: 48.86, lng: 2.35,   color: '#2563eb' },
+    { name: 'Sky Jumper',    publisher: 'Homa',       genre: 'Arcade',  cpi: '$0.44', ctr: '4.9%', installs: '1.8M', city: 'Paris, FR',     lat: 48.85, lng: 2.34,   color: '#7c3aed' },
+    { name: 'Brick Smash!',  publisher: 'Azur Games', genre: 'Arcade',  cpi: '$0.72', ctr: '2.7%', installs: '640K', city: 'Nicosia, CY',   lat: 35.19, lng: 33.38,  color: '#0891b2' },
+    { name: 'Astro Blaster', publisher: 'CrazyLabs',  genre: 'Shooter', cpi: '$0.63', ctr: '3.2%', installs: '910K', city: 'Tel Aviv, IL',  lat: 32.08, lng: 34.78,  color: '#d97706' },
+    { name: 'Dash Mania',    publisher: 'SayGames',   genre: 'Arcade',  cpi: '$0.55', ctr: '3.8%', installs: '1.2M', city: 'Minsk, BY',     lat: 53.90, lng: 27.56,  color: '#059669' },
+    { name: 'Hopper Go',     publisher: 'Kwalee',     genre: 'Arcade',  cpi: '$0.60', ctr: '3.5%', installs: '780K', city: 'Leamington, UK', lat: 52.29, lng: -1.53, color: '#db2777' },
   ] as Competitor[],
 }
+
+// Our studio origin — arcs radiate from here to each competitor market
+const HOME: [number, number] = [48.86, 2.35]  // Paris (demo studio)
 
 // vertical 9:16 preview canvas size
 const VW = 132
 const VH = 234
 
+const TABS = [
+  { id: 'overview',    icon: '📊', label: 'Overview' },
+  { id: 'competitors', icon: '🛰️', label: 'Competitors' },
+  { id: 'metrics',     icon: '📈', label: 'Metrics' },
+  { id: 'decision',    icon: '🧠', label: 'Decision' },
+]
+
 export function renderPipeline(root: HTMLElement) {
+  const medCpi = parseFloat(MARKET.medianCpi.replace('$', ''))
+
   root.innerHTML = `
     <div class="shell">
       <nav class="shell-nav">
@@ -71,48 +90,64 @@ export function renderPipeline(root: HTMLElement) {
       </nav>
 
       <div class="pipeline-layout">
-        <div class="pipeline-col">
-          <div class="col-title">Agent pipeline</div>
-          <div class="pipe-nodes" id="pipe-nodes"></div>
+        <!-- LEFT: analytics tabs -->
+        <div class="analytics-tabs" id="analytics-tabs">
+          ${TABS.map((t, i) => `
+            <button class="atab ${i === 0 ? 'atab--active' : ''}" data-tab="${t.id}">
+              <span class="atab-icon">${t.icon}</span>
+              <span class="atab-label">${t.label}</span>
+            </button>
+          `).join('')}
         </div>
 
-        <div class="pipeline-col pipeline-col--wide">
-          <div class="col-title">Creatives · 9:16 ad videos</div>
-          <div class="variants-grid" id="variants-grid"></div>
+        <!-- MAIN: tab panels -->
+        <div class="analytics-main" id="analytics-main">
 
-          <div class="market-section" id="market-section" style="opacity:0;transition:opacity 0.5s">
+          <!-- Overview -->
+          <section class="tab-panel tab-panel--active" data-panel="overview">
+            <div class="col-title">Creatives · 9:16 ad videos</div>
+            <div class="variants-grid" id="variants-grid"></div>
+          </section>
+
+          <!-- Competitors + globe -->
+          <section class="tab-panel" data-panel="competitors">
             <div class="col-title market-title">
-              <span>🛰️ Market benchmark · Sensor Tower</span>
+              <span>🛰️ Competitor map · Sensor Tower</span>
               <span class="market-genre">${MARKET.genre}</span>
             </div>
-            <div class="market-grid">
-              <div class="market-competitors">
-                <div class="market-sub">Top competitors (30d installs)</div>
+            <div class="comp-layout">
+              <div class="globe-wrap" id="globe-wrap"></div>
+              <div class="comp-side">
+                <div class="market-sub">Competitor HQs · 30d installs</div>
                 <div class="market-list" id="market-list"></div>
               </div>
-              <div class="market-position" id="market-position">
-                <div class="market-sub">Our creatives vs. market</div>
-                <div class="market-bench" id="market-bench"></div>
-              </div>
             </div>
-          </div>
-        </div>
+          </section>
 
-        <div class="pipeline-col" id="rec-col" style="opacity:0;transition:opacity 0.5s">
-          <div class="col-title">Agent recommendation</div>
-          <div class="rec-card">
-            <div class="rec-icon">🧠</div>
-            <div class="rec-title">Build next: <span class="accent">Sky Hop × Speed Dash</span></div>
-            <p class="rec-body">
-              Sky Hop beat the market on both CPI ($0.37 vs $0.58 median) and D1
-              retention (44%), pacing with Homa's Sky Jumper. Speed Dash undercut
-              Voodoo's Lane Rush on CPI. Neon Snake fell below market — kill it.
-            </p>
-            <div class="rec-divider"></div>
-            <div class="rec-row"><span>Kill</span><span class="tag tag--kill">Neon Snake</span></div>
-            <div class="rec-row"><span>A/B test</span><span class="tag tag--keep">Sky Hop vs Speed Dash</span></div>
-            <div class="rec-row"><span>Next build</span><span class="tag tag--next">Vertical Dash v2</span></div>
-          </div>
+          <!-- Metrics -->
+          <section class="tab-panel" data-panel="metrics">
+            <div class="col-title">Metrics · our creatives vs. market</div>
+            <div class="market-bench" id="market-bench"></div>
+          </section>
+
+          <!-- Decision -->
+          <section class="tab-panel" data-panel="decision">
+            <div class="col-title">Agent recommendation</div>
+            <div class="rec-card" id="rec-card" style="opacity:0;transition:opacity 0.5s">
+              <div class="rec-icon">🧠</div>
+              <div class="rec-title">Build next: <span class="accent">Sky Hop × Speed Dash</span></div>
+              <p class="rec-body">
+                Sky Hop beat the market on both CPI ($0.37 vs $0.58 median) and D1
+                retention (44%), pacing with Homa's Sky Jumper. Speed Dash undercut
+                Voodoo's Lane Rush on CPI. Neon Snake fell below market — kill it.
+              </p>
+              <div class="rec-divider"></div>
+              <div class="rec-row"><span>Kill</span><span class="tag tag--kill">Neon Snake</span></div>
+              <div class="rec-row"><span>A/B test</span><span class="tag tag--keep">Sky Hop vs Speed Dash</span></div>
+              <div class="rec-row"><span>Next build</span><span class="tag tag--next">Vertical Dash v2</span></div>
+            </div>
+          </section>
+
         </div>
       </div>
 
@@ -123,43 +158,54 @@ export function renderPipeline(root: HTMLElement) {
   document.getElementById('back-btn')!.addEventListener('click', () => { location.hash = '#playtest' })
   document.getElementById('crumb-playtest')!.addEventListener('click', () => { location.hash = '#playtest' })
 
-  const pipeNodes    = document.getElementById('pipe-nodes')!
-  const variantsGrid = document.getElementById('variants-grid')!
-  const recCol       = document.getElementById('rec-col') as HTMLElement
   const badge        = document.getElementById('pipe-badge') as HTMLElement
+  const variantsGrid = document.getElementById('variants-grid')!
+  const marketList   = document.getElementById('market-list')!
+  const marketBench  = document.getElementById('market-bench')!
 
-  // Animate pipeline nodes in sequence
-  PIPELINE_NODES.forEach((node, i) => {
-    const el = document.createElement('div')
-    el.className = 'pipe-node pipe-node--pending'
-    el.id = 'node-' + node.id
-    el.innerHTML = `
-      <div class="pipe-icon">${node.icon}</div>
-      <div class="pipe-info">
-        <div class="pipe-label">${node.label}</div>
-        <div class="pipe-sub">${node.sub}</div>
-      </div>
-      <div class="pipe-status" id="status-${node.id}"><span class="dot-pending">···</span></div>
-    `
-    pipeNodes.appendChild(el)
+  // ── Tab switching ──
+  const tabsBar = document.getElementById('analytics-tabs')!
+  const panels  = root.querySelectorAll<HTMLElement>('.tab-panel')
+  let globeDispose: (() => void) | null = null
+  let globeStarted = false
 
+  tabsBar.querySelectorAll<HTMLButtonElement>('.atab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.tab!
+      tabsBar.querySelectorAll('.atab').forEach(b => b.classList.remove('atab--active'))
+      btn.classList.add('atab--active')
+      panels.forEach(p => p.classList.toggle('tab-panel--active', p.dataset.panel === id))
+      if (id === 'competitors' && !globeStarted) startGlobe()
+    })
+  })
+
+  // ── Globe (lazy: only build when Competitors tab first opened) ──
+  function startGlobe() {
+    globeStarted = true
+    const wrap = document.getElementById('globe-wrap')!
+    const points: GlobePoint[] = MARKET.competitors.map(c => ({
+      lat: c.lat, lng: c.lng, label: c.name, color: c.color,
+    }))
+    points.push({ lat: HOME[0], lng: HOME[1], label: 'Our studio', color: '#ffffff', size: 0.024 })
+    const arcs: GlobeArc[] = MARKET.competitors.map(c => ({
+      from: HOME, to: [c.lat, c.lng] as [number, number], color: c.color,
+    }))
+    globeDispose = createGlobe(wrap, points, arcs)
+  }
+
+  // ── Animate pipeline nodes (drives reveal timing, shown in badge) ──
+  PIPELINE_NODES.forEach((_node, i) => {
     setTimeout(() => {
-      el.classList.remove('pipe-node--pending')
-      el.classList.add('pipe-node--running')
-      document.getElementById('status-' + node.id)!.innerHTML = '<span class="spinner"></span>'
-    }, i * 900)
-
-    setTimeout(() => {
-      el.classList.remove('pipe-node--running')
-      el.classList.add('pipe-node--done')
-      document.getElementById('status-' + node.id)!.innerHTML = '<span class="check">✓</span>'
+      const done = i + 1
+      if (done < PIPELINE_NODES.length) {
+        badge.querySelector('span:last-child')!.textContent =
+          `${done}/${PIPELINE_NODES.length} · ${PIPELINE_NODES[i].label}`
+      }
     }, i * 900 + 700)
   })
 
-  // Live game ticks for creative previews
+  // ── Creative previews (Overview tab) ──
   const ticks: (() => void)[] = []
-
-  // Variant cards appear after veo step, each running its real game loop
   VARIANTS.forEach((v, i) => {
     setTimeout(() => {
       const session = SESSIONS[v.id]
@@ -183,76 +229,61 @@ export function renderPipeline(root: HTMLElement) {
         </div>
       `
       variantsGrid.appendChild(card)
-
       const canvas = document.getElementById('vcanvas-' + v.id) as HTMLCanvasElement
       ticks.push(GAME_FNS[v.id](canvas))
-    }, 1800 + i * 220)
+    }, 1500 + i * 200)
   })
 
-  // Drive all preview games on one RAF loop
   let raf = 0
-  function loop() {
-    raf = requestAnimationFrame(loop)
-    ticks.forEach(t => t())
-  }
+  function loop() { raf = requestAnimationFrame(loop); ticks.forEach(t => t()) }
   loop()
+  window.addEventListener('hashchange', () => {
+    cancelAnimationFrame(raf)
+    if (globeDispose) globeDispose()
+  }, { once: true })
 
-  // Stop the loop when navigating away
-  window.addEventListener('hashchange', () => cancelAnimationFrame(raf), { once: true })
+  // ── Competitor list (Competitors tab) ──
+  MARKET.competitors.forEach(c => {
+    const row = document.createElement('div')
+    row.className = 'market-comp'
+    row.innerHTML = `
+      <span class="mc-dot" style="background:${c.color}"></span>
+      <div class="mc-main">
+        <span class="mc-name">${c.name}</span>
+        <span class="mc-pub">${c.publisher} · ${c.city}</span>
+      </div>
+      <div class="mc-stats">
+        <span title="Installs 30d">${c.installs}</span>
+        <span title="CPI">${c.cpi}</span>
+      </div>
+    `
+    marketList.appendChild(row)
+  })
 
-  // ── Market benchmark: reveal when the 'market' node finishes ──
-  const marketNodeIdx = PIPELINE_NODES.findIndex(n => n.id === 'market')
-  const marketList  = document.getElementById('market-list')!
-  const marketBench = document.getElementById('market-bench')!
-  const marketSection = document.getElementById('market-section') as HTMLElement
+  // ── Benchmark bars (Metrics tab) ──
+  VARIANTS.forEach(v => {
+    const cpi = parseFloat(v.cpi.replace('$', ''))
+    const beats = cpi < medCpi
+    const session = SESSIONS[v.id]
+    const pct = Math.max(6, Math.min(100, (1 - cpi / (medCpi * 2)) * 100))
+    const row = document.createElement('div')
+    row.className = 'bench-row'
+    row.innerHTML = `
+      <span class="bench-name" style="color:${session.color}">${session.title}</span>
+      <div class="bench-bar-wrap">
+        <div class="bench-bar" style="width:${pct.toFixed(0)}%;background:${session.color}"></div>
+        <div class="bench-median" title="Market median CPI"></div>
+      </div>
+      <span class="bench-verdict ${beats ? 'beats' : 'below'}">${beats ? '▼ beats mkt' : '▲ above mkt'}</span>
+    `
+    marketBench.appendChild(row)
+  })
 
-  setTimeout(() => {
-    // competitor rows
-    MARKET.competitors.forEach(c => {
-      const row = document.createElement('div')
-      row.className = 'market-comp'
-      row.innerHTML = `
-        <div class="mc-main">
-          <span class="mc-name">${c.name}</span>
-          <span class="mc-pub">${c.publisher}</span>
-        </div>
-        <div class="mc-stats">
-          <span title="Installs 30d">${c.installs}</span>
-          <span title="CPI">${c.cpi}</span>
-          <span title="CTR">${c.ctr}</span>
-        </div>
-      `
-      marketList.appendChild(row)
-    })
-
-    // our variants benchmarked against market median CPI
-    const medCpi = parseFloat(MARKET.medianCpi.replace('$', ''))
-    VARIANTS.forEach(v => {
-      const cpi = parseFloat(v.cpi.replace('$', ''))
-      const beats = cpi < medCpi
-      const session = SESSIONS[v.id]
-      // bar width: lower CPI = better = fuller bar (invert around 2× median)
-      const pct = Math.max(6, Math.min(100, (1 - cpi / (medCpi * 2)) * 100))
-      const row = document.createElement('div')
-      row.className = 'bench-row'
-      row.innerHTML = `
-        <span class="bench-name" style="color:${session.color}">${session.title}</span>
-        <div class="bench-bar-wrap">
-          <div class="bench-bar" style="width:${pct.toFixed(0)}%;background:${session.color}"></div>
-          <div class="bench-median" title="Market median CPI"></div>
-        </div>
-        <span class="bench-verdict ${beats ? 'beats' : 'below'}">${beats ? '▼ beats mkt' : '▲ above mkt'}</span>
-      `
-      marketBench.appendChild(row)
-    })
-
-    marketSection.style.opacity = '1'
-  }, marketNodeIdx * 900 + 700)
-
-  // Reveal recommendation + flip badge once pipeline done
+  // ── Reveal recommendation + finish badge ──
   const totalDelay = PIPELINE_NODES.length * 900 + 400
   setTimeout(() => {
-    recCol.style.opacity = '1'
+    const rec = document.getElementById('rec-card') as HTMLElement
+    rec.style.opacity = '1'
     badge.innerHTML = '<span style="color:var(--accent);font-weight:600;font-size:13px">✓ Pipeline complete</span>'
   }, totalDelay)
 }
