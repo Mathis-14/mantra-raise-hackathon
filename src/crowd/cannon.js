@@ -29,6 +29,7 @@ const BASE_Y = 0.5;              // proto cBase.position.y
 const BARREL_TARGET_LEN = 2.4;   // longueur cible du fût (proto CylinderGeometry h=2.4)
 const BARREL_Y = 1.05;           // proto barrel.position.y
 const BARREL_PIVOT_Z = 0.2;      // pivot reculé vers l'arrière du socle (recul + punch depuis la base)
+const CANNON_SCALE = 1.15;       // léger grossissement du blaster (visible sans dominer) — purement visuel
 
 // Orientation du modèle blaster : point de calibration T4 (cf. A7/UNIT_FACING_FIX).
 // Seul réglage visuel : oriente la bouche vers -Z, léger piqué vers le bas.
@@ -51,17 +52,23 @@ export function createCannon(ctx) {
   const group = new THREE.Group();
   group.position.set(0, 0, PLAYER_Z);
 
+  // `rig` : sous-groupe mis à l'échelle CANNON_SCALE (agrandit tout le blaster). L'extérieur `group`
+  // garde position/respiration/reset ; le rig ne fait que grossir le visuel (positions incluses).
+  const rig = new THREE.Group();
+  rig.scale.setScalar(CANNON_SCALE);
+  group.add(rig);
+
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(BASE_W, BASE_H, BASE_D),
     new THREE.MeshLambertMaterial({ color: COLORS.blueDark }),
   );
   base.position.set(0, BASE_Y, 0);
-  group.add(base);
+  rig.add(base);
 
   // Pivot du fût : porte le recul (translation z) et le punch (scale).
   const barrelPivot = new THREE.Group();
   barrelPivot.position.set(0, BARREL_Y, BARREL_PIVOT_Z);
-  group.add(barrelPivot);
+  rig.add(barrelPivot);
 
   // Fût : clone du blaster recoloré bleu (repli cylindre si l'asset manque).
   let barrelModel;
