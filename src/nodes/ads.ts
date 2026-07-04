@@ -4,7 +4,7 @@
 // Seed believable curves where one creative clearly wins (that's the demo beat).
 
 import type { Creative, MetricPoint } from "@/contracts/types";
-import { collectStubMetrics } from "@/nodes/growth-intelligence/stub";
+import { simulateMetrics } from "@/nodes/growth-intelligence/simulation";
 
 export interface DeployInput {
   runId: string;
@@ -23,5 +23,5 @@ export interface CollectMetricsInput {
 
 /** Returns seeded per-creative time-series for the orchestrator to persist. */
 export async function collectMetrics(input: CollectMetricsInput): Promise<MetricPoint[]> {
-  return collectStubMetrics(input.creatives);
+  return simulateMetrics(input.creatives);
 }

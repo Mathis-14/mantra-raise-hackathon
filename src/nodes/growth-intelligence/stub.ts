@@ -1,43 +1,11 @@
-import { createHash } from "node:crypto";
-
 import type {
-  Creative,
   CreativeEvaluation,
   Decision,
   MetricPoint,
 } from "@/contracts/types";
 
-const STUB_IMPRESSIONS = 1_000;
-const STUB_CLICKS = 20;
-const STUB_INSTALLS = 5;
-const STUB_SPEND_USD = 10;
-const STUB_CTR = STUB_CLICKS / STUB_IMPRESSIONS;
-const STUB_CPI = STUB_SPEND_USD / STUB_INSTALLS;
-const STUB_COMPLETION_RATE = 0.3;
-const STUB_WATCH_RETENTION = 0.4;
 const STUB_SCORE = 50;
 const STUB_CONFIDENCE = 0.5;
-
-function deterministicUuid(namespace: string, value: string): string {
-  const hex = createHash("sha256").update(`${namespace}:${value}`).digest("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
-}
-
-export function collectStubMetrics(creatives: readonly Creative[]): MetricPoint[] {
-  return creatives.map((creative) => ({
-    id: deterministicUuid("metric", creative.id),
-    creative_id: creative.id,
-    ts: creative.created_at,
-    impressions: STUB_IMPRESSIONS,
-    clicks: STUB_CLICKS,
-    installs: STUB_INSTALLS,
-    spend_usd: STUB_SPEND_USD,
-    ctr: STUB_CTR,
-    cpi: STUB_CPI,
-    watch_time_s: creative.duration_s * STUB_WATCH_RETENTION,
-    completion_rate: STUB_COMPLETION_RATE,
-  }));
-}
 
 function createStubEvaluation(metric: MetricPoint, rank: number): CreativeEvaluation {
   return {
