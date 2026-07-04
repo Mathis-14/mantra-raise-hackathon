@@ -1,10 +1,10 @@
 // ── Page 3 : Creative pipeline ──
 
 const VARIANTS = [
-  { id: 'A', label: 'Original',      color: '#2563eb', ctr: '3.2%', spend: '$42',  status: 'keep' },
-  { id: 'B', label: 'Fast pace',     color: '#7c3aed', ctr: '5.1%', spend: '$38',  status: 'keep' },
-  { id: 'C', label: 'Neon skin',     color: '#0891b2', ctr: '1.8%', spend: '$41',  status: 'kill' },
-  { id: 'D', label: 'Rage mode',     color: '#2563eb', ctr: '4.4%', spend: '$39',  status: 'keep' },
+  { id: 'A', label: 'Original',  color: '#2563eb', ctr: '3.2%', spend: '$42', status: 'keep', dur: '0:15' },
+  { id: 'B', label: 'Fast pace', color: '#7c3aed', ctr: '5.1%', spend: '$38', status: 'keep', dur: '0:15' },
+  { id: 'C', label: 'Neon skin', color: '#0891b2', ctr: '1.8%', spend: '$41', status: 'kill', dur: '0:15' },
+  { id: 'D', label: 'Rage mode', color: '#2563eb', ctr: '4.4%', spend: '$39', status: 'keep', dur: '0:15' },
 ]
 
 const PIPELINE_NODES = [
@@ -105,9 +105,10 @@ export function renderPipeline(root: HTMLElement) {
       const card = document.createElement('div')
       card.className = 'variant-card variant-card--in'
       card.innerHTML = `
-        <div class="variant-preview" style="background: linear-gradient(135deg, ${v.color}22 0%, ${v.color}44 100%); border-color: ${v.color}44">
+        <div class="variant-preview" style="background: linear-gradient(180deg, ${v.color}33 0%, ${v.color}77 100%); border-color: ${v.color}44">
           <div class="variant-play">▶</div>
           <div class="variant-badge variant-badge--${v.status}">${v.status === 'keep' ? 'Keep' : 'Kill'}</div>
+          <div class="variant-duration">${v.dur}</div>
         </div>
         <div class="variant-meta">
           <span class="variant-id" style="color:${v.color}">${v.id}</span>

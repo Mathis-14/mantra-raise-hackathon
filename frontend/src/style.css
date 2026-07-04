@@ -266,8 +266,8 @@ a.logo {
 .back-fab {
   position: fixed;
   left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 16px;
+  transform: none;
   z-index: 50;
   width: 38px;
   height: 38px;
@@ -321,22 +321,68 @@ a.logo {
   letter-spacing: 0.3px;
 }
 
-.screen {
+/* ── iPhone frame ── */
+.iphone-frame {
+  position: relative;
+  width: 290px;
+  background: #1a1a1e;
+  border-radius: 44px;
+  padding: 14px 10px 20px;
+  box-shadow:
+    0 0 0 2px #3a3a3e,
+    0 0 0 4px #1a1a1e,
+    0 0 0 5px #3a3a3e,
+    0 20px 60px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+.iphone-notch {
+  width: 90px;
+  height: 28px;
+  background: #1a1a1e;
+  border-radius: 0 0 18px 18px;
+  margin: 0 auto 8px;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.iphone-notch::before {
+  content: '';
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #2a2a2e;
+  box-shadow: inset 0 0 0 2px #111;
+}
+.iphone-notch::after {
+  content: '';
+  width: 38px; height: 6px;
+  border-radius: 3px;
+  background: #2a2a2e;
+}
+
+.iphone-screen {
   position: relative;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
   background: #0d1117;
-  max-width: 640px;
-  width: 100%;
 }
-.screen canvas { display: block; width: 100%; height: auto; }
+.iphone-screen canvas { display: block; width: 100%; height: auto; }
 
+.iphone-home {
+  width: 90px; height: 4px;
+  background: rgba(255,255,255,0.25);
+  border-radius: 2px;
+  margin: 14px auto 0;
+}
+
+/* cursor + click ring inside iphone-screen */
 .cursor {
   position: absolute;
-  width: 16px;
-  height: 16px;
+  width: 14px; height: 14px;
   pointer-events: none;
   transform: translate(-2px, -2px);
   transition: left 0.35s cubic-bezier(.4,0,.2,1), top 0.35s cubic-bezier(.4,0,.2,1);
@@ -346,16 +392,16 @@ a.logo {
   content: '';
   display: block;
   width: 0; height: 0;
-  border-left: 7px solid rgba(255,255,255,0.95);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
+  border-left: 6px solid rgba(255,255,255,0.95);
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
   filter: drop-shadow(0 0 3px rgba(37,99,235,0.8));
 }
 
 .click-ring {
   position: absolute;
-  width: 22px; height: 22px;
-  border: 2px solid rgba(37,99,235,0.8);
+  width: 20px; height: 20px;
+  border: 2px solid rgba(37,99,235,0.85);
   border-radius: 50%;
   transform: translate(-50%,-50%);
   animation: ring-pop 0.45s ease-out forwards;
@@ -365,7 +411,7 @@ a.logo {
 .click-ring.hidden { display: none; }
 @keyframes ring-pop {
   0%   { transform: translate(-50%,-50%) scale(0.4); opacity: 1; }
-  100% { transform: translate(-50%,-50%) scale(2);   opacity: 0; }
+  100% { transform: translate(-50%,-50%) scale(2.2); opacity: 0; }
 }
 
 .screen-footer {
@@ -507,65 +553,94 @@ a.logo {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* variant cards */
+/* variant cards — vertical 9:16 */
 .variants-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
 }
 
 .variant-card {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   background: #fff;
   box-shadow: var(--shadow-sm);
   animation: fade-in 0.3s ease;
 }
 
+/* 9:16 vertical preview */
 .variant-preview {
-  height: 110px;
+  aspect-ratio: 9 / 16;
   display: flex;
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid;
   position: relative;
+  overflow: hidden;
+}
+/* scan-line film effect */
+.variant-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    transparent, transparent 3px,
+    rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+  );
+  pointer-events: none;
 }
 .variant-play {
-  font-size: 22px;
-  opacity: 0.6;
+  font-size: 28px;
+  opacity: 0.55;
   color: #fff;
+  position: relative;
+  z-index: 1;
 }
 .variant-badge {
   position: absolute;
   top: 8px; right: 8px;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 4px;
+  z-index: 2;
 }
 .variant-badge--keep { background: #dcfce7; color: #16a34a; }
 .variant-badge--kill { background: #fee2e2; color: #dc2626; }
 
+/* duration badge bottom-left */
+.variant-duration {
+  position: absolute;
+  bottom: 7px; left: 7px;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  background: rgba(0,0,0,0.45);
+  padding: 1px 5px;
+  border-radius: 3px;
+  z-index: 2;
+}
+
 .variant-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px 4px;
+  gap: 5px;
+  padding: 7px 8px 3px;
 }
-.variant-id   { font-weight: 700; font-size: 13px; }
-.variant-name { font-size: 12.5px; color: var(--text-muted); }
+.variant-id   { font-weight: 700; font-size: 12px; }
+.variant-name { font-size: 11.5px; color: var(--text-muted); }
 
 .variant-stats {
   display: flex;
-  gap: 12px;
-  padding: 4px 10px 10px;
+  gap: 10px;
+  padding: 3px 8px 9px;
 }
 .stat { display: flex; flex-direction: column; }
-.stat-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-val   { font-size: 13px; font-weight: 600; color: var(--text); }
+.stat-label { font-size: 9px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-val   { font-size: 12px; font-weight: 600; color: var(--text); }
 
 /* recommendation card */
 .rec-card {
