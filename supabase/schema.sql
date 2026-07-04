@@ -123,3 +123,9 @@ create policy anon_read_memory on memory for select using (true);
 -- Realtime feed for the live dashboard.
 alter publication supabase_realtime add table runs;
 alter publication supabase_realtime add table events;
+
+-- Public playtest screenshots for the live dashboard. Writes stay server-side
+-- through the service role; events carry public URLs, never image bytes.
+insert into storage.buckets (id, name, public)
+values ('playtest-media', 'playtest-media', true)
+on conflict (id) do nothing;

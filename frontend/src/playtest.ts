@@ -13,14 +13,6 @@ const STEPS = [
   { t: 7900, action: 'observe', label: 'Analysing fun loop…',            cx: 50, cy: 50, lane: 1 },
 ]
 
-const REPORT = [
-  { icon: '✅', label: 'Playability',  value: '9 / 10', note: 'Controls responsive, no crash' },
-  { icon: '⚡', label: 'Fun loop',     value: 'Strong',  note: 'Risk/reward clear, dodges satisfying' },
-  { icon: '🔍', label: 'Friction pts', value: '2',       note: 'Tutorial skip confusing, shop UX weak' },
-  { icon: '📈', label: 'Engagement',   value: 'High',    note: 'Agent replayed 3× without prompt' },
-  { icon: '🎯', label: 'Verdict',      value: 'Ship it', note: 'Proceed to creative generation' },
-]
-
 interface GameState {
   carLane: number
   carX: number
