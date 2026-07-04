@@ -3,6 +3,10 @@ import test from "node:test";
 
 import type { Creative, CreativeAttributes, MetricPoint } from "@/contracts/types";
 import { evaluateCreatives } from "@/nodes/growth-intelligence";
+import {
+  buildCampaignLifecycle,
+  createSimulatedCampaign,
+} from "@/nodes/growth-intelligence/campaign";
 import { simulateMetrics } from "@/nodes/growth-intelligence/simulation";
 
 const RUN_ID = "00000000-0000-4000-a000-000000000001";
@@ -69,6 +73,34 @@ function campaignCreatives(): Creative[] {
 function metricIndex(metrics: readonly MetricPoint[]): Map<string, MetricPoint> {
   return new Map(metrics.map((metric) => [metric.creative_id, metric]));
 }
+
+test("simulated campaign ID is stable regardless of creative order", () => {
+  const creativeIds = ["creative-strong", "creative-iterate", "creative-weak"];
+  const forward = createSimulatedCampaign(RUN_ID, creativeIds);
+  const reversed = createSimulatedCampaign(RUN_ID, [...creativeIds].reverse());
+
+  assert.equal(reversed.id, forward.id);
+  assert.deepEqual(forward.creativeIds, [...creativeIds].sort());
+  assert.notEqual(
+    createSimulatedCampaign("another-run", creativeIds).id,
+    forward.id,
+  );
+  assert.notEqual(
+    createSimulatedCampaign(RUN_ID, creativeIds.slice(1)).id,
+    forward.id,
+  );
+});
+
+test("simulated campaign lifecycle has fixed ordered phases", () => {
+  const campaign = createSimulatedCampaign(RUN_ID, ["creative-b", "creative-a"]);
+
+  assert.deepEqual(buildCampaignLifecycle(campaign), [
+    { campaign_id: campaign.id, phase: "preparing", progress: 10 },
+    { campaign_id: campaign.id, phase: "deployed", progress: 25 },
+    { campaign_id: campaign.id, phase: "collecting_metrics", progress: 40 },
+    { campaign_id: campaign.id, phase: "metrics_collected", progress: 50 },
+  ]);
+});
 
 test("simulation is deterministic and internally coherent", () => {
   const creatives = campaignCreatives();
