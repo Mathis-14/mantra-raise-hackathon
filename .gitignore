@@ -17,3 +17,9 @@ next-env.d.ts
 
 # playtest artifacts (screenshots, recordings) — proof lives in the demo, not git
 playtest-artifacts/
+
+# throwaway verification scripts — means-to-verify, never committed (AGENTS.md)
+.scratch/
+
+# local-only files (reference videos, private notes) — never pushed
+.private/
