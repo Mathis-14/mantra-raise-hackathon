@@ -1,37 +1,24 @@
-// MOB RUSH — point d'entrée. (T0 : smoke-test toolchain — remplacé par l'orchestrateur en T13.)
-import * as THREE from 'three';
+// MOB RUSH — point d'entrée (CONTRACT §6.12) + capture d'erreurs runtime visible (aide au debug headless).
+import { createApp } from './core/app.js';
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x2b1d6b);
-scene.fog = new THREE.Fog(0x2b1d6b, 55, 90);
+function showError(label, err) {
+  console.error(`[MOB RUSH] ${label}`, err);
+  let box = document.getElementById('errbox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'errbox';
+    box.style.cssText =
+      'position:fixed;left:0;right:0;bottom:0;z-index:9999;max-height:45%;overflow:auto;' +
+      'background:rgba(120,0,20,.95);color:#fff;font:12px/1.4 monospace;padding:10px;white-space:pre-wrap;';
+    document.body.appendChild(box);
+  }
+  const msg = err && err.stack ? err.stack : String(err);
+  box.textContent += `\n[${label}] ${msg}\n`;
+}
 
-const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 200);
-camera.position.set(0, 17, 30);
-camera.lookAt(0, 0, -3);
+addEventListener('error', (e) => showError('window.error', e.error || e.message));
+addEventListener('unhandledrejection', (e) => showError('unhandledrejection', e.reason));
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-document.getElementById('game').appendChild(renderer.domElement);
-
-scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x3a2a7a, 0.95));
-const sun = new THREE.DirectionalLight(0xffffff, 0.85);
-sun.position.set(6, 14, 8);
-scene.add(sun);
-
-// Piste témoin (valeurs prototype) — confirme que three rend correctement.
-const track = new THREE.Mesh(
-  new THREE.BoxGeometry(4.5 * 2 + 1, 1, 52),
-  new THREE.MeshLambertMaterial({ color: 0xede7ff }),
-);
-track.position.set(0, -0.5, -2);
-scene.add(track);
-
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-
-renderer.setAnimationLoop(() => renderer.render(scene, camera));
-console.log('[MOB RUSH] scaffold T0 — three', THREE.REVISION);
+createApp()
+  .then((app) => app.start())
+  .catch((err) => showError('boot failed', err));
