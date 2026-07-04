@@ -153,7 +153,11 @@ Hackathon rule: the demo path is the test surface.
 - **Conventional Commits** (`feat:`, `fix:`, `chore:`, `docs:`), imperative, English. All repo artifacts in English.
 - **No** `Co-Authored-By` **or tool-attribution lines** in commits or PR text. Strip accidental trailers before push.
 - **No force pushes, no destructive git operations** (`push --force`, `reset --hard`, `clean -f`, history rewrites) — with five committers on one branch this is how a day dies. Ask first, always.
-- Agents: never merge PRs; never push without the owner's go-ahead.
+- Why: commits and merges are irreversible coordination points during the hackathon. Agents must never assume approval.
+- Agents: never commit without explicit human approval for that commit.
+- Agents: never commit on `main`; commit only on a feature/fix branch after approval.
+- Agents: never merge branches or PRs. A human owns PR creation/merge unless they explicitly delegate PR preparation, and merge remains human-owned.
+- Agents: never push without the owner's go-ahead.
 
 
 

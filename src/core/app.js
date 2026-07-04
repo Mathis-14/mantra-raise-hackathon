@@ -1,0 +1,384 @@
+// MOB RUSH — orchestrateur (CONTRACT §6.11 + ordre d'update §7.2).
+// SEUL module qui : crée renderer/scene/lumières/décor, précharge les assets, construit ctx,
+// instancie les systèmes, remplit ctx.sys, possède la boucle RAF.
+import * as THREE from 'three';
+import * as C from './constants.js';
+import { preload, getCached, dumpInfo } from '../assets/loader.js';
+import { bakeRunPose } from '../assets/bake-pose.js';
+import { createTime } from './time.js';
+import { createCameraRig } from './camera-rig.js';
+import { createAudio } from '../audio/audio-manager.js';
+import { createParticles } from '../juice/particles.js';
+import { createConfetti } from '../juice/confetti.js';
+import { createFloatingText } from '../juice/floating-text.js';
+import { createVignette } from '../juice/vignette.js';
+import { createFlyingCoins } from '../ui/flying-coins.js';
+import { createCannon } from '../crowd/cannon.js';
+import { createCrowd } from '../crowd/crowd.js';
+import { createChampion } from '../crowd/champion.js';
+import { createHeroes } from '../crowd/heroes.js';
+import { createGates } from '../gates/gates.js';
+import { createWaves } from '../enemy/waves.js';
+import { createGiants } from '../enemy/giants.js';
+import { createBase } from '../enemy/base.js';
+import { createLevels } from '../levels/levels.js';
+import { createObstacles } from '../levels/obstacles.js';
+import { createHud } from '../ui/hud.js';
+import { createOverlays } from '../ui/overlays.js';
+
+const GLB = '/models';
+const MC = `${GLB}/mini-characters/Models/GLB%20format`;
+const BK = `${GLB}/blaster-kit/Models/GLB%20format`;
+const PK = `${GLB}/platformer-kit/Models/GLB%20format`;
+
+// clé ctx.assets.gltf → URL (CONTRACT §8.1, pré-encodées %20)
+const ASSET_URLS = {
+  maleA: `${MC}/character-male-a.glb`,
+  maleB: `${MC}/character-male-b.glb`,
+  maleD: `${MC}/character-male-d.glb`,
+  maleE: `${MC}/character-male-e.glb`,
+  sunglasses: `${MC}/aid-sunglasses.glb`,
+  blaster: `${BK}/blaster-b.glb`,
+  bossChar: `${PK}/character-oozi.glb`,
+  saw: `${PK}/saw.glb`,
+  trapSpikes: `${PK}/trap-spikes.glb`,
+  trapSpikesLarge: `${PK}/trap-spikes-large.glb`,
+  conveyor: `${PK}/conveyor-belt.glb`,
+  blockTall: `${PK}/block-grass-large-tall.glb`,
+  blockLow: `${PK}/block-grass-low-large.glb`,
+  flag: `${PK}/flag.glb`,
+  brick: `${PK}/brick.glb`,
+  stones: `${PK}/stones.glb`,
+  rocks: `${PK}/rocks.glb`,
+  tree: `${PK}/tree.glb`,
+  treePine: `${PK}/tree-pine.glb`,
+  treePineSmall: `${PK}/tree-pine-small.glb`,
+  hedge: `${PK}/hedge.glb`,
+  flowers: `${PK}/flowers.glb`,
+  flowersTall: `${PK}/flowers-tall.glb`,
+  mushrooms: `${PK}/mushrooms.glb`,
+  plant: `${PK}/plant.glb`,
+  grassTuft: `${PK}/grass.glb`,
+  fenceLow: `${PK}/fence-low-straight.glb`,
+};
+
+// tampons partagés pour la normalisation bbox (évite les allocations par clone)
+const _box = new THREE.Box3();
+const _size = new THREE.Vector3();
+const _center = new THREE.Vector3();
+
+/**
+ * Clone un GLB, le normalise à `size` (plus grande dimension), centré en x/z,
+ * base posée à y=0. `holder.userData.height` = hauteur montée (pour asseoir le sommet).
+ */
+function makeProp(gltf, size) {
+  const holder = new THREE.Group();
+  if (!gltf || !gltf.scene) return holder;
+  const root = gltf.scene.clone(true);
+  _box.setFromObject(root);
+  _box.getSize(_size);
+  _box.getCenter(_center);
+  const maxDim = Math.max(_size.x, _size.y, _size.z) || 1;
+  const s = size / maxDim;
+  root.position.set(-_center.x, -_box.min.y, -_center.z);
+  holder.add(root);
+  holder.scale.setScalar(s);
+  holder.userData.height = _size.y * s;
+  return holder;
+}
+
+/** Décor procédural + props (CONTRACT §6.11 étape 2). Retourne les nuages (drift en boucle). */
+function buildDecor(scene, gltf) {
+  // piste : une seule dalle continue (surface propre, sommet à y=0, silhouette de plateau épais).
+  const ROAD_THICKNESS = 2.2;
+  const road = new THREE.Mesh(
+    new THREE.BoxGeometry(C.TRACK.w, ROAD_THICKNESS, C.TRACK.len),
+    new THREE.MeshLambertMaterial({ color: C.COLORS.road }),
+  );
+  road.position.set(0, -ROAD_THICKNESS / 2, C.TRACK.z);
+  scene.add(road);
+  const zStart = C.TRACK.z + C.TRACK.len / 2;
+
+  // pointillés centraux (repère de vitesse), juste au-dessus des dalles
+  const dashMat = new THREE.MeshLambertMaterial({ color: C.COLORS.dash });
+  for (let z = C.DASH.zStart; z > C.DASH.zEnd; z += C.DASH.step) {
+    const d = new THREE.Mesh(new THREE.BoxGeometry(C.DASH.w, C.DASH.h, C.DASH.len), dashMat);
+    d.position.set(0, C.DASH.y, z);
+    scene.add(d);
+  }
+
+  // barrières basses bordant la voie : tournées de 90° pour courir le long de la piste (axe Z).
+  const FENCE_LEN = 1.7;
+  const fenceProto = makeProp(gltf.fenceLow, FENCE_LEN);
+  for (const s of [-1, 1]) {
+    for (let z = zStart - FENCE_LEN / 2; z > C.TRACK.z - C.TRACK.len / 2; z -= FENCE_LEN) {
+      const f = fenceProto.clone(true);
+      f.position.set(s * (C.TRACK.w / 2 + 0.35), 0, z);
+      f.rotation.y = Math.PI / 2;
+      scene.add(f);
+    }
+  }
+
+  // props hors piste (couleurs naturelles Kenney) — dispersés des deux côtés
+  const edge = C.TRACK.w / 2 + 1.4;
+  // [source, x, z, taille, rotationY]
+  const props = [
+    [gltf.tree,          -edge - 2.4,  -6,  4.2, 0.4],
+    [gltf.treePine,       edge + 2.0, -12,  4.6, 1.1],
+    [gltf.tree,           edge + 3.2,   4,  3.8, 2.2],
+    [gltf.treePine,      -edge - 3.0,  10,  4.4, 0.7],
+    [gltf.treePineSmall,  edge + 1.6,  18,  2.6, 0.2],
+    [gltf.treePineSmall, -edge - 1.5, -18,  2.4, 1.5],
+    [gltf.tree,           edge + 3.6, -22,  4.0, 0.9],
+    [gltf.treePine,      -edge - 3.4, -24,  4.8, 2.6],
+    [gltf.rocks,         -edge - 0.6, -16,  1.6, 0.3],
+    [gltf.rocks,          edge + 0.6,  -2,  1.4, 1.9],
+    [gltf.stones,        -edge - 0.5,  16,  1.2, 0.8],
+    [gltf.stones,         edge + 0.7, -20,  1.1, 2.1],
+    [gltf.hedge,          edge + 0.5,  14,  1.6, 0],
+    [gltf.hedge,         -edge - 0.5,  -1,  1.6, 0],
+    [gltf.flowers,       -edge - 0.2,   2,  1.0, 0.5],
+    [gltf.flowers,        edge + 0.2,   8,  1.0, 1.7],
+    [gltf.flowersTall,    edge + 0.3, -10,  1.4, 0.9],
+    [gltf.flowersTall,   -edge - 0.3, -12,  1.3, 2.4],
+    [gltf.mushrooms,     -edge - 0.4,  -3,  0.9, 1.2],
+    [gltf.mushrooms,      edge + 0.4,  20,  0.9, 0.4],
+    [gltf.plant,          edge + 0.3,   0,  1.1, 1.9],
+    [gltf.plant,         -edge - 0.3,   6,  1.0, 0.6],
+    [gltf.grassTuft,     -edge + 0.1, -8,   0.9, 0.3],
+    [gltf.grassTuft,      edge - 0.1,  12,  0.9, 1.1],
+    [gltf.grassTuft,     -edge + 0.2,  22,  0.8, 2.0],
+    [gltf.grassTuft,      edge + 1.1,  -6,  0.8, 0.7],
+  ];
+  for (const [g, x, z, size, ry] of props) {
+    const o = makeProp(g, size);
+    o.position.set(x, 0, z);
+    o.rotation.y = ry;
+    scene.add(o);
+  }
+
+  // nuages procéduraux (3 sphères fusionnées, flat), drift en boucle
+  const clouds = [];
+  const cloudMat = new THREE.MeshLambertMaterial({ color: 0xf3f0ff });
+  for (let i = 0; i < 4; i++) {
+    const g = new THREE.Group();
+    for (const [dx, dy, r] of [[0, 0, 1.4], [1.3, -0.2, 1.0], [-1.2, -0.15, 1.1]]) {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), cloudMat);
+      puff.position.set(dx, dy, 0);
+      g.add(puff);
+    }
+    g.position.set((i - 1.5) * 9, 12 + (i % 2) * 2.5, -18 - i * 6);
+    g.userData.driftSpeed = 0.4 + (i % 3) * 0.15;
+    scene.add(g);
+    clouds.push(g);
+  }
+  return clouds;
+}
+
+export async function createApp({ container = document.getElementById('game') } = {}) {
+  const params = new URLSearchParams(location.search);
+  const isDebug = params.has('debug');
+
+  // 1. renderer + scène + lumières (CONTRACT §1.1 : NoToneMapping, hex inchangés, lumières ×π)
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, C.PIXEL_RATIO_MAX));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.toneMapping = THREE.NoToneMapping;
+  container.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(C.COLORS.bg);
+  scene.fog = new THREE.Fog(C.FOG.color, C.FOG.near, C.FOG.far);
+
+  scene.add(new THREE.HemisphereLight(C.LIGHTS.hemi.sky, C.LIGHTS.hemi.ground, C.LIGHTS.hemi.intensity));
+  const sun = new THREE.DirectionalLight(C.LIGHTS.dir.color, C.LIGHTS.dir.intensity);
+  sun.position.set(...C.LIGHTS.dir.pos);
+  scene.add(sun);
+
+  // 2. caméra
+  const cameraRig = createCameraRig({ renderer });
+  const camera = cameraRig.camera;
+  cameraRig.fit();
+
+  // 3. préchargement + bake
+  await preload(Object.values(ASSET_URLS));
+  const gltf = {};
+  for (const [k, url] of Object.entries(ASSET_URLS)) gltf[k] = getCached(url);
+  if (isDebug) for (const [k, g] of Object.entries(gltf)) dumpInfo(g, k);
+
+  const bakedUnit = bakeRunPose(gltf.maleA);
+
+  // texture colormap partagée (lecture seule) — best effort
+  let colormap = null;
+  gltf.maleA.scene.traverse((o) => { if (!colormap && o.material && o.material.map) colormap = o.material.map; });
+
+  const clouds = buildDecor(scene, gltf);
+
+  // 4. librairies
+  const time = createTime();
+  const audio = createAudio();
+  const particles = createParticles(scene);
+  const confetti = createConfetti(scene);
+  const floatingText = createFloatingText(scene);
+  const vignette = createVignette();
+
+  // 5. état (CONTRACT §2)
+  const state = {
+    level: 1, coins: 0, gems: 0, playerHp: C.PLAYER_HP_START,
+    enemyHp: 50, enemyHpMax: 50, playing: false, bossLevel: false, bossSpawned: false, bossDefeated: false,
+    loadout: C.LOADOUT_DEFAULT,
+    championCharge: 0, championReady: false, championActive: false,
+    fireTimer: 0, waveTimer: 0, holding: false, cannonX: 0, targetX: 0,
+    blues: [], reds: [], champions: [], gates: [], obstacles: [], boosts: [], pops: particles.pops, // alias (A4)
+  };
+
+  // 6. contexte partagé (CONTRACT §4)
+  const ctx = {
+    scene, renderer, camera,
+    time, cameraRig, audio, particles, confetti, floatingText, vignette,
+    flyingCoins: null, // rempli juste après (closure sur ctx.sys.overlays)
+    state,
+    assets: { gltf, bakedUnit, colormap },
+    sys: {},
+  };
+
+  ctx.flyingCoins = createFlyingCoins({
+    coinPillEl: document.getElementById('coinPill'),
+    onTick: (i) => ctx.sys.overlays && ctx.sys.overlays.handleCoinTick(i),
+  });
+
+  // 7. systèmes → ctx.sys (aucune interaction inter-système avant que ctx.sys soit complet)
+  ctx.sys.cannon = createCannon(ctx);
+  ctx.sys.crowd = createCrowd(ctx);
+  ctx.sys.champion = createChampion(ctx);
+  // Alliés : troupes = bleu plein animé (le champion garde son skin via champion.js).
+  ctx.sys.heroes = createHeroes(ctx, {
+    count: C.HERO_COUNT_BLUE,
+    solidColor: C.COLORS.blue,
+  });
+  // Ennemis : troupes = rouge plein animé (le boss/les géants gardent leur skin via giants.js).
+  ctx.sys.redHeroes = createHeroes(ctx, {
+    count: C.HERO_COUNT_RED,
+    getUnits: (c) => c.state.reds.filter((r) => !r.giant),
+    bob: C.RED_BOB,
+    faceBack: true,
+    solidColor: C.COLORS.red,
+  });
+  ctx.sys.gates = createGates(ctx);
+  ctx.sys.obstacles = createObstacles(ctx);
+  ctx.sys.waves = createWaves(ctx);
+  ctx.sys.giants = createGiants(ctx);
+  ctx.sys.base = createBase(ctx);
+  ctx.sys.levels = createLevels(ctx);
+  ctx.sys.hud = createHud(ctx);
+  ctx.sys.overlays = createOverlays(ctx, {
+    onStart: () => {
+      ctx.sys.overlays.hideAll();
+      ctx.sys.hud.showGameHud();
+      ctx.sys.levels.startLevel();
+    },
+    onNext: () => ctx.sys.levels.next(),
+    onRetry: () => ctx.sys.levels.retry(),
+  });
+
+  // 8. inputs + overlays
+  ctx.sys.cannon.attachInput(renderer.domElement);
+  ctx.sys.overlays.bind();
+  ctx.sys.hud.bindChampion(() => ctx.sys.champion.release());
+
+  if (isDebug) window.__MOB__ = ctx;
+
+  // lecteur de debug (compteurs live) — gated ?debug
+  let dbgEl = null;
+  if (isDebug) {
+    dbgEl = document.createElement('div');
+    dbgEl.style.cssText = 'position:fixed;top:60px;left:8px;z-index:9998;background:rgba(0,0,0,.7);' +
+      'color:#0f0;font:11px monospace;padding:6px;white-space:pre;pointer-events:none;';
+    document.body.appendChild(dbgEl);
+  }
+  const bakedVerts = bakedUnit && bakedUnit.geometry && bakedUnit.geometry.attributes.position
+    ? bakedUnit.geometry.attributes.position.count : -1;
+
+  // modes de test headless : bot = tir continu ; sim=SECONDES = pré-avance synchrone déterministe
+  const isBot = params.has('bot');
+  const isSim = params.has('sim');
+  const simSeconds = isSim ? Math.min(60, Math.max(0, parseFloat(params.get('sim')) || 6)) : 0;
+
+  const clock = new THREE.Clock();
+  function frame(forcedRawDt) {
+    time.update(forcedRawDt != null ? forcedRawDt : clock.getDelta());
+    const dt = time.dt, t = time.t, rawDt = time.rawDt, realT = time.realT;
+
+    if ((isBot || isSim) && state.playing) {
+      state.holding = true;
+      state.targetX = Math.sin(realT * 1.7) * (C.AIM_CLAMP * 0.9);
+    }
+
+    // ordre d'update CONTRACT §7.2 ; steps 2-7 re-testent state.playing (parité returns proto)
+    ctx.sys.cannon.update(dt, t);                                    // 2 (tir gated interne ; respiration toujours)
+    if (state.playing) ctx.sys.waves.spawnStep(dt);                 // 3
+    if (state.playing) { ctx.sys.crowd.moveStep(dt, t); ctx.sys.gates.crossStep(dt, t); ctx.sys.obstacles.hitStep(dt, t); } // 4
+    if (state.playing) ctx.sys.base.impactStep(dt, t);              // 5
+    if (state.playing) ctx.sys.waves.moveStep(dt, t);               // 6
+    if (state.playing) ctx.sys.waves.collideStep();                 // 7
+
+    ctx.sys.champion.update(dt, t);
+    ctx.sys.giants.update(dt, t);                                   // 8 (toujours)
+    // 9 juice (toujours)
+    ctx.sys.gates.update(dt, t);
+    ctx.sys.obstacles.update(dt, t);
+    ctx.sys.base.update(dt, t);
+    particles.update(dt);
+    confetti.update(dt);
+    floatingText.update(dt);
+    ctx.sys.heroes.update(dt, t);
+    ctx.sys.redHeroes.update(dt, t);
+    vignette.update(rawDt, realT);
+    cameraRig.update(rawDt, realT);
+    ctx.flyingCoins.update(rawDt);
+    ctx.sys.hud.update(rawDt);
+    ctx.sys.overlays.update(rawDt);
+    audio.update(rawDt);
+
+    // ambiance : drift des nuages (temps réel)
+    for (const cl of clouds) {
+      cl.position.x += cl.userData.driftSpeed * rawDt;
+      if (cl.position.x > 22) cl.position.x = -22;
+    }
+
+    // 10 rendu instances + 11 render
+    ctx.sys.crowd.render(t);
+    ctx.sys.waves.render(t);
+    renderer.render(scene, camera);
+
+    if (dbgEl) {
+      dbgEl.textContent =
+        `playing=${state.playing} t=${t.toFixed(2)} dt=${dt.toFixed(3)}\n` +
+        `blues=${state.blues.length} reds=${state.reds.length} champs=${state.champions.length} gates=${state.gates.length}\n` +
+        `cannonX=${state.cannonX.toFixed(2)} targetX=${state.targetX.toFixed(2)} fireT=${state.fireTimer.toFixed(2)} hold=${state.holding}\n` +
+        `bakedVerts=${bakedVerts} hp=${state.enemyHp}/${state.enemyHpMax} pHp=${state.playerHp} champ=${state.championCharge.toFixed(0)}`;
+    }
+  }
+
+  return {
+    start() {
+      ctx.sys.hud.refresh();
+      if (params.has('autostart') || isBot || isSim) {
+        ctx.sys.overlays.hideAll();
+        ctx.sys.hud.showGameHud();
+        ctx.sys.levels.startLevel();
+      } else {
+        ctx.sys.overlays.showStart();
+      }
+      // pré-avance synchrone déterministe (capture headless de N s de jeu)
+      if (isSim) {
+        const STEP = 1 / 30;
+        const n = Math.min(2000, Math.round(simSeconds / STEP));
+        for (let i = 0; i < n; i++) frame(STEP);
+      }
+      // ⚠ ne PAS passer `frame` directement : three appelle le callback avec le timestamp rAF (ms),
+      // qui serait interprété comme forcedRawDt → dt figé à DT_MAX. On force l'usage de clock.getDelta().
+      renderer.setAnimationLoop(() => frame());
+    },
+  };
+}

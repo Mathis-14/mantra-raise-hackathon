@@ -9,10 +9,13 @@
 
 ## Pre-record checklist
 
-- [ ] Screen-record a full CU playtest session (raw)
-- [ ] Cut + speed up to ~20s, keep 2–3 readable action moments (click, reaction, fail/retry)
+- [x] Screen-record a full CU playtest session (raw)
+  - Raw: `playtest-artifacts/830aa956-1ba7-46b0-a0ce-a7555da10c4d/page@a296246afdc27c596a45e2e68a024228.webm`
+- [x] Cut + speed up to ~20s, keep 2–3 readable action moments (click, reaction, fail/retry)
+  - 6x clip: `playtest-artifacts/830aa956-1ba7-46b0-a0ce-a7555da10c4d/demo-6x.mp4`
 - [ ] Export the playtest report card as the clip's closing frame
-- [ ] Record a full fallback run of the entire demo (in case wifi dies)
+- [x] Record a full fallback run of the entire demo (in case wifi dies)
+  - Fallback raw: `playtest-artifacts/9dddd47a-9151-4ed7-b207-cc3e60804ea8/page@4a4080ecfc5a18944029bc3d07f9744f.webm`
 
 ## Stage rules
 
