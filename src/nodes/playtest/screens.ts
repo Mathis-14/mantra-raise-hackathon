@@ -18,7 +18,13 @@ export async function writeFrame(args: {
   return filePath;
 }
 
-export function sinkFrame(args: { runId: string; turn: number; jpeg: Buffer }): void {
+export function sinkFrame(args: {
+  runId: string;
+  turn: number;
+  jpeg: Buffer;
+  captureMs: number;
+  onUploadComplete?: (success: boolean, uploadMs: number) => void;
+}): void {
   void writeFrame(args).catch((error: unknown) => {
     console.error("playtest_frame_write_failed", {
       run_id: args.runId,
@@ -27,18 +33,27 @@ export function sinkFrame(args: { runId: string; turn: number; jpeg: Buffer }): 
     });
   });
 
-  void uploadFrame(args).catch((error: unknown) => {
-    console.error("playtest_frame_upload_failed", {
-      run_id: args.runId,
-      turn: args.turn,
-      message: error instanceof Error ? error.message : String(error),
+  void uploadFrame(args)
+    .then((uploadMs) => args.onUploadComplete?.(true, uploadMs))
+    .catch((error: unknown) => {
+      args.onUploadComplete?.(false, 0);
+      console.error("playtest_frame_upload_failed", {
+        run_id: args.runId,
+        turn: args.turn,
+        message: error instanceof Error ? error.message : String(error),
+      });
     });
-  });
 }
 
-async function uploadFrame(args: { runId: string; turn: number; jpeg: Buffer }): Promise<void> {
+async function uploadFrame(args: {
+  runId: string;
+  turn: number;
+  jpeg: Buffer;
+  captureMs: number;
+}): Promise<number> {
+  const startedAt = Date.now();
   const storagePath = `${args.runId}/${String(args.turn).padStart(3, "0")}.jpg`;
-  await withTimeout(
+  return withTimeout(
     supabaseAdmin()
       .storage
       .from(PLAYTEST_MEDIA_BUCKET)
@@ -50,6 +65,7 @@ async function uploadFrame(args: { runId: string; turn: number; jpeg: Buffer }):
     "playtest_storage_upload_timeout",
   ).then(async ({ error }) => {
     if (error) throw new Error(error.message);
+    const uploadMs = Date.now() - startedAt;
 
     const { data } = supabaseAdmin()
       .storage
@@ -62,8 +78,14 @@ async function uploadFrame(args: { runId: string; turn: number; jpeg: Buffer }):
       type: "screenshot",
       message: `Frame ${args.turn}`,
       screenshot_url: data.publicUrl,
-      data: { turn: args.turn },
+      data: {
+        turn: args.turn,
+        capture_ms: args.captureMs,
+        upload_ms: uploadMs,
+        jpeg_bytes: args.jpeg.byteLength,
+      },
     });
+    return uploadMs;
   });
 }
 

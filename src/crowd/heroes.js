@@ -19,6 +19,8 @@ import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.j
 import { COLORS, UNIT_HEIGHT, UNIT_FACING_FIX, BLUE_BOB } from '../core/constants.js';
 
 const CLIP_NAME = 'sprint';
+// Comparateur hissé au module (pas de closure allouée à chaque frame) : z décroissant = front d'abord.
+const byZDesc = (a, b) => b.z - a.z;
 
 export function createHeroes(ctx, {
   count = 5,
@@ -87,6 +89,7 @@ export function createHeroes(ctx, {
   const _target = [];       // unités suivies (les plus proches du front), z décroissant
   const _byId = new Map();  // id → Unit
   const _used = new Set();  // ids déjà liés à un héros cette frame
+  const _scratch = [];      // tampon de tri réutilisé (évite units.slice() par frame → moins de GC)
 
   function selectTargets(units) {
     _target.length = 0;
@@ -95,8 +98,11 @@ export function createHeroes(ctx, {
       for (let i = 0; i < units.length; i++) _target.push(units[i]);
     } else {
       // Les `count` unités au z le plus grand = les plus proches du front (côté joueur).
-      const sorted = units.slice().sort((a, b) => b.z - a.z);
-      for (let i = 0; i < count; i++) _target.push(sorted[i]);
+      // Tri dans un tampon réutilisé (pas de nouvelle allocation de tableau chaque frame).
+      _scratch.length = 0;
+      for (let i = 0; i < units.length; i++) _scratch.push(units[i]);
+      _scratch.sort(byZDesc);
+      for (let i = 0; i < count; i++) _target.push(_scratch[i]);
     }
     for (let i = 0; i < _target.length; i++) _byId.set(_target[i].id, _target[i]);
   }

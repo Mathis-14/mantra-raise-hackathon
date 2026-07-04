@@ -104,25 +104,32 @@ export const BOOST_DURATION         = 1.0;
 
 // caméra
 export const CAM = Object.freeze({ fov: 55, near: 0.1, far: 200,
-  baseY: 17, baseZ: 30, kY: 10, kZ: 12, kBias: 0.55, lookAt: Object.freeze([0, 0, -3]) });
+  baseY: 17, baseZ: 30, kY: 10, kZ: 12, kBias: 0.55, lookAt: Object.freeze([0, 0, 3]) });
 // fit : k = max(0, 1/aspect - CAM.kBias) ; pos(0, baseY + k*kY, baseZ + k*kZ) ; lookAt(...CAM.lookAt)
 export const TRAUMA = Object.freeze({ decay: 1.5, maxOffset: 0.5, maxRoll: 0.06,
   giantDeath: 0.15, pop: 0.05, popFrameCap: 0.1, redCross: 0.4, crack: 0.3, baseDestroy: 0.6 });
 
 // rendu / ambiance
+// Palette « canyon de jour » (réf. Mob Control 4-blue-vs-red) : piste vert menthe, sol/falaises
+// sable, ciel bleu doux virant au crème à l'horizon. bg/fog = teinte d'horizon crème pour que
+// le sol lointain et le ciel se fondent sans couture (le dôme dégradé est monté dans app.js).
 export const COLORS = Object.freeze({
-  bg: 0x2B1D6B, track: 0xEDE7FF, rail: 0x7C5CFF, dash: 0xCFC2FF,
+  bg: 0xC4E3F0, track: 0xEDE7FF, rail: 0x7C5CFF, dash: 0xCFC2FF,
   blue: 0x38B6FF, blueDark: 0x2D7DFF, red: 0xFF4D6D, redDark: 0xD63354,
   gold: 0xFFD54A, yellow: 0xFFE66D, green: 0x45E28D, steel: 0x7C8A99,
   gateGood: 0x00E5FF, gateBad: 0xFF3C5A, road: 0x5FC08A,
+  ground: 0xD6C8A2, skyTop: 0x5AAEDF, skyMid: 0x8FCBEA, skyHorizon: 0xC4E3F0,
 });
-export const FOG = Object.freeze({ color: 0x2B1D6B, near: 55, far: 90 });
+export const FOG = Object.freeze({ color: 0xD6E7EC, near: 60, far: 140 });
 export const LIGHTS = Object.freeze({
   hemi: Object.freeze({ sky: 0xbfd4ff, ground: 0x3a2a7a, intensity: 0.95 * Math.PI }),
   dir:  Object.freeze({ color: 0xffffff, intensity: 0.85 * Math.PI, pos: Object.freeze([6, 14, 8]) }),
 });
 export const DT_MAX = 0.05;
-export const PIXEL_RATIO_MAX = 2;
+// Rendu plafonné à 1.5× : sur écran Retina (dpr 2) on rendait à 2× → 4× les fragments.
+// À 1.5× on économise ~44% du travail de fragment/rasterisation (fill-bound) sans coût
+// visible (l'antialiasing lisse toujours les bords). Principal levier anti-lag GPU.
+export const PIXEL_RATIO_MAX = 1.5;
 // Tempo global du jeu (parité prototype stricte = 1.0). Réduit pour un rythme plus lisible/agréable
 // suite au playtest (« extrêmement rapide »). Appliqué au dt gameplay dans time.js : ralentit TOUT
 // proportionnellement (foule, vagues, cadence de tir, animations) → préserve l'équilibre relatif.

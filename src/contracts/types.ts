@@ -114,6 +114,8 @@ export interface PlaytestInput {
   gameUrl: string;
   /** Hard cap on the play session — CU is slow; budget it. */
   timeBudgetS: number;
+  /** Benchmark/debug knob. Defaults to true to preserve current artifact behavior. */
+  recordVideo?: boolean;
 }
 
 export interface Variant {
