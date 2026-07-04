@@ -1,0 +1,26 @@
+// owner: Aymen — Google Ads deploy (STUB by design) + metrics (SEEDED by design).
+// Honesty line: real ingestion architecture, simulated numbers — a live campaign
+// needs ~48h to exit the learning phase, which a one-day build cannot produce.
+// Seed believable curves where one creative clearly wins (that's the demo beat).
+
+import type { Creative, MetricPoint } from "@/contracts/types";
+
+export interface DeployInput {
+  runId: string;
+  creatives: Creative[];
+}
+
+/** Marks creatives deployed and records the (stub) campaign. */
+export async function deployCreatives(input: DeployInput): Promise<void> {
+  throw new Error(`not implemented — owner: Aymen (run ${input.runId})`);
+}
+
+export interface CollectMetricsInput {
+  runId: string;
+  creatives: Creative[];
+}
+
+/** Writes seeded per-creative time-series into the metrics table. */
+export async function collectMetrics(input: CollectMetricsInput): Promise<MetricPoint[]> {
+  throw new Error(`not implemented — owner: Aymen (run ${input.runId})`);
+}
