@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MOB RUSH — clone Mob Control</title>
+<style>
+  :root {
+    --ui-blue: url('/ui/ui-pack/PNG/Blue/Default/button_rectangle_depth_gradient.png');
+    --ui-green: url('/ui/ui-pack/PNG/Green/Default/button_rectangle_depth_gradient.png');
+    --ui-grey: url('/ui/ui-pack/PNG/Grey/Default/button_rectangle_depth_gradient.png');
+    --ui-red: url('/ui/ui-pack/PNG/Red/Default/button_rectangle_depth_gradient.png');
+    --ui-yellow: url('/ui/ui-pack/PNG/Yellow/Default/button_rectangle_depth_gradient.png');
+    --ui-blue-border: url('/ui/ui-pack/PNG/Blue/Default/button_rectangle_depth_border.png');
+    --ui-grey-border: url('/ui/ui-pack/PNG/Grey/Default/button_rectangle_depth_border.png');
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#1a1240;
+    font-family:'Baloo 2','Fredoka','Arial Rounded MT Bold','Helvetica Rounded',ui-rounded,'Nunito',Arial,sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none; }
+  #game { position:fixed; inset:0; }
+  .hud { position:fixed; z-index:10; color:#fff; pointer-events:none;
+    text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #topbar { top:0; left:0; right:0; display:flex; justify-content:space-between;
+    align-items:flex-start; padding:12px 14px; gap:10px; }
+  .topGroup { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .pill { min-height:38px; display:flex; align-items:center; justify-content:center;
+    background:transparent; border:12px solid transparent; border-image-source:var(--ui-grey);
+    border-image-slice:16 fill; border-image-width:16px; border-image-repeat:stretch;
+    padding:0 5px; color:#403b65; font-size:17px; font-weight:900;
+    filter:drop-shadow(0 4px 0 rgba(0,0,0,.22)); text-shadow:0 1px 0 rgba(255,255,255,.8); }
+  .hudIcon { width:26px; height:26px; object-fit:contain; margin-right:7px; filter:drop-shadow(0 2px 0 rgba(0,0,0,.3)); }
+  #enemyHp { position:fixed; top:56px; left:50%; transform:translateX(-50%);
+    width:min(286px,calc(100vw - 130px)); text-align:center; z-index:10; pointer-events:none; }
+  #enemyHp .label { display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:3px;
+    font-size:15px; line-height:1; color:#fff; font-weight:900; text-shadow:0 3px 0 rgba(0,0,0,.42); }
+  #enemyLvl { display:inline-flex; align-items:center; min-height:19px; padding:2px 6px; border-radius:7px;
+    background:transparent; color:#351d54; border:8px solid transparent; border-image-source:var(--ui-yellow);
+    border-image-slice:16 fill; border-image-width:14px; border-image-repeat:stretch; font-size:11px; text-shadow:none;
+    filter:drop-shadow(0 3px 0 rgba(0,0,0,.22)); }
+  #enemyBar { position:relative; width:100%; height:26px; background:#20213d; border-radius:10px;
+    overflow:hidden; border:3px solid rgba(255,255,255,.82); box-shadow:0 4px 0 rgba(0,0,0,.32); }
+  #enemyGhost { position:absolute; left:0; top:0; bottom:0; height:100%; width:100%; border-radius:7px;
+    background:#ffd54a; }
+  #enemyFill { position:absolute; left:0; top:0; bottom:0; height:100%; width:100%; border-radius:7px;
+    background:linear-gradient(90deg,#ff3c5a 0%,#ff3c5a 66%,#ff8fa3 100%);
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.34); }
+  #enemyHpText { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:13px; font-weight:900; text-shadow:0 2px 0 rgba(0,0,0,.55); z-index:2; }
+  #playerHp { bottom:16px; left:50%; transform:translateX(-50%); font-size:18px; font-weight:900; }
+  #hint { bottom:142px; left:50%; transform:translateX(-50%); font-size:14px; font-weight:800;
+    opacity:.9; animation:bob 1.6s ease-in-out infinite; }
+  #championHud { left:50%; bottom:64px; transform:translateX(-50%); width:min(370px,calc(100vw - 28px));
+    display:flex; align-items:center; gap:9px; pointer-events:auto; }
+  #championPanel { flex:1; min-width:0; background:transparent; border:13px solid transparent;
+    border-image-source:var(--ui-grey); border-image-slice:16 fill; border-image-width:16px;
+    border-image-repeat:stretch; padding:0 0 2px; filter:drop-shadow(0 5px 0 rgba(0,0,0,.25)); }
+  #championLabel { font-size:11px; letter-spacing:0; font-weight:900; color:#bdefff; }
+  #championBar { position:relative; height:12px; background:rgba(0,0,0,.4); border-radius:8px;
+    overflow:hidden; margin-top:4px; border:1px solid rgba(255,255,255,.22); }
+  #championFill { position:absolute; inset:0; width:0; background:linear-gradient(90deg,#38b6ff,#45e28d,#ffd54a);
+    border-radius:8px; box-shadow:inset 0 2px 0 rgba(255,255,255,.28); }
+  #releaseBtn { border:14px solid transparent; border-image-source:var(--ui-grey);
+    border-image-slice:16 fill; border-image-width:16px; border-image-repeat:stretch;
+    min-width:96px; height:54px; color:#5b557a; font:inherit; font-size:14px; font-weight:900;
+    letter-spacing:0; background:transparent; filter:drop-shadow(0 5px 0 rgba(0,0,0,.28));
+    opacity:.72; pointer-events:auto; text-shadow:0 1px 0 rgba(255,255,255,.75); }
+  #releaseBtn.ready { opacity:1; color:#fff; border-image-source:var(--ui-green);
+    text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #releaseBtn:disabled { cursor:default; }
+  @keyframes bob { 50% { transform:translate(-50%,-6px); } }
+  .overlay { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; color:#fff; overflow:hidden;
+    background:linear-gradient(180deg,rgba(20,12,60,.08) 0%,rgba(20,12,60,.2) 38%,rgba(16,9,45,.9) 100%);
+    backdrop-filter:blur(2px); }
+  .overlay h1 { font-size:54px; line-height:.92; font-weight:900; letter-spacing:0;
+    color:#fff; text-shadow:0 5px 0 rgba(0,0,0,.38),0 0 22px rgba(56,182,255,.42); }
+  .screenGlow { position:absolute; inset:auto -10% -22% -10%; height:48%; pointer-events:none;
+    background:radial-gradient(ellipse at center,rgba(56,182,255,.3),rgba(255,213,74,.14) 34%,rgba(0,0,0,0) 68%); }
+  .startScreen { justify-content:space-between; padding:36px 16px 22px; }
+  .brandStack { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .modeBadge { padding:2px 10px; background:transparent; color:#351d54; border:12px solid transparent;
+    border-image-source:var(--ui-yellow); border-image-slice:16 fill; border-image-width:16px;
+    border-image-repeat:stretch; filter:drop-shadow(0 4px 0 rgba(0,0,0,.25)); font-size:13px; font-weight:900; }
+  .assetRail { display:flex; gap:8px; align-items:flex-end; justify-content:center; height:64px; }
+  .assetChip { width:58px; height:58px; border-radius:8px; background:linear-gradient(180deg,#fff,#dce7ff);
+    border:2px solid rgba(255,255,255,.85); box-shadow:0 5px 0 rgba(0,0,0,.25); display:grid; place-items:center; overflow:hidden; }
+  .assetChip img { max-width:88%; max-height:88%; object-fit:contain; display:block; }
+  .assetChip.main { width:72px; height:72px; transform:translateY(4px); background:linear-gradient(180deg,#bff0ff,#5ccaff); }
+  .startDeck, .resultCard { position:relative; z-index:1; width:min(390px,calc(100vw - 28px));
+    background:rgba(26,18,73,.78); border:16px solid transparent; border-image-source:var(--ui-grey-border);
+    border-image-slice:16 fill; border-image-width:16px; border-image-repeat:stretch;
+    filter:drop-shadow(0 10px 0 rgba(0,0,0,.26)) drop-shadow(0 22px 28px rgba(0,0,0,.28)); }
+  .startDeck { padding:2px 2px 6px; display:flex; flex-direction:column; gap:12px; }
+  .panelTop { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .panelTitle { font-size:14px; font-weight:900; color:#bdefff; text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  .miniReward { display:flex; gap:6px; align-items:center; padding:0 8px; color:#ffd54a;
+    border:10px solid transparent; border-image-source:var(--ui-blue-border); border-image-slice:16 fill;
+    border-image-width:14px; border-image-repeat:stretch; font-size:14px; font-weight:900; }
+  .loadoutSelect { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; align-items:center; justify-content:center; }
+  .loadoutBtn { min-width:0; height:66px; color:#403b65; background:transparent;
+    border:16px solid transparent; border-image-source:var(--ui-grey); border-image-slice:16 fill;
+    border-image-width:16px; border-image-repeat:stretch; font:inherit; font-size:24px; font-weight:900;
+    filter:drop-shadow(0 5px 0 rgba(0,0,0,.28)); pointer-events:auto;
+    text-shadow:0 1px 0 rgba(255,255,255,.82); }
+  .loadoutBtn.selected { color:#fff; border-image-source:var(--ui-green);
+    text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  .btn { pointer-events:auto; cursor:pointer; border:none; color:#fff; font:inherit;
+    height:70px; min-width:210px; display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    font-size:24px; font-weight:900; padding:14px 36px; border-radius:8px;
+    background:linear-gradient(180deg,#4dc9ff,#2d7dff); box-shadow:0 7px 0 #1c4fd6,0 12px 24px rgba(0,0,0,.35);
+    transition:transform .08s; letter-spacing:0; text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  .btnIcon { width:28px; height:28px; object-fit:contain; filter:drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+  .btn:active { transform:translateY(4px); box-shadow:0 3px 0 #1c4fd6; }
+  .resultOverlay { background:linear-gradient(180deg,rgba(18,10,54,.16),rgba(18,10,54,.9)); }
+  .resultCard { padding:28px 2px 6px; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .resultRibbon { position:absolute; top:-20px; left:50%; transform:translateX(-50%);
+    min-width:210px; padding:3px 18px; color:#351d54; background:transparent; border:13px solid transparent;
+    border-image-source:var(--ui-yellow); border-image-slice:16 fill; border-image-width:16px; border-image-repeat:stretch;
+    filter:drop-shadow(0 5px 0 rgba(0,0,0,.26)); font-size:21px; font-weight:900; text-shadow:none; }
+  .loseCard .resultRibbon { color:#fff; border-image-source:var(--ui-red); }
+  .resultCard h1 { font-size:38px; line-height:1; text-shadow:0 4px 0 rgba(0,0,0,.35); }
+  .rewardPill { min-width:160px; padding:2px 16px; background:transparent;
+    border:14px solid transparent; border-image-source:var(--ui-grey); border-image-slice:16 fill;
+    border-image-width:16px; border-image-repeat:stretch; color:#ffd54a; font-size:28px; font-weight:900;
+    display:flex; align-items:center; justify-content:center; gap:8px; }
+  .rewardIcon { width:40px; height:40px; object-fit:contain; filter:drop-shadow(0 3px 0 rgba(0,0,0,.28)); }
+  .loseMark { width:86px; height:86px; display:grid; place-items:center; font-size:52px; font-weight:900;
+    background:transparent; border:16px solid transparent; border-image-source:var(--ui-red);
+    border-image-slice:16 fill; border-image-width:16px; border-image-repeat:stretch;
+    filter:drop-shadow(0 7px 0 rgba(0,0,0,.28)); }
+  #levelFlash { position:fixed; inset:0; z-index:15; display:flex; align-items:center;
+    justify-content:center; pointer-events:none; opacity:0; }
+  #levelFlash span { font-size:52px; font-weight:900; color:#fff;
+    text-shadow:0 5px 0 rgba(0,0,0,.4); letter-spacing:0; }
+  #dangerVignette { position:fixed; inset:0; z-index:12; pointer-events:none; opacity:0;
+    box-shadow: inset 0 0 120px 40px rgba(255,40,70,.85); }
+  .hidden { display:none !important; }
+  @media (max-height:680px) {
+    .startScreen { padding-top:22px; }
+    .assetRail { display:none; }
+    .overlay h1 { font-size:46px; }
+    .startDeck { gap:10px; }
+    .loadoutBtn { height:56px; }
+    .btn { height:62px; }
+  }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="topbar" class="hud">
+  <div class="topGroup">
+    <div class="pill" id="levelPill">NIV 1</div>
+    <div class="pill" id="loadoutPill">1x</div>
+  </div>
+  <div class="topGroup">
+    <div class="pill" id="gemPill"><img class="hudIcon" src="/models/platformer-kit/Previews/jewel.png" alt="">0</div>
+    <div class="pill" id="coinPill"><img class="hudIcon" src="/models/platformer-kit/Previews/coin-gold.png" alt="">0</div>
+  </div>
+</div>
+<div id="enemyHp" class="hud hidden">
+  <div class="label"><span id="enemyName">BASE ENNEMIE</span><span id="enemyLvl">LVL 1</span></div>
+  <div id="enemyBar"><div id="enemyGhost"></div><div id="enemyFill"></div><div id="enemyHpText">50</div></div>
+</div>
+<div id="playerHp" class="hud hidden">🛡️ <span id="playerHpVal">10</span></div>
+<div id="hint" class="hud hidden">👆 Maintiens et glisse pour viser</div>
+<div id="championHud" class="hud hidden">
+  <div id="championPanel">
+    <div id="championLabel">CHAMPION</div>
+    <div id="championBar"><div id="championFill"></div></div>
+  </div>
+  <button id="releaseBtn" disabled>RELEASE</button>
+</div>
+<div id="levelFlash"><span id="levelFlashTxt">NIVEAU 1</span></div>
+<div id="dangerVignette"></div>
+
+<div id="startOverlay" class="overlay startScreen">
+  <div class="screenGlow"></div>
+  <div class="brandStack">
+    <div class="modeBadge">ARENA RUN</div>
+    <h1>MOB&nbsp;RUSH</h1>
+    <div class="assetRail" aria-hidden="true">
+      <div class="assetChip"><img src="/models/platformer-kit/Previews/saw.png" alt=""></div>
+      <div class="assetChip main"><img src="/models/platformer-kit/Previews/character-oozi.png" alt=""></div>
+      <div class="assetChip"><img src="/models/platformer-kit/Previews/conveyor-belt.png" alt=""></div>
+    </div>
+  </div>
+  <div class="startDeck">
+    <div class="panelTop">
+      <div class="panelTitle">CANON</div>
+      <div class="miniReward"><img class="hudIcon" src="/models/platformer-kit/Previews/jewel.png" alt="">BOSS</div>
+    </div>
+    <div class="loadoutSelect" aria-label="Choix du canon">
+      <button class="loadoutBtn selected" data-loadout="single">1x</button>
+      <button class="loadoutBtn" data-loadout="double">2x</button>
+      <button class="loadoutBtn" data-loadout="triple">3x</button>
+    </div>
+    <button class="btn" id="startBtn"><img class="btnIcon" src="/ui/ui-pack/PNG/Extra/Default/icon_play_light.png" alt="">JOUER</button>
+  </div>
+</div>
+<div id="winOverlay" class="overlay resultOverlay hidden">
+  <div class="screenGlow"></div>
+  <div class="resultCard winCard">
+    <div class="resultRibbon">VICTOIRE</div>
+    <h1>BASE DÉTRUITE</h1>
+    <p class="rewardPill" id="winCoins">+0 <img class="rewardIcon" src="/models/platformer-kit/Previews/coin-gold.png" alt=""></p>
+    <button class="btn" id="nextBtn"><img class="btnIcon" src="/ui/ui-pack/PNG/Extra/Default/icon_play_light.png" alt="">SUIVANT</button>
+  </div>
+</div>
+<div id="loseOverlay" class="overlay resultOverlay hidden">
+  <div class="screenGlow"></div>
+  <div class="resultCard loseCard">
+    <div class="resultRibbon">DÉFAITE</div>
+    <div class="loseMark">!</div>
+    <h1>LIGNE BRISÉE</h1>
+    <button class="btn" id="retryBtn"><img class="btnIcon" src="/ui/ui-pack/PNG/Extra/Default/icon_repeat_light.png" alt="">REJOUER</button>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
