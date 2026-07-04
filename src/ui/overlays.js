@@ -8,15 +8,14 @@ import { STAR_STAGGER, COIN_FLY_COUNT, LOSE_BTN_DELAY, LOADOUTS, LOADOUT_DEFAULT
 import { easeOutBack, clamp01 } from '../juice/springs.js';
 
 // --- Chemins des sprites UI (CONTRACT §8.3, servis à la racine par Vite). ---
-const BTN_BLUE_URL     = '/ui/ui-pack/PNG/Blue/Default/button_rectangle_depth_gradient.png';
-const BTN_RED_URL      = '/ui/ui-pack/PNG/Red/Default/button_rectangle_depth_gradient.png';
+// Les boutons gardent leur style CSS (dégradé d'index.html) ; seules les étoiles de victoire
+// utilisent encore des sprites UI Pack.
 const STAR_FILL_URL    = '/ui/ui-pack/PNG/Yellow/Default/star.png';
 const STAR_OUTLINE_URL = '/ui/ui-pack/PNG/Grey/Default/star_outline_depth.png';
 const COIN_ICON_URL    = '/models/platformer-kit/Previews/coin-gold.png';
 
 // --- Constantes de présentation locales (chrome/anim DOM, hors gameplay : ce ne sont
 //     PAS des littéraux magiques de jeu ; core/constants.js ne les couvre pas). ---
-const SLICE_PX      = 16;    // 9-slice : largeur de bordure ET taille de coin (spec « slice ~16 fill »)
 const PRESS_Y_PX    = 4;     // enfoncement au press (parité CSS .btn:active d'index.html)
 const STAR_COUNT    = 3;     // 3 étoiles séquentielles (spec §6.10, A8 : toujours pleines)
 const STAR_SIZE_PX  = 56;    // taille d'affichage d'une étoile
@@ -69,19 +68,6 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
       '.btn{transform:scale(var(--btn-pulse,1));}' +
       '.btn:active{transform:translateY(' + PRESS_Y_PX + 'px) scale(var(--btn-pulse,1));}';
     document.head.appendChild(style);
-  }
-
-  // 9-slice UI Pack : le PNG (depth-gradient) devient le chrome complet du bouton.
-  function apply9Slice(btn, url) {
-    btn.style.borderStyle = 'solid';
-    btn.style.borderWidth = SLICE_PX + 'px';
-    btn.style.borderColor = 'transparent';
-    btn.style.borderImageSource = "url('" + url + "')";
-    btn.style.borderImageSlice = SLICE_PX + ' fill';
-    btn.style.borderImageWidth = SLICE_PX + 'px';
-    btn.style.borderImageRepeat = 'stretch';
-    btn.style.background = 'transparent';   // laisse le PNG porter le fond
-    btn.style.boxShadow = 'none';           // la profondeur est peinte dans le PNG
   }
 
   function wireButton(btn, cb) {
@@ -149,9 +135,9 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
 
   function bind() {
     injectStyle();
-    if (startBtn) { apply9Slice(startBtn, BTN_BLUE_URL); wireButton(startBtn, onStart); }
-    if (nextBtn) { apply9Slice(nextBtn, BTN_BLUE_URL); wireButton(nextBtn, onNext); }
-    if (retryBtn) { apply9Slice(retryBtn, BTN_RED_URL); wireButton(retryBtn, onRetry); }
+    wireButton(startBtn, onStart);
+    wireButton(nextBtn, onNext);
+    wireButton(retryBtn, onRetry);
     for (const btn of loadoutBtns) {
       btn.onclick = () => {
         ctx.audio?.unlock();
