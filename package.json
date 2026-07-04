@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "name": "mantra",
   "version": "0.1.0",
   "private": true,
@@ -32,5 +33,22 @@
     "tailwindcss": "^4.1.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
+=======
+  "name": "mob-rush",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MOB RUSH — clone Mob Control en Three.js (RAISE hackathon)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.185.0"
+  },
+  "devDependencies": {
+    "vite": "^8.0.0"
+>>>>>>> 553e163 ([integ] T0 — scaffold Vite+three : build vert, scène témoin, publicDir=game/assets servant models/sounds/ui)
   }
 }

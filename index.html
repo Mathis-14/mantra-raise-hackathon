@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MOB RUSH — clone Mob Control</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#1a1240;
+    font-family:'Baloo 2','Fredoka','Arial Rounded MT Bold','Helvetica Rounded',ui-rounded,'Nunito',Arial,sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none; }
+  #game { position:fixed; inset:0; }
+  .hud { position:fixed; z-index:10; color:#fff; pointer-events:none;
+    text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #topbar { top:0; left:0; right:0; display:flex; justify-content:space-between;
+    align-items:flex-start; padding:14px 16px; }
+  .pill { background:rgba(20,12,60,.55); border-radius:999px; padding:8px 16px;
+    font-size:17px; font-weight:bold; backdrop-filter:blur(4px); }
+  #enemyHp { position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    text-align:center; z-index:10; pointer-events:none; }
+  #enemyHp .label { font-size:11px; letter-spacing:2px; color:#ffb3c0; font-weight:bold;
+    text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #enemyBar { position:relative; width:160px; height:14px; background:rgba(0,0,0,.4); border-radius:8px;
+    margin-top:4px; overflow:hidden; border:2px solid rgba(255,255,255,.25); }
+  #enemyGhost { position:absolute; inset:0; height:100%; width:100%; border-radius:6px;
+    background:#ffd54a; }
+  #enemyFill { position:absolute; inset:0; height:100%; width:100%; border-radius:6px;
+    background:linear-gradient(90deg,#ff4d6d,#ff8fa3); }
+  #playerHp { bottom:18px; left:50%; transform:translateX(-50%); font-size:18px;
+    letter-spacing:1px; }
+  #hint { bottom:52px; left:50%; transform:translateX(-50%); font-size:14px;
+    opacity:.85; animation:bob 1.6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform:translate(-50%,-6px); } }
+  .overlay { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; text-align:center; color:#fff;
+    background:rgba(18,10,54,.78); backdrop-filter:blur(6px); }
+  .overlay h1 { font-size:44px; text-shadow:0 4px 0 rgba(0,0,0,.4); letter-spacing:1px; }
+  .overlay p { font-size:18px; opacity:.9; max-width:280px; line-height:1.5; }
+  .overlay .coins { font-size:24px; color:#ffd54a; font-weight:bold; }
+  .btn { pointer-events:auto; cursor:pointer; border:none; color:#fff; font:inherit;
+    font-size:22px; font-weight:bold; padding:16px 44px; border-radius:999px;
+    background:linear-gradient(180deg,#4dc9ff,#2d7dff); box-shadow:0 6px 0 #1c4fd6,0 10px 24px rgba(0,0,0,.35);
+    transition:transform .08s; letter-spacing:1px; }
+  .btn:active { transform:translateY(4px); box-shadow:0 2px 0 #1c4fd6; }
+  #levelFlash { position:fixed; inset:0; z-index:15; display:flex; align-items:center;
+    justify-content:center; pointer-events:none; opacity:0; }
+  #levelFlash span { font-size:52px; font-weight:bold; color:#fff;
+    text-shadow:0 5px 0 rgba(0,0,0,.4); letter-spacing:2px; }
+  #dangerVignette { position:fixed; inset:0; z-index:12; pointer-events:none; opacity:0;
+    box-shadow: inset 0 0 120px 40px rgba(255,40,70,.85); }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="topbar" class="hud">
+  <div class="pill" id="levelPill">NIV 1</div>
+  <div class="pill" id="coinPill">🪙 0</div>
+</div>
+<div id="enemyHp" class="hud hidden">
+  <div class="label">BASE ENNEMIE</div>
+  <div id="enemyBar"><div id="enemyGhost"></div><div id="enemyFill"></div></div>
+</div>
+<div id="playerHp" class="hud hidden">🛡️ <span id="playerHpVal">10</span></div>
+<div id="hint" class="hud hidden">👆 Maintiens et glisse pour viser</div>
+<div id="levelFlash"><span id="levelFlashTxt">NIVEAU 1</span></div>
+<div id="dangerVignette"></div>
+
+<div id="startOverlay" class="overlay">
+  <h1>MOB&nbsp;RUSH</h1>
+  <p>Envoie ta foule bleue à travers les portes multiplicatrices et détruis la base rouge !</p>
+  <button class="btn" id="startBtn">JOUER</button>
+</div>
+<div id="winOverlay" class="overlay hidden">
+  <h1>VICTOIRE ! 🎉</h1>
+  <p class="coins" id="winCoins">+0 🪙</p>
+  <button class="btn" id="nextBtn">NIVEAU SUIVANT</button>
+</div>
+<div id="loseOverlay" class="overlay hidden">
+  <h1>DÉFAITE 💥</h1>
+  <p>Les rouges ont franchi ta ligne…</p>
+  <button class="btn" id="retryBtn">RÉESSAYER</button>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

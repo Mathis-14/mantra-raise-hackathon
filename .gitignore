@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # dependencies
 node_modules/
 
@@ -23,3 +24,10 @@ playtest-artifacts/
 
 # local-only files (reference videos, private notes) — never pushed
 .private/
+=======
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+>>>>>>> 553e163 ([integ] T0 — scaffold Vite+three : build vert, scène témoin, publicDir=game/assets servant models/sounds/ui)
