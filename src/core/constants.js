@@ -80,6 +80,11 @@ export const LIGHTS = Object.freeze({
 });
 export const DT_MAX = 0.05;
 export const PIXEL_RATIO_MAX = 2;
+// Tempo global du jeu (parité prototype stricte = 1.0). Réduit pour un rythme plus lisible/agréable
+// suite au playtest (« extrêmement rapide »). Appliqué au dt gameplay dans time.js : ralentit TOUT
+// proportionnellement (foule, vagues, cadence de tir, animations) → préserve l'équilibre relatif.
+// Le temps réel (rawDt : shake, DOM, ghost fill, pièces volantes) n'est PAS affecté.
+export const GAME_SPEED = 0.85;
 
 // unités : animation procédurale (parité)
 export const UNIT_HEIGHT   = 0.9;                       // normalisation bake (bbox)

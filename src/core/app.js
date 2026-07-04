@@ -288,7 +288,9 @@ export async function createApp({ container = document.getElementById('game') } 
         const n = Math.min(2000, Math.round(simSeconds / STEP));
         for (let i = 0; i < n; i++) frame(STEP);
       }
-      renderer.setAnimationLoop(frame);
+      // ⚠ ne PAS passer `frame` directement : three appelle le callback avec le timestamp rAF (ms),
+      // qui serait interprété comme forcedRawDt → dt figé à DT_MAX. On force l'usage de clock.getDelta().
+      renderer.setAnimationLoop(() => frame());
     },
   };
 }

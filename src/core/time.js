@@ -1,6 +1,6 @@
 // MOB RUSH — horloge de jeu. Module-librairie pur (CONTRACT §5.2).
 // dt clampé × timescale global (hit-stop / slow-mo). Aucun effet de bord à l'import.
-import { DT_MAX } from './constants.js';
+import { DT_MAX, GAME_SPEED } from './constants.js';
 
 /**
  * Horloge de jeu : dt clampé + timescale global (hit-stop / slow-mo).
@@ -46,8 +46,8 @@ export function createTime() {
         _timescale = Math.min(target, approached);
       }
 
-      // 5) dt scalé + accumulation du temps de jeu
-      _dt = clamped * _timescale;
+      // 5) dt scalé (× timescale hit-stop/slow-mo × tempo global) + accumulation du temps de jeu
+      _dt = clamped * _timescale * GAME_SPEED;
       _t += _dt;
     },
 
