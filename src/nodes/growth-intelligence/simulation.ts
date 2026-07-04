@@ -5,6 +5,7 @@ import type {
   CreativeHookType,
   MetricPoint,
 } from "@/contracts/types";
+import { parseCreatives } from "@/nodes/growth-intelligence/validation";
 
 const SIMULATED_SPEND_USD = 30;
 const MIN_CTR = 0.006;
@@ -160,5 +161,5 @@ function simulateCreative(creative: Creative): MetricPoint {
 }
 
 export function simulateMetrics(creatives: readonly Creative[]): MetricPoint[] {
-  return creatives.map(simulateCreative);
+  return parseCreatives(creatives).map(simulateCreative);
 }

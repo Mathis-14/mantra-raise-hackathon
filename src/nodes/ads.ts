@@ -6,6 +6,7 @@
 import type { Creative, MetricPoint } from "@/contracts/types";
 import { emitEvent } from "@/lib/events";
 import { simulateMetrics } from "@/nodes/growth-intelligence/simulation";
+import { parseCreatives, parseRunId } from "@/nodes/growth-intelligence/validation";
 
 export interface DeployInput {
   runId: string;
@@ -14,8 +15,11 @@ export interface DeployInput {
 
 /** Performs the stub deployment; the orchestrator persists creative statuses. */
 export async function deployCreatives(input: DeployInput): Promise<void> {
+  const runId = parseRunId(input.runId);
+  const creatives = parseCreatives(input.creatives);
+
   await emitEvent({
-    run_id: input.runId,
+    run_id: runId,
     node: "ads",
     type: "status",
     message: "Preparing simulated Google Ads campaign",
@@ -23,20 +27,20 @@ export async function deployCreatives(input: DeployInput): Promise<void> {
     data: {
       phase: "preparing_campaign",
       progress: 10,
-      creative_count: input.creatives.length,
+      creative_count: creatives.length,
       deployment_mode: "stubbed",
     },
   });
   await emitEvent({
-    run_id: input.runId,
+    run_id: runId,
     node: "ads",
     type: "action",
-    message: `Deployed ${input.creatives.length} creative(s) to the simulated campaign`,
+    message: `Deployed ${creatives.length} creative(s) to the simulated campaign`,
     screenshot_url: null,
     data: {
       phase: "deploying_creatives",
       progress: 25,
-      creative_ids: input.creatives.map((creative) => creative.id),
+      creative_ids: creatives.map((creative) => creative.id),
       deployment_mode: "stubbed",
     },
   });
@@ -49,8 +53,11 @@ export interface CollectMetricsInput {
 
 /** Returns seeded per-creative time-series for the orchestrator to persist. */
 export async function collectMetrics(input: CollectMetricsInput): Promise<MetricPoint[]> {
+  const runId = parseRunId(input.runId);
+  const creatives = parseCreatives(input.creatives);
+
   await emitEvent({
-    run_id: input.runId,
+    run_id: runId,
     node: "ads",
     type: "status",
     message: "Collecting deterministic simulated campaign metrics",
@@ -58,15 +65,15 @@ export async function collectMetrics(input: CollectMetricsInput): Promise<Metric
     data: {
       phase: "collecting_metrics",
       progress: 40,
-      creative_count: input.creatives.length,
+      creative_count: creatives.length,
       simulation: "deterministic",
     },
   });
 
-  const metrics = simulateMetrics(input.creatives);
+  const metrics = simulateMetrics(creatives);
 
   await emitEvent({
-    run_id: input.runId,
+    run_id: runId,
     node: "ads",
     type: "observation",
     message: `Collected simulated metrics for ${metrics.length} creative(s)`,

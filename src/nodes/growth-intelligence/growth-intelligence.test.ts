@@ -166,5 +166,47 @@ test("simulation rejects creative signals outside the normalized range", () => {
     audience_fit: 1.1,
   });
 
-  assert.throws(() => simulateMetrics([invalid]), /audience_fit must be a finite number between 0 and 1/);
+  assert.throws(() => simulateMetrics([invalid]), /audience_fit/);
+});
+
+test("simulation rejects malformed creative boundary data", () => {
+  const source = creative("creative-invalid", null, STRONG_ATTRIBUTES);
+
+  assert.throws(
+    () => simulateMetrics([{ ...source, id: "" }]),
+    /ID must not be empty/,
+  );
+  assert.throws(
+    () => simulateMetrics([{ ...source, duration_s: 0 }]),
+    /duration_s/,
+  );
+  assert.throws(
+    () => simulateMetrics([{
+      ...source,
+      attributes: { ...source.attributes, gameplay_category: "" },
+    }]),
+    /gameplay_category/,
+  );
+});
+
+test("evaluation rejects incoherent metric counts", () => {
+  const creatives = campaignCreatives();
+  const metrics = simulateMetrics(creatives);
+  const firstMetric = metrics[0];
+  assert.ok(firstMetric);
+
+  assert.throws(
+    () => evaluateCreatives(RUN_ID, creatives, [
+      { ...firstMetric, clicks: firstMetric.impressions + 1 },
+      ...metrics.slice(1),
+    ]),
+    /clicks must not exceed impressions/,
+  );
+  assert.throws(
+    () => evaluateCreatives(RUN_ID, creatives, [
+      { ...firstMetric, installs: firstMetric.clicks + 1 },
+      ...metrics.slice(1),
+    ]),
+    /installs must not exceed clicks/,
+  );
 });

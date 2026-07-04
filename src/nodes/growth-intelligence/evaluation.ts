@@ -8,6 +8,11 @@ import type {
 import { explainCreative } from "@/nodes/growth-intelligence/explanations";
 import { recommendPrototype } from "@/nodes/growth-intelligence/recommendation";
 import { scoreCreative } from "@/nodes/growth-intelligence/scoring";
+import {
+  parseCreatives,
+  parseMetrics,
+  parseRunId,
+} from "@/nodes/growth-intelligence/validation";
 
 type UnrankedEvaluation = Omit<CreativeEvaluation, "rank">;
 
@@ -54,12 +59,12 @@ export function evaluateCreatives(
   creatives: readonly Creative[],
   metrics: readonly MetricPoint[],
 ): Decision {
-  if (creatives.length === 0) {
-    throw new Error("At least one creative is required for evaluation");
-  }
+  const validatedRunId = parseRunId(runId);
+  const validatedCreatives = parseCreatives(creatives);
+  const validatedMetrics = parseMetrics(metrics);
 
-  const metricIndex = metricsByCreative(creatives, metrics);
-  const evaluations = creatives
+  const metricIndex = metricsByCreative(validatedCreatives, validatedMetrics);
+  const evaluations = validatedCreatives
     .map((creative) => {
       const metric = metricIndex.get(creative.id);
       if (!metric) {
@@ -83,7 +88,7 @@ export function evaluateCreatives(
       : `Continue developing variant ${recommendation.selected_variant_id} and use its winning creative as the next control.`;
 
   return {
-    run_id: runId,
+    run_id: validatedRunId,
     keep_creative_ids: keepIds,
     iterate_creative_ids: iterateIds,
     kill_creative_ids: killIds,

@@ -7,6 +7,11 @@
 import type { Creative, Decision, MetricPoint, PlaytestReport } from "@/contracts/types";
 import { emitEvent } from "@/lib/events";
 import { evaluateCreatives } from "@/nodes/growth-intelligence";
+import {
+  parseCreatives,
+  parseMetrics,
+  parseRunId,
+} from "@/nodes/growth-intelligence/validation";
 
 export interface DecideInput {
   runId: string;
@@ -16,8 +21,12 @@ export interface DecideInput {
 }
 
 export async function decide(input: DecideInput): Promise<Decision> {
+  const runId = parseRunId(input.runId);
+  const creatives = parseCreatives(input.creatives);
+  const metrics = parseMetrics(input.metrics);
+
   await emitEvent({
-    run_id: input.runId,
+    run_id: runId,
     node: "decide",
     type: "status",
     message: "Evaluating creative performance",
@@ -25,10 +34,10 @@ export async function decide(input: DecideInput): Promise<Decision> {
     data: { phase: "evaluating_creatives", progress: 60 },
   });
 
-  const decision = evaluateCreatives(input.runId, input.creatives, input.metrics);
+  const decision = evaluateCreatives(runId, creatives, metrics);
 
   await emitEvent({
-    run_id: input.runId,
+    run_id: runId,
     node: "decide",
     type: "action",
     message: "Ranked creative variants",
@@ -40,7 +49,7 @@ export async function decide(input: DecideInput): Promise<Decision> {
     },
   });
   await emitEvent({
-    run_id: input.runId,
+    run_id: runId,
     node: "decide",
     type: "action",
     message: "Selected campaign winners",
@@ -54,7 +63,7 @@ export async function decide(input: DecideInput): Promise<Decision> {
     },
   });
   await emitEvent({
-    run_id: input.runId,
+    run_id: runId,
     node: "decide",
     type: "action",
     message: "Generated prototype recommendation",
@@ -67,7 +76,7 @@ export async function decide(input: DecideInput): Promise<Decision> {
     },
   });
   await emitEvent({
-    run_id: input.runId,
+    run_id: runId,
     node: "decide",
     type: "status",
     message: "Growth Intelligence evaluation complete",
