@@ -723,10 +723,7 @@ a.logo {
   border-right: 1px solid var(--border);
   overflow-y: auto;
 }
-.pipeline-col:first-child {
-  padding-top: 76px;
-}
-.pipeline-col--wide { background: var(--bg); }
+.pipeline-col--wide { background: transparent; }
 .pipeline-col:last-child { border-right: none; }
 
 /* pipeline nodes */
@@ -868,6 +865,99 @@ a.logo {
 .stat { display: flex; flex-direction: column; }
 .stat-label { font-size: 8.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px; }
 .stat-val   { font-size: 11.5px; font-weight: 600; color: var(--text); }
+
+/* ── Market benchmark (Sensor Tower) ── */
+.market-section {
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.market-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+  font-size: 12px;
+}
+.market-genre {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-faint);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.market-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.market-sub {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
+
+/* competitor list */
+.market-list { display: flex; flex-direction: column; gap: 6px; }
+.market-comp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  animation: fade-in 0.25s ease;
+}
+.mc-main { display: flex; flex-direction: column; gap: 1px; }
+.mc-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.mc-pub  { font-size: 10px; color: var(--text-faint); }
+.mc-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* our-variant benchmark bars */
+.market-bench { display: flex; flex-direction: column; gap: 8px; }
+.bench-row {
+  display: grid;
+  grid-template-columns: 74px 1fr 66px;
+  align-items: center;
+  gap: 8px;
+  animation: fade-in 0.25s ease;
+}
+.bench-name { font-size: 11px; font-weight: 600; }
+.bench-bar-wrap {
+  position: relative;
+  height: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bench-bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+/* median marker at 50% of the scale */
+.bench-median {
+  position: absolute;
+  top: -2px; bottom: -2px;
+  left: 50%;
+  width: 2px;
+  background: var(--text-faint);
+  opacity: 0.7;
+}
+.bench-verdict { font-size: 9.5px; font-weight: 700; text-align: right; }
+.bench-verdict.beats { color: #16a34a; }
+.bench-verdict.below { color: #dc2626; }
 
 /* recommendation card */
 .rec-card {
