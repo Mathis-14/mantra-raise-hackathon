@@ -1,16 +1,17 @@
 // ── Page 2 : Computer Use — 4 parallel sessions ──
 
 const SESSIONS = [
-  { id: 0, title: 'Speed Dash',  color: '#2563eb', angle:   0 },
-  { id: 1, title: 'Block Blitz', color: '#0891b2', angle:  90 },
-  { id: 2, title: 'Sky Hop',     color: '#7c3aed', angle: 180 },
-  { id: 3, title: 'Neon Snake',  color: '#059669', angle: 270 },
+  { id: 0, title: 'Speed Dash',   color: '#2563eb', angle:   0 },
+  { id: 1, title: 'Block Blitz',  color: '#0891b2', angle:  72 },
+  { id: 2, title: 'Sky Hop',      color: '#7c3aed', angle: 144 },
+  { id: 3, title: 'Neon Snake',   color: '#059669', angle: 216 },
+  { id: 4, title: 'Astro Dodge',  color: '#d97706', angle: 288 },
 ]
 
-const CW = 216
-const CH = 384
+const CW = 160
+const CH = 284
 const DURATION = 10000
-const START_OFFSETS = [0, 900, 400, 1300]
+const START_OFFSETS = [0, 900, 400, 1300, 600]
 
 // ── Game 1: Car dodge ──
 function gameCarDodge(canvas: HTMLCanvasElement) {
@@ -161,7 +162,52 @@ function gameNeonSnake(canvas: HTMLCanvasElement) {
   }
 }
 
-const GAME_FNS = [gameCarDodge, gameBreakout, gameSkyHop, gameNeonSnake]
+// ── Game 5: Astro Dodge ──
+function gameAstroDodge(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d')!
+  const w = CW, h = CH
+  let sx = w/2, sy = h*0.75, sangle = 0
+  const asteroids: {x:number;y:number;r:number;vx:number;vy:number}[] = []
+  const bullets: {x:number;y:number}[] = []
+  let bTimer = 0, score = 0
+  for (let i=0;i<5;i++) asteroids.push({x:Math.random()*w,y:Math.random()*h*0.5,r:6+Math.random()*8,vx:(Math.random()-0.5)*1.2,vy:0.5+Math.random()*0.8})
+  return function tick() {
+    sangle += 0.025
+    sx = w/2 + Math.cos(sangle)*w*0.25
+    sy = h*0.75 + Math.sin(sangle*2)*20
+    bTimer++
+    if (bTimer%22===0) bullets.push({x:sx,y:sy})
+    for (const b of bullets) b.y -= 4
+    for (const a of asteroids) {
+      a.x += a.vx; a.y += a.vy
+      if (a.x<0||a.x>w) a.vx=-a.vx
+      if (a.y>h+20) { a.y=-20; a.x=Math.random()*w }
+      for (let i=bullets.length-1;i>=0;i--) {
+        if (Math.hypot(bullets[i].x-a.x,bullets[i].y-a.y)<a.r+3) { bullets.splice(i,1); score++; a.y=-20; a.x=Math.random()*w; break }
+      }
+    }
+    ctx.fillStyle='#030710'; ctx.fillRect(0,0,w,h)
+    // stars
+    ctx.fillStyle='rgba(255,255,255,0.5)'
+    for (let i=0;i<30;i++) { const sx2=(i*73)%w,sy2=(i*47+score*0.5)%h; ctx.fillRect(sx2,sy2,1,1) }
+    for (const a of asteroids) {
+      ctx.strokeStyle='rgba(217,119,6,0.85)'; ctx.lineWidth=1.5; ctx.shadowColor='rgba(217,119,6,0.4)'; ctx.shadowBlur=6
+      ctx.beginPath(); ctx.arc(a.x,a.y,a.r,0,Math.PI*2); ctx.stroke(); ctx.shadowBlur=0
+    }
+    for (const b of bullets) {
+      ctx.fillStyle='rgba(255,200,80,0.9)'; ctx.shadowColor='rgba(217,119,6,0.8)'; ctx.shadowBlur=6
+      ctx.fillRect(b.x-1.5,b.y-5,3,8); ctx.shadowBlur=0
+    }
+    // ship triangle
+    ctx.save(); ctx.translate(sx,sy); ctx.rotate(Math.PI)
+    ctx.fillStyle='rgba(255,220,100,0.9)'; ctx.shadowColor='rgba(217,119,6,0.6)'; ctx.shadowBlur=10
+    ctx.beginPath(); ctx.moveTo(0,-11); ctx.lineTo(-7,8); ctx.lineTo(7,8); ctx.closePath(); ctx.fill(); ctx.shadowBlur=0
+    ctx.restore()
+    ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='9px Inter,sans-serif'; ctx.fillText('SCORE '+score,8,14)
+  }
+}
+
+const GAME_FNS = [gameCarDodge, gameBreakout, gameSkyHop, gameNeonSnake, gameAstroDodge]
 
 export function renderPlaytest(root: HTMLElement) {
   root.innerHTML = `
@@ -183,7 +229,7 @@ export function renderPlaytest(root: HTMLElement) {
       <div class="carousel-scene">
         <div class="carousel-ring" id="carousel-ring" style="transform-style:preserve-3d">
           ${SESSIONS.map(s => `
-            <div class="phone-slot" id="slot-${s.id}" style="transform:rotateY(${s.angle}deg) translateZ(300px)">
+            <div class="phone-slot" id="slot-${s.id}" style="transform:rotateY(${s.angle}deg) translateZ(260px)">
               <div class="iphone-frame">
                 <div class="iphone-notch"></div>
                 <div class="iphone-screen">
@@ -241,7 +287,7 @@ export function renderPlaytest(root: HTMLElement) {
     SESSIONS.forEach(s => {
       const slot = document.getElementById('slot-' + s.id)!
       // Reapply position + counter-rotate inner content
-      slot.style.transform = `rotateY(${s.angle}deg) translateZ(300px)`
+      slot.style.transform = `rotateY(${s.angle}deg) translateZ(260px)`
       const frame_ = slot.querySelector<HTMLElement>('.iphone-frame')!
       const meta   = slot.querySelector<HTMLElement>('.phone-meta')!
       const counterAngle = -(s.angle + baseAngle)

@@ -229,7 +229,8 @@ a.logo {
    SHELL (pages 2 & 3)
 ════════════════════════════════════════ */
 .shell {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -298,44 +299,91 @@ a.logo {
 
 /* ── Playtest carousel ── */
 .carousel-scene {
-  flex: 1;
+  height: calc(100vh - 52px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  perspective: 1000px;
+  perspective: 900px;
+  gap: 28px;
+  padding: 20px 0 24px;
   overflow: hidden;
-  gap: 40px;
-  padding: 40px 0 32px;
 }
 
 .carousel-ring {
   position: relative;
-  width: 290px;
-  height: 440px;
+  width: 210px;
+  height: 340px;
   transform-style: preserve-3d;
+  flex-shrink: 0;
 }
 
 .phone-slot {
   position: absolute;
   top: 0; left: 0;
-  transform-style: preserve-3d;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  transition: opacity 0.1s;
+  gap: 10px;
+}
+
+/* ── 3D iPhone effect ── */
+.iphone-frame {
+  position: relative;
+  width: 210px;
+  background: #1c1c1e;
+  border-radius: 36px;
+  padding: 12px 8px 16px;
+  /* top/left face */
+  box-shadow:
+    /* right side face — gives depth */
+    8px 8px 0 2px #111,
+    9px 9px 0 2px #2a2a2e,
+    /* bottom side face */
+    4px 12px 0 2px #0d0d0f,
+    /* outer ring */
+    0 0 0 2px #3a3a3e,
+    0 0 0 3px #1c1c1e,
+    0 0 0 4px #3a3a3e,
+    /* ambient shadow */
+    12px 20px 40px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.07);
+  transform-origin: center center;
+}
+
+/* left side bar */
+.iphone-frame::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 28px;
+  width: 3px;
+  height: 26px;
+  background: #2a2a2e;
+  border-radius: 2px 0 0 2px;
+  box-shadow: 0 36px 0 #2a2a2e;
+}
+/* right side volume/power buttons */
+.iphone-frame::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: 52px;
+  width: 3px;
+  height: 38px;
+  background: #2a2a2e;
+  border-radius: 0 2px 2px 0;
 }
 
 .phone-meta {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 200px;
+  gap: 5px;
+  width: 160px;
 }
 .phone-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
 }
@@ -352,7 +400,7 @@ a.logo {
   transition: width 0.3s linear;
 }
 .phone-pct {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-faint);
 }
@@ -360,6 +408,7 @@ a.logo {
 .carousel-cta {
   display: flex;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 /* session badge in nav */
