@@ -89,7 +89,7 @@ export function explainCreative(
   if (strengths.length === 0) {
     strengths.push(strength(strongest[0], creative, metric));
   }
-  if (weaknesses.length === 0) {
+  if (weaknesses.length === 0 && decision !== "KEEP") {
     weaknesses.push(weakness(weakest[0], creative, metric));
   }
 
