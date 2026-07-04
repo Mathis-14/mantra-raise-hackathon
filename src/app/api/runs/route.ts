@@ -6,6 +6,8 @@ import { z } from "zod";
 
 import { supabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 const startRunSchema = z.object({
   project_id: z.uuid(),
 });

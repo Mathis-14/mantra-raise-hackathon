@@ -2,9 +2,15 @@
 // the canonical transition map; the worker never advances this edge itself.
 
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
-import { canTransition, type RunStatus } from "@/contracts/types";
+import { canTransition, RUN_STATUSES } from "@/contracts/types";
+import { emitEvent } from "@/lib/events";
 import { supabaseAdmin } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+
+const runStatusSchema = z.enum(RUN_STATUSES);
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -18,7 +24,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
 
   if (readError) return NextResponse.json({ error: readError.message }, { status: 404 });
 
-  const from = run.status as RunStatus;
+  const parsedStatus = runStatusSchema.safeParse(run.status);
+  if (!parsedStatus.success) {
+    return NextResponse.json({ error: `run has invalid status: ${run.status}` }, { status: 500 });
+  }
+
+  const from = parsedStatus.data;
   if (!canTransition(from, "generating_variants")) {
     return NextResponse.json(
       { error: `run is ${from}, not awaiting_approval` },
@@ -35,5 +46,15 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await emitEvent({
+    run_id: id,
+    node: "orchestrator",
+    type: "status",
+    message: "Report approved — generating variants",
+    screenshot_url: null,
+    data: null,
+  });
+
   return NextResponse.json(data);
 }
