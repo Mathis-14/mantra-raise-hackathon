@@ -168,3 +168,48 @@ export interface MemoryEntry {
   content: string;
   created_at: string;
 }
+
+// ── Ad-scenario variants (saveable, replayable, comparable) ──────────────────
+// Rich metadata for a scenario-driven ad variant. The canonical AdScenarioSpec
+// type + Zod schema are owned by src/lib/ad-scenarios and validated at the write
+// boundary; the full scenario + mutation config are persisted here as JSON so a
+// variant can be replayed exactly later.
+
+export const VARIANT_SPEC_STATUSES = [
+  "draft",
+  "generated",
+  "recording",
+  "recorded",
+  "kept",
+  "killed",
+] as const;
+export type VariantSpecStatus = (typeof VARIANT_SPEC_STATUSES)[number];
+
+export interface VariantSpec {
+  id: string;
+  run_id: string;
+  /** Links to the playable `variants` row once its game_html is persisted. */
+  variant_id: string | null;
+  /** AdScenarioSpec.id — stable scenario identifier for replay. */
+  scenario_id: string;
+  title: string;
+  /** trend.name from the scenario. */
+  trend: string;
+  /** gameplay_mutation.mechanic_focus. */
+  mechanic_focus: string;
+  /** hypothesis.statement. */
+  hypothesis: string;
+  /** Resolved window.__MOB_VARIANT__ config (bounded mutation parameters). */
+  changed_parameters: Record<string, unknown>;
+  /** 9:16 recording plan (camera focus, must-capture moments, overlay text). */
+  recording_plan: Record<string, unknown>;
+  /** Veo/video creative prompt derived from the scenario script. */
+  creative_prompt: string;
+  /** Playtest checklist derived from success_criteria + capture moments. */
+  playtest_checklist: string[];
+  /** The full validated AdScenarioSpec — source of truth for replay. */
+  scenario: Record<string, unknown>;
+  status: VariantSpecStatus;
+  created_at: string;
+  updated_at: string;
+}

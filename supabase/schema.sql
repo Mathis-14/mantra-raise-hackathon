@@ -129,3 +129,29 @@ alter publication supabase_realtime add table events;
 insert into storage.buckets (id, name, public)
 values ('playtest-media', 'playtest-media', true)
 on conflict (id) do nothing;
+
+-- Ad-scenario variants — saveable/replayable/comparable metadata for scenario-driven
+-- ad variants. Mirrors VariantSpec in src/contracts/types.ts; change them together.
+create table variant_specs (
+  id uuid primary key default gen_random_uuid(),
+  run_id uuid not null references runs (id) on delete cascade,
+  variant_id uuid references variants (id) on delete set null,
+  scenario_id text not null,
+  title text not null,
+  trend text not null,
+  mechanic_focus text not null,
+  hypothesis text not null,
+  changed_parameters jsonb not null default '{}',
+  recording_plan jsonb not null default '{}',
+  creative_prompt text not null,
+  playtest_checklist jsonb not null default '[]',
+  scenario jsonb not null,
+  status text not null default 'generated'
+    check (status in ('draft','generated','recording','recorded','kept','killed')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index variant_specs_run_id on variant_specs (run_id);
+
+alter table variant_specs enable row level security;
+create policy anon_read_variant_specs on variant_specs for select using (true);

@@ -175,9 +175,41 @@ function buildDecor(scene, gltf) {
   return clouds;
 }
 
+/**
+ * Hook variant publicitaire (additif, read-only sur la logique par défaut).
+ * `window.__MOB_VARIANT__` est injecté par buildVariantHtml (src/lib/ad-scenarios) dans une COPIE du HTML ;
+ * fallback `?variant=<base64 JSON>`. Absent ⇒ jeu strictement inchangé.
+ */
+function readVariantConfig(params) {
+  try {
+    if (typeof window !== 'undefined' && window.__MOB_VARIANT__ && typeof window.__MOB_VARIANT__ === 'object') {
+      return window.__MOB_VARIANT__;
+    }
+    const raw = params.get('variant');
+    if (raw) return JSON.parse(atob(raw));
+  } catch (e) { console.warn('[MOB RUSH] config variant illisible', e); }
+  return null;
+}
+
+/** Bannière de hook d'ad (texte overlay du recording_plan), lisible en 9:16. */
+function showAdOverlay(texts) {
+  if (!Array.isArray(texts) || !texts.length) return;
+  let el = document.getElementById('adOverlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'adOverlay';
+    el.style.cssText = 'position:fixed;top:100px;left:50%;transform:translateX(-50%);z-index:14;' +
+      'pointer-events:none;color:#fff;font-size:26px;font-weight:900;text-align:center;max-width:88vw;line-height:1.15;' +
+      'text-shadow:0 3px 0 rgba(0,0,0,.5),0 0 18px rgba(56,182,255,.5);letter-spacing:.5px;';
+    document.body.appendChild(el);
+  }
+  el.textContent = texts[0];
+}
+
 export async function createApp({ container = document.getElementById('game') } = {}) {
   const params = new URLSearchParams(location.search);
   const isDebug = params.has('debug');
+  const variantConfig = readVariantConfig(params);
 
   // 1. renderer + scène + lumières (CONTRACT §1.1 : NoToneMapping, hex inchangés, lumières ×π)
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -239,8 +271,19 @@ export async function createApp({ container = document.getElementById('game') } 
     flyingCoins: null, // rempli juste après (closure sur ctx.sys.overlays)
     state,
     assets: { gltf, bakedUnit, colormap },
+    variant: variantConfig, // config d'ad (leviers profonds consommés par les systèmes incrémentalement)
     sys: {},
   };
+
+  // Applique les mutations de variant pilotables au boot (additif). Les leviers profonds
+  // (wavePressure, gatePreset, obstacleSet, boss*, coinMultiplier…) restent sur ctx.variant.
+  if (variantConfig) {
+    if (variantConfig.loadout && C.LOADOUTS[variantConfig.loadout]) state.loadout = variantConfig.loadout;
+    if (Number.isFinite(variantConfig.startLevel)) {
+      state.level = Math.min(20, Math.max(1, Math.round(variantConfig.startLevel)));
+    }
+    showAdOverlay(variantConfig.overlayText);
+  }
 
   ctx.flyingCoins = createFlyingCoins({
     coinPillEl: document.getElementById('coinPill'),
