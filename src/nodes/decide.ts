@@ -5,6 +5,7 @@
 // output into Decision before persisting (no uncontrolled AI writes).
 
 import type { Decision, MetricPoint, PlaytestReport } from "@/contracts/types";
+import { createStubDecision } from "@/nodes/growth-intelligence/stub";
 
 export interface DecideInput {
   runId: string;
@@ -13,5 +14,5 @@ export interface DecideInput {
 }
 
 export async function decide(input: DecideInput): Promise<Decision> {
-  throw new Error(`not implemented — owner: Aymen (run ${input.runId})`);
+  return createStubDecision(input.runId, input.metrics);
 }
