@@ -17,7 +17,7 @@ const dataset = await generateTags({
 console.log(serializeTagDataset(dataset));  // stable pretty JSON
 ```
 
-Requires `GEMINI_API_KEY` in `.env` (read via `serverEnv()` — never
+Requires `GEMINI_API_KEY` in `.env` (read via `geminiEnv()` — never
 `process.env` directly). Server/worker only; never call this from the browser.
 
 ## Output shape

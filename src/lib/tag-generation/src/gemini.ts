@@ -7,7 +7,7 @@ import { readFile, stat } from "node:fs/promises";
 import { extname } from "node:path";
 import { FileState, GoogleGenAI, type Part } from "@google/genai";
 import { z } from "zod";
-import { serverEnv } from "@/lib/env";
+import { geminiEnv } from "@/lib/env";
 import {
   AD_ROLE_TAGS,
   EMOTION_TAGS,
@@ -46,7 +46,7 @@ export interface AnalyzeVideoOptions {
 }
 
 export async function analyzeVideo(options: AnalyzeVideoOptions): Promise<ModelOutput> {
-  const ai = new GoogleGenAI({ apiKey: serverEnv().GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: geminiEnv().GEMINI_API_KEY });
   const deadline = Date.now() + options.timeoutMs;
 
   const videoPart = await resolveVideoPart(ai, options.source, deadline);
