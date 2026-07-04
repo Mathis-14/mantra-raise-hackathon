@@ -2,30 +2,36 @@
 // Habillage visuel PUR : les héros ne comptent pas, ne collisionnent pas, ne possèdent aucun état
 // gameplay. Ils sont un MIROIR des `count` unités logiques les plus proches du front.
 //
-// Générique par équipe : `getUnits`/`color`/`bob`/`faceBack` paramètrent bleu (défaut) et rouge.
-// `boundIds` (Set) expose les ids couverts par un héros ce frame → la masse instanciée saute
-// ces unités pour éviter le double rendu (flat + skinné superposés).
+// Les troupes sont une masse pleine (matériau plat d'équipe) mais ANIMÉE : chaque clone est un
+// SkinnedMesh piloté par un mixer (clip `sprint`), avec sa texture remplacée par une couleur unie.
+// Le skin (texture détaillée) est réservé aux unités focales — champion (crowd/champion.js) et
+// boss/géants (enemy/giants.js) — pour que « skinné = unité qui compte ».
+//
+// Générique par équipe : `getUnits`/`solidColor`/`bob`/`faceBack` paramètrent bleu (défaut) et rouge.
+// `boundIds` (Set) expose les ids couverts par un héros ce frame → la masse instanciée saute ces
+// unités pour éviter le double rendu (flat + skinné superposés).
 //
 // Module-SYSTÈME : factory createHeroes(ctx, opts). N'importe AUCUN autre système ; ne lit que
-// ctx.state, ctx.scene et ctx.assets. retintClone / skeletonClone sont des librairies (autorisées).
+// ctx.state, ctx.scene et ctx.assets. skeletonClone est une librairie (autorisée).
 
 import * as THREE from 'three';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { COLORS, UNIT_HEIGHT, UNIT_FACING_FIX, BLUE_BOB } from '../core/constants.js';
-import { retintClone } from '../assets/recolor.js';
 
 const CLIP_NAME = 'sprint';
 
 export function createHeroes(ctx, {
   count = 5,
   getUnits = (c) => c.state.blues,
-  color = COLORS.blue,
   bob = BLUE_BOB,
-  faceBack = false,   // rouges : regardent +Z (vers le joueur)
+  faceBack = false,               // rouges : regardent +Z (vers le joueur)
+  solidColor = COLORS.blue,       // couleur du matériau plat d'équipe
 } = {}) {
   const { scene, assets } = ctx;
   const facingY = faceBack ? UNIT_FACING_FIX + Math.PI : UNIT_FACING_FIX;
-  const boundIds = new Set();   // ids couverts par un héros ce frame (lu par crowd/waves.render)
+  const boundIds = new Set();     // ids couverts par un héros ce frame (lu par crowd/waves.render)
+  // Matériau plat unique par équipe, partagé entre les clones (skinné → skinning automatique).
+  const solidMaterial = new THREE.MeshLambertMaterial({ color: solidColor });
   // Variété visuelle : on alterne les 4 modèles mâles (cycle si count > 4).
   const sources = [assets.gltf.maleA, assets.gltf.maleB, assets.gltf.maleD, assets.gltf.maleE];
 
@@ -40,9 +46,9 @@ export function createHeroes(ctx, {
   for (let i = 0; i < count; i++) {
     const src = sources[i % sources.length];
 
-    // SkinnedMesh → clone via SkeletonUtils, puis teinte d'équipe (matériaux/textures clonés).
+    // SkinnedMesh → clone via SkeletonUtils, puis texture remplacée par le matériau plat d'équipe.
     const rig = skeletonClone(src.scene);
-    retintClone(rig, color);
+    rig.traverse((o) => { if (o.isMesh) o.material = solidMaterial; });
 
     // Hiérarchie : wrapper (déplacé/orienté chaque frame) → inner (normalisation) → rig (clone GLB).
     // On ne touche jamais aux transforms internes du clone : la normalisation vit dans `inner`.

@@ -4,7 +4,6 @@
 
 import * as THREE from 'three';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { retintClone } from '../assets/recolor.js';
 import { clamp01 } from '../juice/springs.js';
 import {
   GIANT_SCALE, UNIT_HEIGHT, UNIT_FACING_FIX,
@@ -36,22 +35,13 @@ export function createGiants(ctx) {
     return anims.find((c) => c.name === name) || null;
   }
 
-  function forceFlatColor(root, hex) {
-    root.traverse((o) => {
-      if (!o.isMesh || !o.material) return;
-      const list = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of list) {
-        if (m && m.color && !m.map) m.color.setHex(hex);
-      }
-    });
-  }
-
   function makeClone(red) {
     const sourceGltf = red.boss && ctx.assets.gltf.bossChar ? ctx.assets.gltf.bossChar : ctx.assets.gltf.maleA;
     const tint = red.boss ? COLORS.gold : COLORS.red;
     const root = skeletonClone(sourceGltf.scene);
-    retintClone(root, tint);
-    forceFlatColor(root, tint);
+    // Full colored : matériau plat unique par clone (skinning auto), pas de texture.
+    const mat = new THREE.MeshLambertMaterial({ color: tint });
+    root.traverse((o) => { if (o.isMesh) o.material = mat; });
 
     // Normalisation hauteur → UNIT_HEIGHT puis échelle géante ; pieds au sol.
     _box.setFromObject(root);
@@ -63,14 +53,7 @@ export function createGiants(ctx) {
     root.position.set(red.x, footY, red.z);
     root.rotation.set(0, FACING, 0);
 
-    // Matériaux du CLONE uniquement (pour le flash émissif) — collectés avant l'accessoire.
-    const mats = [];
-    root.traverse((o) => {
-      if (o.isMesh && o.material) {
-        const list = Array.isArray(o.material) ? o.material : [o.material];
-        for (const m of list) if (m && m.emissive) mats.push(m);
-      }
-    });
+    const mats = [mat]; // flash émissif sur l'unique matériau du clone
 
     // Lunettes attachées au bone 'head'.
     const head = root.getObjectByName('head');

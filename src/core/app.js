@@ -251,13 +251,18 @@ export async function createApp({ container = document.getElementById('game') } 
   ctx.sys.cannon = createCannon(ctx);
   ctx.sys.crowd = createCrowd(ctx);
   ctx.sys.champion = createChampion(ctx);
-  ctx.sys.heroes = createHeroes(ctx, { count: C.HERO_COUNT_BLUE });
+  // Alliés : troupes = bleu plein animé (le champion garde son skin via champion.js).
+  ctx.sys.heroes = createHeroes(ctx, {
+    count: C.HERO_COUNT_BLUE,
+    solidColor: C.COLORS.blue,
+  });
+  // Ennemis : troupes = rouge plein animé (le boss/les géants gardent leur skin via giants.js).
   ctx.sys.redHeroes = createHeroes(ctx, {
     count: C.HERO_COUNT_RED,
     getUnits: (c) => c.state.reds.filter((r) => !r.giant),
-    color: C.COLORS.red,
     bob: C.RED_BOB,
     faceBack: true,
+    solidColor: C.COLORS.red,
   });
   ctx.sys.gates = createGates(ctx);
   ctx.sys.obstacles = createObstacles(ctx);
