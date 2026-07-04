@@ -126,7 +126,10 @@ export const LIGHTS = Object.freeze({
   dir:  Object.freeze({ color: 0xffffff, intensity: 0.85 * Math.PI, pos: Object.freeze([6, 14, 8]) }),
 });
 export const DT_MAX = 0.05;
-export const PIXEL_RATIO_MAX = 2;
+// Rendu plafonné à 1.5× : sur écran Retina (dpr 2) on rendait à 2× → 4× les fragments.
+// À 1.5× on économise ~44% du travail de fragment/rasterisation (fill-bound) sans coût
+// visible (l'antialiasing lisse toujours les bords). Principal levier anti-lag GPU.
+export const PIXEL_RATIO_MAX = 1.5;
 // Tempo global du jeu (parité prototype stricte = 1.0). Réduit pour un rythme plus lisible/agréable
 // suite au playtest (« extrêmement rapide »). Appliqué au dt gameplay dans time.js : ralentit TOUT
 // proportionnellement (foule, vagues, cadence de tir, animations) → préserve l'équilibre relatif.

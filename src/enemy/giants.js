@@ -28,6 +28,7 @@ export function createGiants(ctx) {
   const _box = new THREE.Box3();
   const _size = new THREE.Vector3();
   const _white = new THREE.Color(0xffffff);
+  const _live = new Set();  // ids vivants ce frame — réutilisé (évite un new Set() par frame)
   const FACING = UNIT_FACING_FIX + Math.PI; // face +Z (sens de progression du géant)
 
   function clipByName(gltf, name) {
@@ -82,7 +83,8 @@ export function createGiants(ctx) {
 
   function update(dt) {
     const reds = ctx.state.reds;
-    const live = new Set();
+    const live = _live;
+    live.clear();
 
     for (let i = 0; i < reds.length; i++) {
       const r = reds[i];
