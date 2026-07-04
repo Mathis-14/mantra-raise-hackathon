@@ -226,38 +226,51 @@ export function renderPlaytest(root: HTMLElement) {
         </div>
       </nav>
 
-      <div class="carousel-scene">
-        <div class="carousel-ring" id="carousel-ring" style="transform-style:preserve-3d">
-          ${SESSIONS.map(s => `
-            <div class="phone-slot" id="slot-${s.id}" style="transform:rotateY(${s.angle}deg) translateZ(200px)">
-              <div class="iphone-wrap">
-                <div class="iphone-frame">
-                  <div class="iphone-notch"></div>
-                  <div class="iphone-screen">
-                    <canvas id="canvas-${s.id}" width="${CW}" height="${CH}"></canvas>
+      <div class="playtest-body">
+        <div class="carousel-scene">
+          <div class="carousel-track" id="carousel-track">
+            ${SESSIONS.map(s => `
+              <div class="phone-slot" id="slot-${s.id}">
+                <div class="phone-device">
+                  <div class="phone-edge"></div>
+                  <div class="iphone-frame">
+                    <div class="iphone-notch"></div>
+                    <div class="iphone-screen">
+                      <canvas id="canvas-${s.id}" width="${CW}" height="${CH}"></canvas>
+                    </div>
+                    <div class="iphone-home"></div>
                   </div>
-                  <div class="iphone-home"></div>
                 </div>
-                <div class="iphone-side"></div>
-                <div class="iphone-side-top"></div>
-              </div>
-              <div class="phone-meta">
-                <span class="phone-title" style="color:${s.color}">${s.title}</span>
-                <div class="phone-progress-wrap">
-                  <div class="phone-progress-bar" id="prog-${s.id}" style="background:${s.color};width:0%"></div>
+                <div class="phone-meta" id="meta-${s.id}">
+                  <span class="phone-title" style="color:${s.color}">${s.title}</span>
+                  <div class="phone-progress-wrap">
+                    <div class="phone-progress-bar" id="prog-${s.id}" style="background:${s.color};width:0%"></div>
+                  </div>
+                  <span class="phone-pct" id="pct-${s.id}">0%</span>
                 </div>
-                <span class="phone-pct" id="pct-${s.id}">0%</span>
               </div>
-            </div>
-          `).join('')}
-        </div>
+            `).join('')}
+          </div>
 
-        <div class="carousel-cta" id="carousel-cta" style="opacity:0;pointer-events:none;transition:opacity 0.6s">
-          <button class="btn-generate" id="next-btn">
+          <button class="btn-generate btn-generate--corner" id="next-btn" style="opacity:0;pointer-events:none;transition:opacity 0.6s">
             <span class="btn-generate-title">Generate creatives</span>
             <span class="btn-generate-arrow">→</span>
           </button>
         </div>
+
+        <aside class="logs-panel">
+          <div class="logs-title">Agent activity</div>
+          ${SESSIONS.map(s => `
+            <div class="log-group">
+              <div class="log-group-head">
+                <span class="log-dot" style="background:${s.color}"></span>
+                <span class="log-group-name">${s.title}</span>
+                <span class="log-group-pct" id="logpct-${s.id}" style="color:${s.color}">0%</span>
+              </div>
+              <div class="log-lines" id="logs-${s.id}"></div>
+            </div>
+          `).join('')}
+        </aside>
       </div>
     </div>
   `
@@ -265,35 +278,58 @@ export function renderPlaytest(root: HTMLElement) {
   document.getElementById('back-btn')!.addEventListener('click', () => { location.hash = '' })
   document.getElementById('next-btn')?.addEventListener('click', () => { location.hash = '#pipeline' })
 
-  const ring    = document.getElementById('carousel-ring')!
-  const cta     = document.getElementById('carousel-cta') as HTMLElement
+  const cta     = document.getElementById('next-btn') as HTMLElement
   const badge   = document.getElementById('session-badge') as HTMLElement
   const progBars = SESSIONS.map(s => document.getElementById('prog-' + s.id) as HTMLElement)
   const progPcts = SESSIONS.map(s => document.getElementById('pct-' + s.id) as HTMLElement)
+  const logPcts  = SESSIONS.map(s => document.getElementById('logpct-' + s.id) as HTMLElement)
+  const logBoxes = SESSIONS.map(s => document.getElementById('logs-' + s.id) as HTMLElement)
 
   const ticks = SESSIONS.map(s => {
     const canvas = document.getElementById('canvas-' + s.id) as HTMLCanvasElement
     return GAME_FNS[s.id](canvas)
   })
 
-  let baseAngle = 0
+  // Per-game log lines that appear over time
+  const LOG_POOL: Record<number, string[]> = {
+    0: ['Detected lane-based controls', 'Dodged obstacle at 1.2s', 'Recovered center lane', 'Sustained combo x4', 'Fun loop: tight, responsive'],
+    1: ['Paddle physics detected', 'Cleared brick row 1', 'Ball speed increasing', 'Combo bounce x3', 'Verdict: satisfying feedback'],
+    2: ['Gravity + jump detected', 'Chained 3 platforms', 'Near-miss recovery', 'Vertical progression good', 'Loop: challenging but fair'],
+    3: ['Grid movement detected', 'Ate food +1', 'Avoided self-collision', 'Length growing steadily', 'Verdict: classic, addictive'],
+    4: ['Ship orbit detected', 'Destroyed asteroid', 'Auto-fire cadence good', 'Dodged debris cluster', 'Loop: high-tension, fun'],
+  }
+  const logIdx = [0, 0, 0, 0, 0]
+
   const startTime = performance.now()
   let ctaShown = false
+
+  // Circular carousel seen from above: phones ride a horizontal ring.
+  //   angle θ per phone = base offset + time
+  //   x = sin θ · radius      → horizontal travel
+  //   depth = cos θ (1 front … -1 back) → drives scale + opacity, no wrap/teleport
+  const slots = SESSIONS.map(s => document.getElementById('slot-' + s.id)!)
+  const N = SESSIONS.length
+  const RADIUS = 390           // px — horizontal spread of the ring (1.5×)
+  const SCENE_ROT_SPEED = 0.00035  // rad/ms — slow continuous loop
+
+  function layoutCarousel(theta: number) {
+    slots.forEach((slot, i) => {
+      const a = theta + (i / N) * Math.PI * 2
+      const x = Math.sin(a) * RADIUS
+      const depth = Math.cos(a)                 // 1 = front, -1 = back
+      const t = (depth + 1) / 2                  // 0 back … 1 front
+      const scale = 0.9 + t * 0.6                // 0.9 back → 1.5 front (1.5×)
+      slot.style.transform = `translateX(${x.toFixed(2)}px) scale(${scale.toFixed(3)})`
+      slot.style.zIndex = String(Math.round(t * 100))
+      slot.style.transition = 'none'             // JS drives every frame; no CSS lag
+    })
+  }
 
   function frame(now: number) {
     requestAnimationFrame(frame)
 
-    // Spin ring
-    baseAngle += 0.15
-    ring.style.transform = `rotateY(${baseAngle}deg)`
-
-    // Fade phones facing away — no counter-rotation, let them angle naturally
-    SESSIONS.forEach(s => {
-      const slot = document.getElementById('slot-' + s.id)!
-      const rad = ((s.angle + baseAngle) * Math.PI) / 180
-      const facing = Math.cos(rad)
-      slot.style.opacity = String(Math.max(0.08, (facing + 1) / 2))
-    })
+    const theta = (now - startTime) * SCENE_ROT_SPEED
+    layoutCarousel(theta)
 
     // Games
     ticks.forEach(t => t())
@@ -305,10 +341,19 @@ export function renderPlaytest(root: HTMLElement) {
       const p = Math.min(100, Math.max(0, ((elapsed - START_OFFSETS[i]) / DURATION) * 100))
       if (p < 100) allDone = false
       progBars[i].style.width = p + '%'
-      progPcts[i].textContent = Math.floor(p) + '%'
-      if (p >= 100 && progPcts[i].textContent !== '✓') {
-        progPcts[i].textContent = '✓'
-        progPcts[i].style.color = s.color
+      const label = p >= 100 ? '✓' : Math.floor(p) + '%'
+      progPcts[i].textContent = label
+      logPcts[i].textContent  = label
+      if (p >= 100) progPcts[i].style.color = s.color
+
+      // Emit log lines as progress crosses thresholds
+      const wantLines = Math.floor((p / 100) * LOG_POOL[i].length)
+      while (logIdx[i] < wantLines) {
+        const line = document.createElement('div')
+        line.className = 'log-line'
+        line.textContent = LOG_POOL[i][logIdx[i]]
+        logBoxes[i].appendChild(line)
+        logIdx[i]++
       }
     })
 
