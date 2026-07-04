@@ -44,8 +44,11 @@ Requires `GEMINI_API_KEY` in `.env` (read via `geminiEnv()` — never
 }
 ```
 
-Segments are contiguous, sorted by `start`, validated by `tagDatasetSchema`
-before you ever see them. Tag lists are additive and may be empty.
+Segments are sorted by `start` and each is validated by `tagDatasetSchema`
+(including `end > start`) before you ever see them. The model is asked for
+contiguous, non-overlapping coverage, but the library does not enforce it —
+don't assume a gap-free timeline downstream. Tag lists are additive and may be
+empty.
 
 ## Error handling
 
@@ -74,4 +77,4 @@ console.log(serializeTagDataset(dataset));
 
 Sane output = segments cover the clip start-to-end, timecodes increase,
 tags plausible for what's on screen. Supported extensions: mp4, mpeg, mpg,
-mov, avi, flv, webm, wmv, 3gp.
+mov, avi, flv, webm, wmv, 3gp, 3gpp.
