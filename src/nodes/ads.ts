@@ -10,7 +10,7 @@ export interface DeployInput {
   creatives: Creative[];
 }
 
-/** Marks creatives deployed and records the (stub) campaign. */
+/** Performs the stub deployment; the orchestrator persists creative statuses. */
 export async function deployCreatives(input: DeployInput): Promise<void> {
   throw new Error(`not implemented — owner: Aymen (run ${input.runId})`);
 }
@@ -20,7 +20,7 @@ export interface CollectMetricsInput {
   creatives: Creative[];
 }
 
-/** Writes seeded per-creative time-series into the metrics table. */
+/** Returns seeded per-creative time-series for the orchestrator to persist. */
 export async function collectMetrics(input: CollectMetricsInput): Promise<MetricPoint[]> {
   throw new Error(`not implemented — owner: Aymen (run ${input.runId})`);
 }
