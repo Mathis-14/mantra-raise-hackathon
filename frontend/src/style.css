@@ -88,13 +88,22 @@ body::after {
   margin-top: -200px;
 }
 
-.logo {
+/* landing hero title */
+h1.logo {
   font-size: clamp(40px, 7vw, 72px);
   font-weight: 800;
   letter-spacing: -2px;
   margin: 0 0 4px;
   color: var(--text);
   line-height: 1;
+}
+/* nav logo (shell pages) */
+a.logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.5px;
+  text-decoration: none;
 }
 .dot { color: var(--accent); }
 
@@ -289,6 +298,7 @@ body::after {
   padding: 28px;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 12px;
   border-right: 1px solid var(--border);
 }

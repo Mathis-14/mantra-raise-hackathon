@@ -1,33 +1,228 @@
 // ── Page 2 : Computer Use live playtest ──
 
+// Steps define agent actions + where the car moves (lane 0=left 1=mid 2=right)
 const STEPS = [
-  { t:  800, action: 'click',   label: 'Clicked "Start game"',          x: 52, y: 58 },
-  { t: 1600, action: 'move',    label: 'Moving player left',             x: 28, y: 71 },
-  { t: 2400, action: 'click',   label: 'Tapped obstacle zone',          x: 44, y: 63 },
-  { t: 3200, action: 'scroll',  label: 'Scrolled menu',                 x: 50, y: 50 },
-  { t: 4000, action: 'click',   label: 'Triggered power-up',            x: 66, y: 44 },
-  { t: 4800, action: 'move',    label: 'Dodged incoming obstacle',      x: 72, y: 68 },
-  { t: 5600, action: 'click',   label: 'Reached checkpoint',            x: 50, y: 38 },
-  { t: 6400, action: 'move',    label: 'Exploring right lane',          x: 80, y: 55 },
-  { t: 7200, action: 'click',   label: 'Died — respawn triggered',      x: 50, y: 50 },
-  { t: 8000, action: 'observe', label: 'Analysing fun loop…',           x: 50, y: 50 },
+  { t:  700, action: 'click',   label: 'Clicked "Start"',               cx: 50, cy: 75, lane: 1 },
+  { t: 1500, action: 'move',    label: 'Dodged obstacle — moved left',   cx: 28, cy: 72, lane: 0 },
+  { t: 2300, action: 'move',    label: 'Back to center',                 cx: 50, cy: 72, lane: 1 },
+  { t: 3100, action: 'move',    label: 'Obstacle incoming — right lane', cx: 72, cy: 72, lane: 2 },
+  { t: 3900, action: 'click',   label: 'Picked up bonus',                cx: 72, cy: 58, lane: 2 },
+  { t: 4700, action: 'move',    label: 'Sharp dodge — back left',        cx: 28, cy: 72, lane: 0 },
+  { t: 5500, action: 'move',    label: 'Center — clear road',            cx: 50, cy: 72, lane: 1 },
+  { t: 6300, action: 'move',    label: 'Right to avoid barrier',         cx: 72, cy: 72, lane: 2 },
+  { t: 7100, action: 'click',   label: 'Triggered boost',                cx: 72, cy: 50, lane: 2 },
+  { t: 7900, action: 'observe', label: 'Analysing fun loop…',            cx: 50, cy: 50, lane: 1 },
 ]
 
 const REPORT = [
-  { icon: '✅', label: 'Playability',   value: '9 / 10',  note: 'Controls responsive, no crash' },
-  { icon: '⚡', label: 'Fun loop',      value: 'Strong',  note: 'Clear risk / reward, satisfying hits' },
-  { icon: '🔍', label: 'Friction pts',  value: '2',       note: 'Tutorial skip confusing, shop UX weak' },
-  { icon: '📈', label: 'Engagement',    value: 'High',    note: 'Agent replayed 3× without prompt' },
-  { icon: '🎯', label: 'Verdict',       value: 'Ship it', note: 'Proceed to creative generation' },
+  { icon: '✅', label: 'Playability',  value: '9 / 10', note: 'Controls responsive, no crash' },
+  { icon: '⚡', label: 'Fun loop',     value: 'Strong',  note: 'Risk/reward clear, dodges satisfying' },
+  { icon: '🔍', label: 'Friction pts', value: '2',       note: 'Tutorial skip confusing, shop UX weak' },
+  { icon: '📈', label: 'Engagement',   value: 'High',    note: 'Agent replayed 3× without prompt' },
+  { icon: '🎯', label: 'Verdict',      value: 'Ship it', note: 'Proceed to creative generation' },
 ]
 
+// ── Animated car game ──
+interface GameState {
+  carLane: number       // 0 left / 1 mid / 2 right
+  carX: number          // actual pixel x (smooth)
+  roadOffset: number    // scrolling road lines
+  obstacles: { lane: number; y: number; hit: boolean }[]
+  bonuses: { lane: number; y: number; picked: boolean }[]
+  score: number
+  boost: boolean
+  boostTimer: number
+}
+
+const LANES = [0.28, 0.50, 0.72]  // as % of canvas width
+
+let animFrame = 0
+let gameState: GameState | null = null
+let gameCanvas: HTMLCanvasElement | null = null
+let gameCtx: CanvasRenderingContext2D | null = null
+
+function startCarGame(canvas: HTMLCanvasElement) {
+  gameCanvas = canvas
+  gameCtx = canvas.getContext('2d')!
+  gameState = {
+    carLane: 1,
+    carX: canvas.width * LANES[1],
+    roadOffset: 0,
+    obstacles: [],
+    bonuses: [],
+    score: 0,
+    boost: false,
+    boostTimer: 0,
+  }
+
+  // Pre-seed some obstacles + bonuses
+  for (let i = 0; i < 4; i++) {
+    const lane = Math.floor(Math.random() * 3)
+    gameState.obstacles.push({ lane, y: -80 - i * 130, hit: false })
+  }
+  gameState.bonuses.push({ lane: 2, y: -220, picked: false })
+  gameState.bonuses.push({ lane: 0, y: -600, picked: false })
+
+  tickGame()
+}
+
+function tickGame() {
+  if (!gameCanvas || !gameCtx || !gameState) return
+  animFrame = requestAnimationFrame(tickGame)
+
+  const ctx = gameCtx
+  const gs  = gameState
+  const w = gameCanvas.width, h = gameCanvas.height
+  const speed = gs.boost ? 5 : 3
+
+  // Smooth car x toward target lane
+  const targetX = w * LANES[gs.carLane]
+  gs.carX += (targetX - gs.carX) * 0.12
+
+  // Scroll road
+  gs.roadOffset = (gs.roadOffset + speed) % 60
+
+  // Move obstacles
+  for (const ob of gs.obstacles) ob.y += speed
+  // Recycle off-screen
+  for (const ob of gs.obstacles) {
+    if (ob.y > h + 30) { ob.y = -100 - Math.random() * 200; ob.lane = Math.floor(Math.random() * 3); ob.hit = false }
+  }
+  for (const bn of gs.bonuses) bn.y += speed
+
+  // Score
+  gs.score += gs.boost ? 2 : 1
+
+  // Boost timer
+  if (gs.boost) { gs.boostTimer--; if (gs.boostTimer <= 0) gs.boost = false }
+
+  // ── Draw ──
+  ctx.clearRect(0, 0, w, h)
+
+  // Sky / bg
+  ctx.fillStyle = '#0d1117'
+  ctx.fillRect(0, 0, w, h)
+
+  // Road surface
+  const roadL = w * 0.12, roadR = w * 0.88
+  ctx.fillStyle = '#1a1f2e'
+  ctx.fillRect(roadL, 0, roadR - roadL, h)
+
+  // Road edges
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'
+  ctx.lineWidth = 3
+  ctx.beginPath(); ctx.moveTo(roadL, 0); ctx.lineTo(roadL, h); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(roadR, 0); ctx.lineTo(roadR, h); ctx.stroke()
+
+  // Lane dividers (dashed, scrolling)
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([30, 30])
+  ctx.lineDashOffset = -gs.roadOffset
+  for (const pct of [0.39, 0.61]) {
+    const lx = w * pct
+    ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, h); ctx.stroke()
+  }
+  ctx.setLineDash([])
+
+  // Road speed lines (boost effect)
+  if (gs.boost) {
+    ctx.strokeStyle = 'rgba(37,99,235,0.18)'
+    ctx.lineWidth = 1
+    for (let i = 0; i < 6; i++) {
+      const lx = roadL + 20 + Math.random() * (roadR - roadL - 40)
+      const ly = (gs.roadOffset * 3 + i * 55) % h
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx, ly + 30); ctx.stroke()
+    }
+  }
+
+  // Obstacles (red blocks)
+  for (const ob of gs.obstacles) {
+    if (ob.hit) continue
+    const ox = w * LANES[ob.lane]
+    ctx.save()
+    ctx.fillStyle = 'rgba(239,68,68,0.9)'
+    ctx.shadowColor = 'rgba(239,68,68,0.5)'
+    ctx.shadowBlur = 10
+    ctx.fillRect(ox - 16, ob.y - 28, 32, 22)
+    // windshield
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'
+    ctx.fillRect(ox - 11, ob.y - 24, 22, 10)
+    ctx.restore()
+  }
+
+  // Bonuses (blue diamonds)
+  for (const bn of gs.bonuses) {
+    if (bn.picked) continue
+    const bx = w * LANES[bn.lane]
+    ctx.save()
+    ctx.fillStyle = 'rgba(37,99,235,0.9)'
+    ctx.shadowColor = 'rgba(37,99,235,0.7)'
+    ctx.shadowBlur = 12
+    ctx.beginPath()
+    ctx.moveTo(bx, bn.y - 10)
+    ctx.lineTo(bx + 8, bn.y)
+    ctx.lineTo(bx, bn.y + 10)
+    ctx.lineTo(bx - 8, bn.y)
+    ctx.closePath()
+    ctx.fill()
+    ctx.restore()
+  }
+
+  // Car (white/blue)
+  const carY = h * 0.72
+  ctx.save()
+  ctx.shadowColor = gs.boost ? 'rgba(37,99,235,0.9)' : 'rgba(200,220,255,0.4)'
+  ctx.shadowBlur = gs.boost ? 20 : 8
+  // body
+  ctx.fillStyle = '#e8f0ff'
+  ctx.beginPath()
+  ctx.roundRect(gs.carX - 14, carY - 28, 28, 38, 4)
+  ctx.fill()
+  // cabin
+  ctx.fillStyle = 'rgba(37,99,235,0.7)'
+  ctx.beginPath()
+  ctx.roundRect(gs.carX - 9, carY - 24, 18, 14, 3)
+  ctx.fill()
+  // wheels
+  ctx.fillStyle = '#1a1f2e'
+  ctx.fillRect(gs.carX - 16, carY - 6, 6, 10)
+  ctx.fillRect(gs.carX + 10, carY - 6, 6, 10)
+  ctx.fillRect(gs.carX - 16, carY - 24, 6, 8)
+  ctx.fillRect(gs.carX + 10, carY - 24, 6, 8)
+  // boost glow trail
+  if (gs.boost) {
+    const grad = ctx.createLinearGradient(gs.carX, carY + 10, gs.carX, carY + 40)
+    grad.addColorStop(0, 'rgba(37,99,235,0.6)')
+    grad.addColorStop(1, 'rgba(37,99,235,0)')
+    ctx.fillStyle = grad
+    ctx.fillRect(gs.carX - 6, carY + 10, 12, 30)
+  }
+  ctx.restore()
+
+  // HUD
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'
+  ctx.font = '11px Inter, sans-serif'
+  ctx.fillText('SCORE  ' + gs.score, 14, 20)
+  if (gs.boost) {
+    ctx.fillStyle = 'rgba(37,99,235,0.9)'
+    ctx.font = 'bold 11px Inter, sans-serif'
+    ctx.fillText('⚡ BOOST', w / 2 - 25, 20)
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'
+  ctx.font = 'bold 12px Inter, sans-serif'
+  ctx.fillText('SPEED DASH', w / 2 - 32, h - 10)
+}
+
 export function renderPlaytest(root: HTMLElement) {
+  if (animFrame) cancelAnimationFrame(animFrame)
+
   root.innerHTML = `
     <div class="shell">
       <nav class="shell-nav">
         <a href="#" class="logo">mantra<span class="dot">.</span></a>
         <div class="breadcrumb">
-          <span class="bc-done" data-href="#playtest">01 Playtest</span>
+          <span class="bc-done">01 Playtest</span>
           <span class="bc-sep">›</span>
           <span class="bc-next">02 Pipeline</span>
         </div>
@@ -35,11 +230,10 @@ export function renderPlaytest(root: HTMLElement) {
       </nav>
 
       <div class="playtest-layout">
-        <!-- LEFT: game screen + cursor overlay -->
         <div class="screen-wrap">
           <div class="screen-label">Computer Use — live session</div>
           <div class="screen" id="screen">
-            <canvas id="fake-game" width="480" height="320"></canvas>
+            <canvas id="fake-game" width="480" height="300"></canvas>
             <div class="cursor" id="cursor"></div>
             <div class="click-ring hidden" id="click-ring"></div>
           </div>
@@ -49,7 +243,6 @@ export function renderPlaytest(root: HTMLElement) {
           </div>
         </div>
 
-        <!-- RIGHT: log + report -->
         <div class="side-panel">
           <div class="panel-section">
             <div class="panel-title">Agent log</div>
@@ -58,7 +251,7 @@ export function renderPlaytest(root: HTMLElement) {
           <div class="panel-section" id="report-section" style="display:none">
             <div class="panel-title">Playtest report</div>
             <div class="report-list" id="report-list"></div>
-            <button class="btn-primary btn-full" id="next-btn">Generate creatives →</button>
+            <button class="btn btn-primary btn-full" id="next-btn">Generate creatives →</button>
           </div>
         </div>
       </div>
@@ -74,9 +267,9 @@ export function renderPlaytest(root: HTMLElement) {
   const logList     = document.getElementById('log-list')!
   const reportSec   = document.getElementById('report-section')!
   const reportList  = document.getElementById('report-list')!
-  const fakeGame    = document.getElementById('fake-game') as HTMLCanvasElement
+  const canvas      = document.getElementById('fake-game') as HTMLCanvasElement
 
-  drawFakeGame(fakeGame)
+  startCarGame(canvas)
 
   function moveCursor(xPct: number, yPct: number) {
     cursor.style.left = xPct + '%'
@@ -92,21 +285,26 @@ export function renderPlaytest(root: HTMLElement) {
 
   function addLog(step: typeof STEPS[0]) {
     const el = document.createElement('div')
-    el.className = 'log-entry log-in'
-    el.innerHTML = `
-      <span class="log-icon ${step.action}">${iconFor(step.action)}</span>
-      <span class="log-text">${step.label}</span>
-    `
+    el.className = 'log-entry'
+    el.innerHTML = `<span class="log-icon">${iconFor(step.action)}</span><span class="log-text">${step.label}</span>`
     logList.appendChild(el)
     logList.scrollTop = logList.scrollHeight
   }
 
   STEPS.forEach((step) => {
     setTimeout(() => {
-      moveCursor(step.x, step.y)
+      moveCursor(step.cx, step.cy)
       actionLabel.textContent = step.label
       addLog(step)
-      if (step.action === 'click') flashClick(step.x, step.y)
+      if (step.action === 'click') {
+        flashClick(step.cx, step.cy)
+        if (gameState && step.label.includes('boost')) { gameState.boost = true; gameState.boostTimer = 80 }
+        if (gameState && step.label.includes('bonus')) {
+          const bn = gameState.bonuses.find(b => !b.picked)
+          if (bn) bn.picked = true
+        }
+      }
+      if (gameState) gameState.carLane = step.lane
     }, step.t)
   })
 
@@ -133,47 +331,6 @@ export function renderPlaytest(root: HTMLElement) {
 function iconFor(action: string) {
   if (action === 'click')   return '🖱'
   if (action === 'move')    return '➤'
-  if (action === 'scroll')  return '↕'
   if (action === 'observe') return '👁'
   return '•'
-}
-
-function drawFakeGame(canvas: HTMLCanvasElement) {
-  const ctx = canvas.getContext('2d')!
-  const w = canvas.width, h = canvas.height
-
-  // background
-  ctx.fillStyle = '#0d1117'
-  ctx.fillRect(0, 0, w, h)
-
-  // grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)'
-  ctx.lineWidth = 1
-  for (let x = 0; x < w; x += 32) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke() }
-  for (let y = 0; y < h; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke() }
-
-  // platforms
-  const platforms = [[60,220,120,10],[200,180,100,10],[340,240,100,10],[420,160,80,10],[100,140,80,10]]
-  ctx.fillStyle = '#2563eb'
-  for (const [px,py,pw,ph] of platforms) { ctx.fillRect(px,py,pw,ph) }
-
-  // obstacles
-  ctx.fillStyle = 'rgba(239,68,68,0.8)'
-  ctx.fillRect(260, 165, 18, 18)
-  ctx.fillRect(370, 225, 18, 18)
-
-  // player
-  ctx.fillStyle = '#fff'
-  ctx.beginPath(); ctx.arc(130, 205, 9, 0, Math.PI * 2); ctx.fill()
-
-  // score UI
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'
-  ctx.font = '11px Inter, sans-serif'
-  ctx.fillText('SCORE  1240', 14, 20)
-  ctx.fillText('LIVES  ♥♥♥', 360, 20)
-
-  // title
-  ctx.fillStyle = 'rgba(37,99,235,0.7)'
-  ctx.font = 'bold 13px Inter, sans-serif'
-  ctx.fillText('HYPER DASH', 180, 20)
 }
