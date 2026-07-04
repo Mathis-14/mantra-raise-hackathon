@@ -114,7 +114,7 @@ export const COLORS = Object.freeze({
   bg: 0x2B1D6B, track: 0xEDE7FF, rail: 0x7C5CFF, dash: 0xCFC2FF,
   blue: 0x38B6FF, blueDark: 0x2D7DFF, red: 0xFF4D6D, redDark: 0xD63354,
   gold: 0xFFD54A, yellow: 0xFFE66D, green: 0x45E28D, steel: 0x7C8A99,
-  gateGood: 0x00E5FF, gateBad: 0xFF3C5A,
+  gateGood: 0x00E5FF, gateBad: 0xFF3C5A, road: 0x5FC08A,
 });
 export const FOG = Object.freeze({ color: 0x2B1D6B, near: 55, far: 90 });
 export const LIGHTS = Object.freeze({
