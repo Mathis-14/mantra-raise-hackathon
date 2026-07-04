@@ -1,10 +1,11 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContextOptions, type Page } from "playwright";
 
 import {
   ARTIFACT_ROOT,
+  HEADED_WINDOW_CHROME_HEIGHT_PX,
   JPEG_QUALITY,
   PAGE_GOTO_TIMEOUT_MS,
   PLAYWRIGHT_ACTION_TIMEOUT_MS,
@@ -21,15 +22,28 @@ export async function openBrowserSession(args: {
   runId: string;
   gameUrl: string;
   headless?: boolean;
+  recordVideo?: boolean;
 }): Promise<BrowserSession> {
   const artifactDir = path.join(ARTIFACT_ROOT, args.runId);
   await mkdir(artifactDir, { recursive: true });
 
-  const browser = await chromium.launch({ headless: args.headless ?? false });
-  const context = await browser.newContext({
-    viewport: VIEWPORT,
-    recordVideo: { dir: artifactDir, size: VIEWPORT },
+  const headless = args.headless ?? false;
+  const browser = await chromium.launch({
+    headless,
+    args: headless
+      ? []
+      : [
+          `--window-size=${VIEWPORT.width},${VIEWPORT.height + HEADED_WINDOW_CHROME_HEIGHT_PX}`,
+          "--window-position=0,0",
+        ],
   });
+  const contextOptions: BrowserContextOptions = {
+    viewport: VIEWPORT,
+  };
+  if (args.recordVideo ?? true) {
+    contextOptions.recordVideo = { dir: artifactDir, size: VIEWPORT };
+  }
+  const context = await browser.newContext(contextOptions);
   context.setDefaultTimeout(PLAYWRIGHT_ACTION_TIMEOUT_MS);
   context.setDefaultNavigationTimeout(PAGE_GOTO_TIMEOUT_MS);
 

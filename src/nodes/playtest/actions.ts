@@ -1,7 +1,13 @@
 import type { Page } from "playwright";
 import { z } from "zod";
 
-import { SLOW_DRAG_MS, VIEWPORT } from "./config";
+import {
+  HOLD_AND_STEER_DEFAULT_MS,
+  HOLD_AND_STEER_DEFAULT_Y,
+  HOLD_AND_STEER_STEP_MS,
+  SLOW_DRAG_MS,
+  VIEWPORT,
+} from "./config";
 import type { FunctionCallStep } from "./types";
 
 const coordinate = z.number().min(0).max(999);
@@ -11,11 +17,12 @@ const clickSchema = z.object({ x: coordinate, y: coordinate, intent: optionalInt
 const clickAtSchema = z.object({ x: coordinate, y: coordinate, intent: optionalIntent });
 const moveSchema = z.object({ x: coordinate, y: coordinate, intent: optionalIntent });
 const mouseSchema = z.object({ x: coordinate.optional(), y: coordinate.optional(), intent: optionalIntent });
-const typeSchema = z.object({ text: z.string(), intent: optionalIntent });
+const typeSchema = z.object({ text: z.string(), press_enter: z.boolean().optional(), intent: optionalIntent });
 const typeTextAtSchema = z.object({
   x: coordinate,
   y: coordinate,
   text: z.string(),
+  press_enter: z.boolean().optional(),
   intent: optionalIntent,
 });
 const dragSchema = z.object({
@@ -46,7 +53,15 @@ const scrollSchema = z.object({
   y: coordinate.optional(),
   delta_x: z.number().optional(),
   delta_y: z.number().optional(),
+  magnitude_in_pixels: z.number().min(0).max(5_000).optional(),
   direction: z.enum(["up", "down", "left", "right"]).optional(),
+  intent: optionalIntent,
+});
+const holdAndSteerSchema = z.object({
+  x_path: z.array(coordinate).min(1).max(6),
+  y: coordinate.min(550).max(900).default(HOLD_AND_STEER_DEFAULT_Y),
+  duration_ms: z.number().int().min(500).max(4_500).default(HOLD_AND_STEER_DEFAULT_MS),
+  release: z.boolean().default(false),
   intent: optionalIntent,
 });
 const navigateSchema = z.object({ url: z.string().min(1), intent: optionalIntent });
@@ -77,6 +92,7 @@ export function createActionExecutor(page: Page) {
           message: addSafetyAcknowledgement(result.message),
         };
       } catch (error) {
+        await releaseLatch(page, latch);
         return {
           message: JSON.stringify({
             error: error instanceof Error ? error.message : String(error),
@@ -90,7 +106,7 @@ export function createActionExecutor(page: Page) {
 
     async release(): Promise<void> {
       if (!latch.held) return;
-      await page.mouse.up();
+      await safeMouseUp(page);
       latch.held = false;
     },
   };
@@ -98,6 +114,9 @@ export function createActionExecutor(page: Page) {
 
 async function executeParsed(page: Page, latch: LatchState, call: FunctionCallStep): Promise<ActionResult> {
   switch (call.name) {
+    case "open_web_browser":
+    case "open_app":
+      return noOp(call, "browser is already open");
     case "click":
     case "click_at":
       return click(page, latch, call, clickSchema.or(clickAtSchema), "click");
@@ -105,8 +124,12 @@ async function executeParsed(page: Page, latch: LatchState, call: FunctionCallSt
       return click(page, latch, call, clickSchema, "double_click");
     case "triple_click":
       return click(page, latch, call, clickSchema, "triple_click");
+    case "middle_click":
+      return click(page, latch, call, clickSchema, "middle_click");
     case "right_click":
       return click(page, latch, call, clickSchema, "right_click");
+    case "long_press":
+      return longPress(page, latch, call);
     case "move":
     case "hover_at":
       return move(page, call);
@@ -120,6 +143,8 @@ async function executeParsed(page: Page, latch: LatchState, call: FunctionCallSt
       return typeTextAt(page, latch, call);
     case "drag_and_drop":
       return dragAndDrop(page, latch, call);
+    case "hold_and_steer":
+      return holdAndSteer(page, latch, call);
     case "wait":
     case "wait_5_seconds":
       return wait(page, latch, call);
@@ -158,7 +183,7 @@ async function click(
   latch: LatchState,
   call: FunctionCallStep,
   schema: z.ZodType<{ x: number; y: number; intent?: string }>,
-  mode: "click" | "double_click" | "triple_click" | "right_click",
+  mode: "click" | "double_click" | "triple_click" | "middle_click" | "right_click",
 ): Promise<ActionResult> {
   await releaseLatch(page, latch);
   const parsed = schema.parse(call.arguments);
@@ -167,8 +192,20 @@ async function click(
   else if (mode === "triple_click") {
     await page.mouse.click(point.x, point.y, { clickCount: 3 });
   } else if (mode === "right_click") await page.mouse.click(point.x, point.y, { button: "right" });
+  else if (mode === "middle_click") await page.mouse.click(point.x, point.y, { button: "middle" });
   else await page.mouse.click(point.x, point.y);
   return ok(page, parsed.intent, `${mode} ${point.x},${point.y}`);
+}
+
+async function longPress(page: Page, latch: LatchState, call: FunctionCallStep): Promise<ActionResult> {
+  await releaseLatch(page, latch);
+  const parsed = clickSchema.parse(call.arguments);
+  const point = denormalize(parsed.x, parsed.y);
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.waitForTimeout(700);
+  await page.mouse.up();
+  return ok(page, parsed.intent, `long_press ${point.x},${point.y}`);
 }
 
 async function move(page: Page, call: FunctionCallStep): Promise<ActionResult> {
@@ -203,6 +240,7 @@ async function typeText(page: Page, latch: LatchState, call: FunctionCallStep): 
   await releaseLatch(page, latch);
   const parsed = typeSchema.parse(call.arguments);
   await page.keyboard.type(parsed.text);
+  if (parsed.press_enter) await page.keyboard.press("Enter");
   return ok(page, parsed.intent, "type");
 }
 
@@ -212,6 +250,7 @@ async function typeTextAt(page: Page, latch: LatchState, call: FunctionCallStep)
   const point = denormalize(parsed.x, parsed.y);
   await page.mouse.click(point.x, point.y);
   await page.keyboard.type(parsed.text);
+  if (parsed.press_enter) await page.keyboard.press("Enter");
   return ok(page, parsed.intent, `type_text_at ${point.x},${point.y}`);
 }
 
@@ -245,6 +284,60 @@ async function dragAndDrop(page: Page, latch: LatchState, call: FunctionCallStep
   }
   await page.mouse.up();
   return ok(page, parsed.intent, `drag_and_drop ${start.x},${start.y} -> ${end.x},${end.y}`);
+}
+
+async function holdAndSteer(page: Page, latch: LatchState, call: FunctionCallStep): Promise<ActionResult> {
+  const parsed = holdAndSteerSchema.parse(call.arguments);
+  const points = parsed.x_path.map((x) => denormalize(x, parsed.y));
+  const first = points[0];
+  if (!first) throw new Error("hold_and_steer missing path");
+
+  try {
+    await page.mouse.move(first.x, first.y);
+    if (!latch.held) {
+      await page.mouse.down();
+      latch.held = true;
+    }
+
+    const segmentCount = Math.max(1, points.length - 1);
+    const segmentMs = parsed.duration_ms / segmentCount;
+    if (points.length === 1) {
+      await page.waitForTimeout(parsed.duration_ms);
+    } else {
+      for (let index = 1; index < points.length; index += 1) {
+        const from = points[index - 1];
+        const to = points[index];
+        if (!from || !to) continue;
+        const steps = Math.max(1, Math.ceil(segmentMs / HOLD_AND_STEER_STEP_MS));
+        for (let step = 1; step <= steps; step += 1) {
+          const progress = step / steps;
+          await page.mouse.move(
+            from.x + (to.x - from.x) * progress,
+            from.y + (to.y - from.y) * progress,
+          );
+          await page.waitForTimeout(segmentMs / steps);
+        }
+      }
+    }
+
+    if (parsed.release) await releaseLatch(page, latch);
+    return {
+      message: JSON.stringify({
+        ok: true,
+        action: "hold_and_steer",
+        x_path: parsed.x_path,
+        y: parsed.y,
+        duration_ms: parsed.duration_ms,
+        release: parsed.release,
+        url: page.url(),
+      }),
+      isError: false,
+      intent: parsed.intent ?? null,
+    };
+  } catch (error) {
+    await releaseLatch(page, latch);
+    throw error;
+  }
 }
 
 async function wait(page: Page, latch: LatchState, call: FunctionCallStep): Promise<ActionResult> {
@@ -296,7 +389,11 @@ async function scroll(page: Page, latch: LatchState, call: FunctionCallStep): Pr
     await page.mouse.move(point.x, point.y);
   }
   const directionalDelta = directionToDelta(parsed.direction);
-  await page.mouse.wheel(parsed.delta_x ?? directionalDelta.x, parsed.delta_y ?? directionalDelta.y);
+  const magnitude = parsed.magnitude_in_pixels ?? 600;
+  await page.mouse.wheel(
+    parsed.delta_x ?? scaleDelta(directionalDelta.x, magnitude),
+    parsed.delta_y ?? scaleDelta(directionalDelta.y, magnitude),
+  );
   return ok(page, parsed.intent, "scroll");
 }
 
@@ -305,6 +402,11 @@ async function navigate(page: Page, latch: LatchState, call: FunctionCallStep): 
   const parsed = navigateSchema.parse(call.arguments);
   await page.goto(parsed.url);
   return ok(page, parsed.intent, `navigate ${parsed.url}`);
+}
+
+function scaleDelta(delta: number, magnitude: number): number {
+  if (delta === 0) return 0;
+  return delta > 0 ? magnitude : -magnitude;
 }
 
 async function goBack(page: Page, latch: LatchState, call: FunctionCallStep): Promise<ActionResult> {
@@ -327,8 +429,20 @@ function noOp(call: FunctionCallStep, message: string): ActionResult {
 
 async function releaseLatch(page: Page, latch: LatchState): Promise<void> {
   if (!latch.held) return;
-  await page.mouse.up();
+  await safeMouseUp(page);
   latch.held = false;
+}
+
+async function safeMouseUp(page: Page): Promise<void> {
+  if (page.isClosed()) return;
+  try {
+    await page.mouse.up();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Target page, context or browser has been closed")) {
+      return;
+    }
+    throw error;
+  }
 }
 
 function ok(page: Page, intent: string | undefined, action: string): ActionResult {
