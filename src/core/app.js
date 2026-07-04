@@ -251,7 +251,14 @@ export async function createApp({ container = document.getElementById('game') } 
   ctx.sys.cannon = createCannon(ctx);
   ctx.sys.crowd = createCrowd(ctx);
   ctx.sys.champion = createChampion(ctx);
-  ctx.sys.heroes = createHeroes(ctx);
+  ctx.sys.heroes = createHeroes(ctx, { count: C.HERO_COUNT_BLUE });
+  ctx.sys.redHeroes = createHeroes(ctx, {
+    count: C.HERO_COUNT_RED,
+    getUnits: (c) => c.state.reds.filter((r) => !r.giant),
+    color: C.COLORS.red,
+    bob: C.RED_BOB,
+    faceBack: true,
+  });
   ctx.sys.gates = createGates(ctx);
   ctx.sys.obstacles = createObstacles(ctx);
   ctx.sys.waves = createWaves(ctx);
@@ -320,6 +327,7 @@ export async function createApp({ container = document.getElementById('game') } 
     confetti.update(dt);
     floatingText.update(dt);
     ctx.sys.heroes.update(dt, t);
+    ctx.sys.redHeroes.update(dt, t);
     vignette.update(rawDt, realT);
     cameraRig.update(rawDt, realT);
     ctx.flyingCoins.update(rawDt);

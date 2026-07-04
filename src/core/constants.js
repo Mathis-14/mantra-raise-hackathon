@@ -138,6 +138,9 @@ export const RED_WOBBLE    = Object.freeze({ freq: 5,  amp: 0.5 });
 export const SPAWN_SQUASH  = Object.freeze({ from: Object.freeze([1.3, 0.6, 1.3]), dur: 0.15 }); // spec 5.1
 export const UNIT_LEAN     = 0.12;                      // rad, inclinaison avant (spec 5.2)
 export const UNIT_FACING_FIX = Math.PI;                 // rotY pour que le modèle regarde -Z (à VALIDER en T3)
+// héros skinnés/animés couvrant le peloton de tête (le reste = masse instanciée flat).
+export const HERO_COUNT_BLUE = 28;
+export const HERO_COUNT_RED   = 24;
 
 // base
 export const BASE_SQUASH   = Object.freeze([1.08, 0.94, 1.08]);

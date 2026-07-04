@@ -75,9 +75,12 @@ export function createCrowd(ctx) {
 
     render(t) {
       const blues = state.blues;
-      const n = Math.min(blues.length, MAX_BLUE);
-      for (let i = 0; i < n; i++) {
+      const bound = ctx.sys.heroes?.boundIds;   // unités rendues par un héros skinné → sautées ici
+      const limit = Math.min(blues.length, MAX_BLUE);
+      let n = 0;
+      for (let i = 0; i < limit; i++) {
         const u = blues[i];
+        if (bound && bound.has(u.id)) continue;
 
         // Bobbing vertical (pieds bakés à y=0) — |sin(t·freq+wob)|·amp.
         let y = Math.abs(Math.sin(t * BLUE_BOB.freq + u.wob)) * BLUE_BOB.amp;
@@ -107,7 +110,7 @@ export function createCrowd(ctx) {
         dummy.rotation.set(UNIT_LEAN, UNIT_FACING_FIX, 0); // inclinaison avant + orientation -Z
         dummy.scale.set(sx, sy, sz);
         dummy.updateMatrix();
-        mesh.setMatrixAt(i, dummy.matrix);
+        mesh.setMatrixAt(n++, dummy.matrix);
       }
       mesh.count = n;
       mesh.instanceMatrix.needsUpdate = true;
