@@ -17,3 +17,4 @@ next-env.d.ts
 
 # playtest artifacts (screenshots, recordings) — proof lives in the demo, not git
 playtest-artifacts/
+local-games/
