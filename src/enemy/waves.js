@@ -187,10 +187,12 @@ export function createWaves(ctx) {
     const reds = ctx.state.reds;
     const from = SPAWN_SQUASH.from;
     const rotY = UNIT_FACING_FIX + Math.PI; // face +Z (vers le joueur)
+    const bound = ctx.sys.redHeroes?.boundIds; // unités rendues par un héros skinné → sautées ici
     let n = 0;
     for (let i = 0; i < reds.length; i++) {
       const r = reds[i];
       if (r.giant) continue; // les géants sont rendus par enemy/giants.js
+      if (bound && bound.has(r.id)) continue;
       const y = Math.abs(Math.sin(t * RED_BOB.freq + r.wob)) * RED_BOB.amp;
       const p = clamp01(r.spawnT / SPAWN_SQUASH.dur);
       dummy.position.set(r.x, y, r.z);

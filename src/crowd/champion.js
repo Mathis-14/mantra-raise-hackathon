@@ -3,7 +3,6 @@
 
 import * as THREE from 'three';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { retintClone } from '../assets/recolor.js';
 import {
   PLAYER_Z,
   BLUE_HIT_Z,
@@ -51,7 +50,9 @@ export function createChampion(ctx) {
   function makeClone(champ) {
     const source = ctx.assets.gltf.maleD || ctx.assets.gltf.maleA;
     const root = skeletonClone(source.scene);
-    retintClone(root, COLORS.blue);
+    // Full colored : matériau plat unique par clone (skinning auto), pas de texture.
+    const mat = new THREE.MeshLambertMaterial({ color: COLORS.blue });
+    root.traverse((o) => { if (o.isMesh) o.material = mat; });
 
     _box.setFromObject(root);
     _box.getSize(_size);
@@ -62,12 +63,7 @@ export function createChampion(ctx) {
     root.position.set(champ.x, footY, champ.z);
     root.rotation.set(0, FACING, 0);
 
-    const mats = [];
-    root.traverse((o) => {
-      if (!o.isMesh || !o.material) return;
-      const list = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of list) if (m && m.emissive) mats.push(m);
-    });
+    const mats = [mat]; // flash émissif sur l'unique matériau du clone
 
     const head = root.getObjectByName('head');
     if (head && ctx.assets.gltf.sunglasses) head.add(skeletonClone(ctx.assets.gltf.sunglasses.scene));

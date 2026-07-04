@@ -7,6 +7,9 @@
   },
   "scripts": {
     "dev": "next dev",
+    "game": "vite",
+    "game:build": "vite build",
+    "game:preview": "vite preview",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src",

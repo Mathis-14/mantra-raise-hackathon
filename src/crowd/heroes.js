@@ -1,19 +1,37 @@
 // MOB RUSH — heroes : clones animés du premier plan (CONTRACT §6.3, PLAN §3).
 // Habillage visuel PUR : les héros ne comptent pas, ne collisionnent pas, ne possèdent aucun état
-// gameplay. Ils sont un MIROIR des `count` unités bleues logiques les plus proches du canon.
+// gameplay. Ils sont un MIROIR des `count` unités logiques les plus proches du front.
 //
-// Module-SYSTÈME : factory createHeroes(ctx). N'importe AUCUN autre système ; ne lit que ctx.state,
-// ctx.scene et ctx.assets. retintClone / skeletonClone sont des librairies (autorisées).
+// Les troupes sont une masse pleine (matériau plat d'équipe) mais ANIMÉE : chaque clone est un
+// SkinnedMesh piloté par un mixer (clip `sprint`), avec sa texture remplacée par une couleur unie.
+// Le skin (texture détaillée) est réservé aux unités focales — champion (crowd/champion.js) et
+// boss/géants (enemy/giants.js) — pour que « skinné = unité qui compte ».
+//
+// Générique par équipe : `getUnits`/`solidColor`/`bob`/`faceBack` paramètrent bleu (défaut) et rouge.
+// `boundIds` (Set) expose les ids couverts par un héros ce frame → la masse instanciée saute ces
+// unités pour éviter le double rendu (flat + skinné superposés).
+//
+// Module-SYSTÈME : factory createHeroes(ctx, opts). N'importe AUCUN autre système ; ne lit que
+// ctx.state, ctx.scene et ctx.assets. skeletonClone est une librairie (autorisée).
 
 import * as THREE from 'three';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { COLORS, UNIT_HEIGHT, UNIT_FACING_FIX, BLUE_BOB } from '../core/constants.js';
-import { retintClone } from '../assets/recolor.js';
 
 const CLIP_NAME = 'sprint';
 
-export function createHeroes(ctx, { count = 5 } = {}) {
+export function createHeroes(ctx, {
+  count = 5,
+  getUnits = (c) => c.state.blues,
+  bob = BLUE_BOB,
+  faceBack = false,               // rouges : regardent +Z (vers le joueur)
+  solidColor = COLORS.blue,       // couleur du matériau plat d'équipe
+} = {}) {
   const { scene, assets } = ctx;
+  const facingY = faceBack ? UNIT_FACING_FIX + Math.PI : UNIT_FACING_FIX;
+  const boundIds = new Set();     // ids couverts par un héros ce frame (lu par crowd/waves.render)
+  // Matériau plat unique par équipe, partagé entre les clones (skinné → skinning automatique).
+  const solidMaterial = new THREE.MeshLambertMaterial({ color: solidColor });
   // Variété visuelle : on alterne les 4 modèles mâles (cycle si count > 4).
   const sources = [assets.gltf.maleA, assets.gltf.maleB, assets.gltf.maleD, assets.gltf.maleE];
 
@@ -28,9 +46,9 @@ export function createHeroes(ctx, { count = 5 } = {}) {
   for (let i = 0; i < count; i++) {
     const src = sources[i % sources.length];
 
-    // SkinnedMesh → clone via SkeletonUtils, puis teinte d'équipe (matériaux/textures clonés).
+    // SkinnedMesh → clone via SkeletonUtils, puis texture remplacée par le matériau plat d'équipe.
     const rig = skeletonClone(src.scene);
-    retintClone(rig, COLORS.blue);
+    rig.traverse((o) => { if (o.isMesh) o.material = solidMaterial; });
 
     // Hiérarchie : wrapper (déplacé/orienté chaque frame) → inner (normalisation) → rig (clone GLB).
     // On ne touche jamais aux transforms internes du clone : la normalisation vit dans `inner`.
@@ -38,7 +56,7 @@ export function createHeroes(ctx, { count = 5 } = {}) {
     inner.add(rig);
     const wrapper = new THREE.Group();
     wrapper.add(inner);
-    wrapper.rotation.y = UNIT_FACING_FIX;   // regarde -Z, comme la masse instanciée
+    wrapper.rotation.y = facingY;   // regarde comme la masse instanciée de l'équipe
     wrapper.visible = false;
     scene.add(wrapper);
 
@@ -65,28 +83,29 @@ export function createHeroes(ctx, { count = 5 } = {}) {
     heroes.push({ wrapper, mixer, boundId: null });
   }
 
-  // Sélection des cibles, réutilisée chaque frame (zéro alloc quand blues.length <= count).
-  const _target = [];       // unités bleues suivies (les plus proches du canon), z décroissant
-  const _byId = new Map();  // id → BlueUnit
+  // Sélection des cibles, réutilisée chaque frame (zéro alloc quand units.length <= count).
+  const _target = [];       // unités suivies (les plus proches du front), z décroissant
+  const _byId = new Map();  // id → Unit
   const _used = new Set();  // ids déjà liés à un héros cette frame
 
-  function selectTargets(blues) {
+  function selectTargets(units) {
     _target.length = 0;
     _byId.clear();
-    if (blues.length <= count) {
-      for (let i = 0; i < blues.length; i++) _target.push(blues[i]);
+    if (units.length <= count) {
+      for (let i = 0; i < units.length; i++) _target.push(units[i]);
     } else {
-      // Les `count` unités au z le plus grand = les plus proches du canon (PLAYER_Z).
-      const sorted = blues.slice().sort((a, b) => b.z - a.z);
+      // Les `count` unités au z le plus grand = les plus proches du front (côté joueur).
+      const sorted = units.slice().sort((a, b) => b.z - a.z);
       for (let i = 0; i < count; i++) _target.push(sorted[i]);
     }
     for (let i = 0; i < _target.length; i++) _byId.set(_target[i].id, _target[i]);
   }
 
   return {
+    boundIds,
     update(dt, t) {
-      const blues = ctx.state.blues;
-      selectTargets(blues);
+      const units = getUnits(ctx);
+      selectTargets(units);
 
       // 1) Conserver les liaisons dont l'unité est toujours dans la cible ; libérer les autres
       //    (unité morte/disparue OU sortie du peloton de tête). Re-binding par id.
@@ -111,15 +130,18 @@ export function createHeroes(ctx, { count = 5 } = {}) {
       }
 
       // 3) Placement (position logique de l'unité, même bobbing y que la foule) + animation scalée.
-      //    Héros excédentaires (moins de `count` bleus) : cachés.
+      //    Héros excédentaires (moins de `count` unités) : cachés.
+      //    boundIds = ids réellement affichés → la masse instanciée saute ces unités (pas de doublon).
+      boundIds.clear();
       for (let h = 0; h < heroes.length; h++) {
         const hero = heroes[h];
         const u = hero.boundId != null ? _byId.get(hero.boundId) : null;
         if (u) {
-          const y = Math.abs(Math.sin(t * BLUE_BOB.freq + u.wob)) * BLUE_BOB.amp;
+          const y = Math.abs(Math.sin(t * bob.freq + u.wob)) * bob.amp;
           hero.wrapper.position.set(u.x, y, u.z);
           if (!hero.wrapper.visible) hero.wrapper.visible = true;
           hero.mixer.update(dt);   // dt SCALÉ → gel en hit-stop
+          boundIds.add(u.id);
         } else if (hero.wrapper.visible) {
           hero.wrapper.visible = false;
         }
@@ -127,6 +149,7 @@ export function createHeroes(ctx, { count = 5 } = {}) {
     },
 
     reset() {
+      boundIds.clear();
       for (let h = 0; h < heroes.length; h++) {
         heroes[h].boundId = null;
         heroes[h].wrapper.visible = false;

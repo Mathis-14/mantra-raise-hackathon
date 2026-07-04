@@ -60,7 +60,7 @@ export function createHud(ctx) {
   let ghostDelay = 0;          // s restantes de maintien avant que le ghost rejoigne le fill
 
   function refresh() {
-    if (el.levelPill) el.levelPill.textContent = 'NIV ' + state.level;
+    if (el.levelPill) el.levelPill.textContent = 'LVL ' + state.level;
     if (el.coinPill) el.coinPill.innerHTML = iconValue(COIN_ICON, displayedCoins);
     if (el.gemPill) el.gemPill.innerHTML = iconValue(GEM_ICON, state.gems || 0);
     if (el.loadoutPill) {
@@ -68,7 +68,7 @@ export function createHud(ctx) {
       el.loadoutPill.textContent = mode === 'triple' ? '3x' : (mode === 'double' ? '2x' : '1x');
     }
     if (el.playerHpVal) el.playerHpVal.textContent = state.playerHp;
-    if (el.enemyName) el.enemyName.textContent = state.bossLevel ? 'KILL BOSS' : 'BASE ENNEMIE';
+    if (el.enemyName) el.enemyName.textContent = state.bossLevel ? 'KILL BOSS' : 'ENEMY BASE';
     if (el.enemyLvl) el.enemyLvl.textContent = 'LVL ' + state.level;
     if (el.enemyHpText) el.enemyHpText.textContent = formatHp(state.enemyHp);
     // Parité refreshUI : largeur du fill = max(0, hp/hpMax*100)%. Ne touche PAS le ghost.
@@ -78,7 +78,7 @@ export function createHud(ctx) {
   }
 
   function flashLevel() {
-    if (el.levelFlashTxt) el.levelFlashTxt.textContent = 'NIVEAU ' + state.level;
+    if (el.levelFlashTxt) el.levelFlashTxt.textContent = 'LEVEL ' + state.level;
     // Parité proto : keyframes d'opacité, durée LEVEL_FLASH_DUR (Web Animations API).
     if (el.levelFlash && typeof el.levelFlash.animate === 'function') {
       el.levelFlash.animate(
@@ -152,7 +152,7 @@ export function createHud(ctx) {
 
     const champRatio = clamp01((state.championCharge || 0) / CHAMPION_MAX);
     if (el.championFill) el.championFill.style.width = (champRatio * 100) + '%';
-    if (el.championLabel) el.championLabel.textContent = state.championReady ? 'CHAMPION PRÊT' : 'CHAMPION';
+    if (el.championLabel) el.championLabel.textContent = state.championReady ? 'CHAMPION READY' : 'CHAMPION';
     if (el.releaseBtn) {
       el.releaseBtn.disabled = !state.championReady;
       el.releaseBtn.classList.toggle('ready', !!state.championReady);

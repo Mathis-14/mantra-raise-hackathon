@@ -52,28 +52,54 @@ const ASSET_URLS = {
   rocks: `${PK}/rocks.glb`,
   tree: `${PK}/tree.glb`,
   treePine: `${PK}/tree-pine.glb`,
+  treePineSmall: `${PK}/tree-pine-small.glb`,
   hedge: `${PK}/hedge.glb`,
+  flowers: `${PK}/flowers.glb`,
+  flowersTall: `${PK}/flowers-tall.glb`,
+  mushrooms: `${PK}/mushrooms.glb`,
+  plant: `${PK}/plant.glb`,
+  grassTuft: `${PK}/grass.glb`,
+  fenceLow: `${PK}/fence-low-straight.glb`,
 };
+
+// tampons partagés pour la normalisation bbox (évite les allocations par clone)
+const _box = new THREE.Box3();
+const _size = new THREE.Vector3();
+const _center = new THREE.Vector3();
+
+/**
+ * Clone un GLB, le normalise à `size` (plus grande dimension), centré en x/z,
+ * base posée à y=0. `holder.userData.height` = hauteur montée (pour asseoir le sommet).
+ */
+function makeProp(gltf, size) {
+  const holder = new THREE.Group();
+  if (!gltf || !gltf.scene) return holder;
+  const root = gltf.scene.clone(true);
+  _box.setFromObject(root);
+  _box.getSize(_size);
+  _box.getCenter(_center);
+  const maxDim = Math.max(_size.x, _size.y, _size.z) || 1;
+  const s = size / maxDim;
+  root.position.set(-_center.x, -_box.min.y, -_center.z);
+  holder.add(root);
+  holder.scale.setScalar(s);
+  holder.userData.height = _size.y * s;
+  return holder;
+}
 
 /** Décor procédural + props (CONTRACT §6.11 étape 2). Retourne les nuages (drift en boucle). */
 function buildDecor(scene, gltf) {
-  // piste
-  const track = new THREE.Mesh(
-    new THREE.BoxGeometry(C.TRACK.w, C.TRACK.h, C.TRACK.len),
-    new THREE.MeshLambertMaterial({ color: C.COLORS.track }),
+  // piste : une seule dalle continue (surface propre, sommet à y=0, silhouette de plateau épais).
+  const ROAD_THICKNESS = 2.2;
+  const road = new THREE.Mesh(
+    new THREE.BoxGeometry(C.TRACK.w, ROAD_THICKNESS, C.TRACK.len),
+    new THREE.MeshLambertMaterial({ color: C.COLORS.road }),
   );
-  track.position.set(0, C.TRACK.y, C.TRACK.z);
-  scene.add(track);
+  road.position.set(0, -ROAD_THICKNESS / 2, C.TRACK.z);
+  scene.add(road);
+  const zStart = C.TRACK.z + C.TRACK.len / 2;
 
-  // rails latéraux
-  const railMat = new THREE.MeshLambertMaterial({ color: C.COLORS.rail });
-  for (const s of [-1, 1]) {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(C.RAIL.w, C.RAIL.h, C.RAIL.len), railMat);
-    rail.position.set(s * C.RAIL.x, C.RAIL.y, C.RAIL.z);
-    scene.add(rail);
-  }
-
-  // pointillés centraux
+  // pointillés centraux (repère de vitesse), juste au-dessus des dalles
   const dashMat = new THREE.MeshLambertMaterial({ color: C.COLORS.dash });
   for (let z = C.DASH.zStart; z > C.DASH.zEnd; z += C.DASH.step) {
     const d = new THREE.Mesh(new THREE.BoxGeometry(C.DASH.w, C.DASH.h, C.DASH.len), dashMat);
@@ -81,24 +107,55 @@ function buildDecor(scene, gltf) {
     scene.add(d);
   }
 
-  // props hors piste (couleurs naturelles Kenney — environnement) — clones légers, sparses
-  const placeProp = (g, x, z, s = 1, ry = 0) => {
-    if (!g || !g.scene) return;
-    const o = g.scene.clone(true);
-    o.scale.setScalar(s);
+  // barrières basses bordant la voie : tournées de 90° pour courir le long de la piste (axe Z).
+  const FENCE_LEN = 1.7;
+  const fenceProto = makeProp(gltf.fenceLow, FENCE_LEN);
+  for (const s of [-1, 1]) {
+    for (let z = zStart - FENCE_LEN / 2; z > C.TRACK.z - C.TRACK.len / 2; z -= FENCE_LEN) {
+      const f = fenceProto.clone(true);
+      f.position.set(s * (C.TRACK.w / 2 + 0.35), 0, z);
+      f.rotation.y = Math.PI / 2;
+      scene.add(f);
+    }
+  }
+
+  // props hors piste (couleurs naturelles Kenney) — dispersés des deux côtés
+  const edge = C.TRACK.w / 2 + 1.4;
+  // [source, x, z, taille, rotationY]
+  const props = [
+    [gltf.tree,          -edge - 2.4,  -6,  4.2, 0.4],
+    [gltf.treePine,       edge + 2.0, -12,  4.6, 1.1],
+    [gltf.tree,           edge + 3.2,   4,  3.8, 2.2],
+    [gltf.treePine,      -edge - 3.0,  10,  4.4, 0.7],
+    [gltf.treePineSmall,  edge + 1.6,  18,  2.6, 0.2],
+    [gltf.treePineSmall, -edge - 1.5, -18,  2.4, 1.5],
+    [gltf.tree,           edge + 3.6, -22,  4.0, 0.9],
+    [gltf.treePine,      -edge - 3.4, -24,  4.8, 2.6],
+    [gltf.rocks,         -edge - 0.6, -16,  1.6, 0.3],
+    [gltf.rocks,          edge + 0.6,  -2,  1.4, 1.9],
+    [gltf.stones,        -edge - 0.5,  16,  1.2, 0.8],
+    [gltf.stones,         edge + 0.7, -20,  1.1, 2.1],
+    [gltf.hedge,          edge + 0.5,  14,  1.6, 0],
+    [gltf.hedge,         -edge - 0.5,  -1,  1.6, 0],
+    [gltf.flowers,       -edge - 0.2,   2,  1.0, 0.5],
+    [gltf.flowers,        edge + 0.2,   8,  1.0, 1.7],
+    [gltf.flowersTall,    edge + 0.3, -10,  1.4, 0.9],
+    [gltf.flowersTall,   -edge - 0.3, -12,  1.3, 2.4],
+    [gltf.mushrooms,     -edge - 0.4,  -3,  0.9, 1.2],
+    [gltf.mushrooms,      edge + 0.4,  20,  0.9, 0.4],
+    [gltf.plant,          edge + 0.3,   0,  1.1, 1.9],
+    [gltf.plant,         -edge - 0.3,   6,  1.0, 0.6],
+    [gltf.grassTuft,     -edge + 0.1, -8,   0.9, 0.3],
+    [gltf.grassTuft,      edge - 0.1,  12,  0.9, 1.1],
+    [gltf.grassTuft,     -edge + 0.2,  22,  0.8, 2.0],
+    [gltf.grassTuft,      edge + 1.1,  -6,  0.8, 0.7],
+  ];
+  for (const [g, x, z, size, ry] of props) {
+    const o = makeProp(g, size);
     o.position.set(x, 0, z);
     o.rotation.y = ry;
     scene.add(o);
-  };
-  const edge = C.LANE_HALF + 2.6;
-  placeProp(gltf.tree, -edge - 1.5, -6, 1.1, 0.4);
-  placeProp(gltf.treePine, edge + 1.2, -12, 1.2, 1.1);
-  placeProp(gltf.tree, edge + 2.0, 4, 1.0, 2.2);
-  placeProp(gltf.treePine, -edge - 2.2, 10, 1.1, 0.7);
-  placeProp(gltf.rocks, -edge - 0.6, -16, 1.2, 0.3);
-  placeProp(gltf.rocks, edge + 0.5, -2, 1.0, 1.9);
-  placeProp(gltf.hedge, edge + 0.4, 14, 1.0, 0);
-  placeProp(gltf.hedge, -edge - 0.4, -1, 1.0, 0);
+  }
 
   // nuages procéduraux (3 sphères fusionnées, flat), drift en boucle
   const clouds = [];
@@ -194,7 +251,19 @@ export async function createApp({ container = document.getElementById('game') } 
   ctx.sys.cannon = createCannon(ctx);
   ctx.sys.crowd = createCrowd(ctx);
   ctx.sys.champion = createChampion(ctx);
-  ctx.sys.heroes = createHeroes(ctx);
+  // Alliés : troupes = bleu plein animé (le champion garde son skin via champion.js).
+  ctx.sys.heroes = createHeroes(ctx, {
+    count: C.HERO_COUNT_BLUE,
+    solidColor: C.COLORS.blue,
+  });
+  // Ennemis : troupes = rouge plein animé (le boss/les géants gardent leur skin via giants.js).
+  ctx.sys.redHeroes = createHeroes(ctx, {
+    count: C.HERO_COUNT_RED,
+    getUnits: (c) => c.state.reds.filter((r) => !r.giant),
+    bob: C.RED_BOB,
+    faceBack: true,
+    solidColor: C.COLORS.red,
+  });
   ctx.sys.gates = createGates(ctx);
   ctx.sys.obstacles = createObstacles(ctx);
   ctx.sys.waves = createWaves(ctx);
@@ -263,6 +332,7 @@ export async function createApp({ container = document.getElementById('game') } 
     confetti.update(dt);
     floatingText.update(dt);
     ctx.sys.heroes.update(dt, t);
+    ctx.sys.redHeroes.update(dt, t);
     vignette.update(rawDt, realT);
     cameraRig.update(rawDt, realT);
     ctx.flyingCoins.update(rawDt);

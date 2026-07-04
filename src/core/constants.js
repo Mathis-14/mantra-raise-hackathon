@@ -114,7 +114,7 @@ export const COLORS = Object.freeze({
   bg: 0x2B1D6B, track: 0xEDE7FF, rail: 0x7C5CFF, dash: 0xCFC2FF,
   blue: 0x38B6FF, blueDark: 0x2D7DFF, red: 0xFF4D6D, redDark: 0xD63354,
   gold: 0xFFD54A, yellow: 0xFFE66D, green: 0x45E28D, steel: 0x7C8A99,
-  gateGood: 0x00E5FF, gateBad: 0xFF3C5A,
+  gateGood: 0x00E5FF, gateBad: 0xFF3C5A, road: 0x5FC08A,
 });
 export const FOG = Object.freeze({ color: 0x2B1D6B, near: 55, far: 90 });
 export const LIGHTS = Object.freeze({
@@ -138,6 +138,9 @@ export const RED_WOBBLE    = Object.freeze({ freq: 5,  amp: 0.5 });
 export const SPAWN_SQUASH  = Object.freeze({ from: Object.freeze([1.3, 0.6, 1.3]), dur: 0.15 }); // spec 5.1
 export const UNIT_LEAN     = 0.12;                      // rad, inclinaison avant (spec 5.2)
 export const UNIT_FACING_FIX = Math.PI;                 // rotY pour que le modèle regarde -Z (à VALIDER en T3)
+// héros skinnés/animés couvrant le peloton de tête (le reste = masse instanciée flat).
+export const HERO_COUNT_BLUE = 28;
+export const HERO_COUNT_RED   = 24;
 
 // base
 export const BASE_SQUASH   = Object.freeze([1.08, 0.94, 1.08]);

@@ -65,6 +65,7 @@ export function createLevels(ctx) {
     ctx.sys.giants.reset();
     ctx.sys.champion.reset();
     ctx.sys.heroes.reset();
+    ctx.sys.redHeroes.reset();
     ctx.sys.cannon.reset();
     ctx.time.reset();
     ctx.cameraRig.setBaseYOffset(0);
