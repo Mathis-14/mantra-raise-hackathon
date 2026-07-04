@@ -127,13 +127,42 @@ export interface Variant {
   created_at: string;
 }
 
+export const CREATIVE_HOOK_TYPES = [
+  "action_first",
+  "failure",
+  "challenge",
+  "progression",
+  "reward",
+  "surprise",
+] as const;
+
+export type CreativeHookType = (typeof CREATIVE_HOOK_TYPES)[number];
+
+/**
+ * Normalized creative signals supplied by creative generation.
+ * Every numeric signal uses the inclusive 0-1 range.
+ */
+export interface CreativeAttributes {
+  hook_type: CreativeHookType;
+  gameplay_category: string;
+  progression_style: string;
+  novelty: number;
+  pacing: number;
+  audience_fit: number;
+  predicted_engagement: number;
+  visual_clarity: number;
+}
+
 export interface Creative {
   id: string;
   run_id: string;
   /** null = creative of the original game, not a variant. */
   variant_id: string | null;
   video_url: string;
-  status: "generated" | "deployed" | "kept" | "killed";
+  /** Video length used to derive retention and average watch time. */
+  duration_s: number;
+  attributes: CreativeAttributes;
+  status: "generated" | "deployed" | "kept" | "iterate" | "killed";
   created_at: string;
 }
 
@@ -144,17 +173,62 @@ export interface MetricPoint {
   ts: string;
   impressions: number;
   clicks: number;
+  installs: number;
+  spend_usd: number;
   /** Click-through rate, the attention signal. */
   ctr: number;
   /** Cost per install — the kill metric. */
   cpi: number;
   watch_time_s: number;
+  /** Fraction of video starts watched to completion, in the inclusive 0-1 range. */
+  completion_rate: number;
+}
+
+export type CreativeDecision = "KEEP" | "ITERATE" | "KILL";
+
+export interface CreativeScoreBreakdown {
+  ctr: number;
+  watch_time: number;
+  completion_rate: number;
+  cpi: number;
+  audience_fit: number;
+}
+
+export interface CreativeExplanation {
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  next_action: string;
+}
+
+export interface CreativeEvaluation {
+  creative_id: string;
+  variant_id: string | null;
+  rank: number;
+  overall_score: number;
+  /** Confidence in the simulated judgment, in the inclusive 0-1 range. */
+  confidence: number;
+  decision: CreativeDecision;
+  score_breakdown: CreativeScoreBreakdown;
+  explanation: CreativeExplanation;
+}
+
+export interface PrototypeRecommendation {
+  outcome: "continue_original" | "continue_variant" | "no_clear_winner";
+  selected_variant_id: string | null;
+  supporting_creative_ids: string[];
+  confidence: number;
+  rationale: string;
+  next_actions: string[];
 }
 
 export interface Decision {
   run_id: string;
   keep_creative_ids: string[];
+  iterate_creative_ids: string[];
   kill_creative_ids: string[];
+  evaluations: CreativeEvaluation[];
+  prototype_recommendation: PrototypeRecommendation;
   /** The output that closes the loop: which prototype direction to build next. */
   next_build_recommendation: string;
   rationale: string;
