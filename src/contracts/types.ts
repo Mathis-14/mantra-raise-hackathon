@@ -159,3 +159,12 @@ export interface Decision {
   next_build_recommendation: string;
   rationale: string;
 }
+
+/** Knowledge-base entry — compounds context across projects (null project_id = global). */
+export interface MemoryEntry {
+  id: string;
+  project_id: string | null;
+  kind: string;
+  content: string;
+  created_at: string;
+}
