@@ -7,7 +7,7 @@ import { buildReportPrompt } from "./prompts";
 import { reportStep } from "./gemini";
 import type { FrameCapture, TerminationReason, TranscriptEntry } from "./types";
 
-const reportSchema = z.object({
+const reportDraftSchema = z.object({
   playable: z.boolean(),
   fun_score: z.number().min(0).max(10),
   fun_rationale: z.string().min(1),
@@ -15,7 +15,7 @@ const reportSchema = z.object({
   bugs: z.array(z.string()),
   session_summary: z.string().min(1),
   headline: z.string().min(1),
-});
+}).strict();
 
 const responseSchema = {
   type: Type.OBJECT,
@@ -68,7 +68,7 @@ export async function buildReport(args: {
     }
 
     const json = parseJson(text);
-    const parsed = reportSchema.safeParse(json);
+    const parsed = reportDraftSchema.safeParse(json);
     if (parsed.success) {
       return {
         run_id: args.runId,
@@ -80,6 +80,17 @@ export async function buildReport(args: {
   }
 
   throw new Error(`playtest_report_parse_failed: ${parseError ?? "unknown error"}`);
+}
+
+export function parseFastPathReport(runId: string, text: string | null): PlaytestReport | null {
+  if (!text) return null;
+  const parsedJson = parseJson(text);
+  const parsedReport = reportDraftSchema.safeParse(parsedJson);
+  if (!parsedReport.success) return null;
+  return {
+    run_id: runId,
+    ...parsedReport.data,
+  };
 }
 
 function parseJson(text: string): unknown {
