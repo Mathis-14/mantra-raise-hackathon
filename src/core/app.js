@@ -90,6 +90,45 @@ function makeProp(gltf, size) {
   return holder;
 }
 
+// tampons pour l'instanciation des props (init uniquement)
+const _iPos = new THREE.Vector3();
+const _iQuat = new THREE.Quaternion();
+const _iEuler = new THREE.Euler();
+const _iScale = new THREE.Vector3();
+const _iMat = new THREE.Matrix4();
+
+/**
+ * Fusionne N copies d'un prop MONO-mesh (même géométrie + matériau) en un seul InstancedMesh :
+ * 1 draw call au lieu de N. Reproduit EXACTEMENT makeProp(size) + position + rotationY, donc
+ * l'aspect est identique. `placements` : [{ x, y, z, size, ry }]. Statique → aucun coût par frame.
+ * Retourne null si le prop n'est pas mono-mesh (l'appelant garde alors le placement individuel).
+ */
+function addInstancedProp(scene, gltf, placements) {
+  if (!gltf || !gltf.scene || placements.length === 0) return null;
+  // Géométrie de base normalisée à maxDim=1 (base y=0, centrée x/z) — réutilise makeProp.
+  const proto = makeProp(gltf, 1);
+  proto.updateWorldMatrix(true, true);
+  let src = null, meshCount = 0;
+  proto.traverse((o) => { if (o.isMesh) { meshCount++; if (!src) src = o; } });
+  if (!src || meshCount !== 1) return null;      // multi-mesh non géré ici
+  const geo = src.geometry.clone();
+  geo.applyMatrix4(src.matrixWorld);             // fige la normalisation dans la géométrie
+  const inst = new THREE.InstancedMesh(geo, src.material, placements.length);
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i];
+    _iEuler.set(0, p.ry, 0);
+    _iQuat.setFromEuler(_iEuler);
+    _iPos.set(p.x, p.y, p.z);
+    _iScale.setScalar(p.size);
+    _iMat.compose(_iPos, _iQuat, _iScale);
+    inst.setMatrixAt(i, _iMat);
+  }
+  inst.instanceMatrix.needsUpdate = true;
+  inst.frustumCulled = false;   // statique, presque toujours à l'écran ; évite un cull erroné (bbox unité)
+  scene.add(inst);
+  return inst;
+}
+
 /** Décor procédural + props (CONTRACT §6.11 étape 2). Retourne les nuages (drift en boucle). */
 function buildDecor(scene, gltf) {
   // sol continu (sable chaud, réf. canyon Mob Control) : supprime le vide violet sous le décor,
@@ -122,15 +161,13 @@ function buildDecor(scene, gltf) {
 
   // barrières basses bordant la voie : tournées de 90° pour courir le long de la piste (axe Z).
   const FENCE_LEN = 1.7;
-  const fenceProto = makeProp(gltf.fenceLow, FENCE_LEN);
+  const fencePlacements = [];
   for (const s of [-1, 1]) {
     for (let z = zStart - FENCE_LEN / 2; z > C.TRACK.z - C.TRACK.len / 2; z -= FENCE_LEN) {
-      const f = fenceProto.clone(true);
-      f.position.set(s * (C.TRACK.w / 2 + 0.35), 0, z);
-      f.rotation.y = Math.PI / 2;
-      scene.add(f);
+      fencePlacements.push({ x: s * (C.TRACK.w / 2 + 0.35), y: 0, z, size: FENCE_LEN, ry: Math.PI / 2 });
     }
   }
+  addInstancedProp(scene, gltf.fenceLow, fencePlacements);   // ~60 barrières → 1 draw call
 
   // props hors piste (couleurs naturelles Kenney) — dispersés des deux côtés
   const edge = C.TRACK.w / 2 + 1.4;
@@ -190,23 +227,33 @@ function buildDecor(scene, gltf) {
   const WALL_X = 10.5;                                  // face interne des falaises (bien au-delà de la piste)
   const zTop = C.TRACK.z + C.TRACK.len / 2;
   const zBot = C.TRACK.z - C.TRACK.len / 2;
+  const wallNormH = makeProp(gltf.blockTall, 1).userData.height || 0;   // hauteur du bloc normalisé (maxDim=1)
   const rims = [];                                      // {x,z,topY} pour semer la végétation du rebord
+  const wallPlacements = [];
+  // Ordre des tirages rand() PRÉSERVÉ (size, x, y, z, ry, rim) : layout déterministe inchangé.
   for (let z = zTop; z >= zBot - 2; z -= 3.0) {
     for (const s of [-1, 1]) {
       const size = 6 + rand() * 3.4;                    // gabarit borné → ligne de crête découpée sans envahir
-      const c = place(gltf.blockTall, s * (WALL_X + rand() * 1.8), -1.8 - rand() * 1.6,
-        z + (rand() - 0.5) * 1.2, size, rand() * Math.PI);
-      if (rand() < 0.8) rims.push({ x: c.o.position.x, z: c.o.position.z, topY: c.topY - 0.25 });
+      const x = s * (WALL_X + rand() * 1.8);
+      const y = -1.8 - rand() * 1.6;
+      const zz = z + (rand() - 0.5) * 1.2;
+      const ry = rand() * Math.PI;
+      wallPlacements.push({ x, y, z: zz, size, ry });
+      if (rand() < 0.8) rims.push({ x, z: zz, topY: y + size * wallNormH - 0.25 });
     }
   }
+  addInstancedProp(scene, gltf.blockTall, wallPlacements);   // ~42 parois de canyon → 1 draw call
+
   // mesa de fond : ferme le canyon derrière la base ennemie
+  const hexPlacements = [];
   for (let x = -13; x <= 13; x += 4.2) {
-    place(gltf.cliffHex, x + (rand() - 0.5) * 2, -1.4, -31 - rand() * 4, 8.5 + rand() * 4, rand() * Math.PI);
+    hexPlacements.push({ x: x + (rand() - 0.5) * 2, y: -1.4, z: -31 - rand() * 4, size: 8.5 + rand() * 4, ry: rand() * Math.PI });
   }
   // buttes/pitons sable épars, plus loin, pour la silhouette caractéristique du canyon
   for (const [x, z, sz] of [[-16, 3, 9], [17, -9, 10.5], [-18, -19, 11], [16, -27, 10], [18, 13, 8.5]]) {
-    place(gltf.cliffHex, x, -1.2, z, sz, rand() * Math.PI);
+    hexPlacements.push({ x, y: -1.2, z, size: sz, ry: rand() * Math.PI });
   }
+  addInstancedProp(scene, gltf.cliffHex, hexPlacements);     // mesa + buttes → 1 draw call
   // rebords herbeux habillés : buissons ronds + quelques arbres (réf. touffes vertes du canyon)
   const rimProps = [gltf.hedge, gltf.tree, gltf.hedge, gltf.treePine, gltf.hedge, gltf.treePineSmall];
   rims.forEach((r) => {
@@ -241,7 +288,7 @@ export async function createApp({ container = document.getElementById('game') } 
   const isDebug = params.has('debug');
 
   // 1. renderer + scène + lumières (CONTRACT §1.1 : NoToneMapping, hex inchangés, lumières ×π)
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, C.PIXEL_RATIO_MAX));
   renderer.setSize(innerWidth, innerHeight);
   renderer.toneMapping = THREE.NoToneMapping;
