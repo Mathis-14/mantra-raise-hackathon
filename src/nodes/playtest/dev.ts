@@ -10,6 +10,7 @@ import { runPlaytest } from "./index";
 const argsSchema = z.object({
   game: z.string().min(1),
   budget: z.coerce.number().int().min(45).max(600).default(180),
+  recordVideo: z.union([z.boolean(), z.enum(["true", "false"])]).default(true).transform((value) => value === true || value === "true"),
 });
 
 async function main() {
@@ -46,6 +47,7 @@ async function main() {
     runId: run.id,
     gameUrl,
     timeBudgetS: args.budget,
+    recordVideo: args.recordVideo,
   });
   console.log(JSON.stringify(report, null, 2));
 }
@@ -60,6 +62,10 @@ function parseArgs(argv: string[]) {
     } else if (token === "--budget") {
       values.budget = readNext(argv, index, token);
       index += 1;
+    } else if (token === "--no-record-video") {
+      values.recordVideo = "false";
+    } else if (token === "--record-video") {
+      values.recordVideo = "true";
     }
   }
   return argsSchema.parse(values);
