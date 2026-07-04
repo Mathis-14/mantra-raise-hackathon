@@ -296,7 +296,83 @@ a.logo {
   margin-bottom: 14px;
 }
 
-/* ── Playtest layout ── */
+/* ── Playtest carousel ── */
+.carousel-scene {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  perspective: 1000px;
+  overflow: hidden;
+  gap: 40px;
+  padding: 40px 0 32px;
+}
+
+.carousel-ring {
+  position: relative;
+  width: 290px;
+  height: 440px;
+  transform-style: preserve-3d;
+}
+
+.phone-slot {
+  position: absolute;
+  top: 0; left: 0;
+  transform-style: preserve-3d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  transition: opacity 0.1s;
+}
+
+.phone-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 200px;
+}
+.phone-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.phone-progress-wrap {
+  width: 100%;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.phone-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s linear;
+}
+.phone-pct {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+.carousel-cta {
+  display: flex;
+  justify-content: center;
+}
+
+/* session badge in nav */
+.session-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ── Playtest layout (legacy, kept for safety) ── */
 .playtest-layout {
   display: grid;
   grid-template-columns: 1fr 320px;
