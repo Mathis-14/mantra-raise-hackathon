@@ -116,7 +116,10 @@ export function renderPipeline(root: HTMLElement) {
               <span class="market-genre">${MARKET.genre}</span>
             </div>
             <div class="comp-layout">
-              <div class="globe-wrap" id="globe-wrap"></div>
+              <div class="globe-wrap" id="globe-wrap">
+                <div class="globe-hint">Drag to rotate · click a marker</div>
+                <div class="globe-pop" id="globe-pop" style="display:none"></div>
+              </div>
               <div class="comp-side">
                 <div class="market-sub">Competitor HQs · 30d installs</div>
                 <div class="market-list" id="market-list"></div>
@@ -183,14 +186,40 @@ export function renderPipeline(root: HTMLElement) {
   function startGlobe() {
     globeStarted = true
     const wrap = document.getElementById('globe-wrap')!
+    const pop  = document.getElementById('globe-pop') as HTMLElement
     const points: GlobePoint[] = MARKET.competitors.map(c => ({
       lat: c.lat, lng: c.lng, label: c.name, color: c.color,
+      meta: {
+        Publisher: c.publisher,
+        HQ: c.city,
+        Genre: c.genre,
+        Installs: c.installs + ' /30d',
+        CPI: c.cpi,
+        CTR: c.ctr,
+      },
     }))
-    points.push({ lat: HOME[0], lng: HOME[1], label: 'Our studio', color: '#ffffff', size: 0.024 })
+    points.push({ lat: HOME[0], lng: HOME[1], label: 'Our studio', color: '#ffffff', size: 0.03,
+      meta: { Studio: 'Mantra', Location: 'Paris, FR', Status: 'Testing 5 prototypes' } })
     const arcs: GlobeArc[] = MARKET.competitors.map(c => ({
       from: HOME, to: [c.lat, c.lng] as [number, number], color: c.color,
     }))
-    globeDispose = createGlobe(wrap, points, arcs)
+
+    globeDispose = createGlobe(wrap, points, arcs, (p) => {
+      if (!p) { pop.style.display = 'none'; return }
+      pop.innerHTML = `
+        <div class="pop-head">
+          <span class="pop-dot" style="background:${p.color}"></span>
+          <span class="pop-title">${p.label}</span>
+          <button class="pop-close" id="pop-close">×</button>
+        </div>
+        <div class="pop-rows">
+          ${Object.entries(p.meta ?? {}).map(([k, v]) =>
+            `<div class="pop-row"><span>${k}</span><span>${v}</span></div>`).join('')}
+        </div>
+      `
+      pop.style.display = 'block'
+      document.getElementById('pop-close')?.addEventListener('click', () => { pop.style.display = 'none' })
+    })
   }
 
   // ── Animate pipeline nodes (drives reveal timing, shown in badge) ──

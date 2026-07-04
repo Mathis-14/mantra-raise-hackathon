@@ -775,22 +775,80 @@ a.logo {
 /* ── Competitors tab: globe + list ── */
 .comp-layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 20px;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
   align-items: start;
 }
 .globe-wrap {
   position: relative;
   width: 100%;
-  height: 480px;
+  max-width: 620px;
+  aspect-ratio: 1 / 1;   /* square — COBE renders a 1:1 globe */
+  margin: 0 auto;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background:
-    radial-gradient(ellipse at 50% 45%, rgba(37,99,235,0.18), transparent 65%),
+    radial-gradient(ellipse at 50% 45%, rgba(37,99,235,0.20), transparent 65%),
     #04060f;
 }
-.globe-wrap canvas { display: block; }
+.globe-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;   /* let pointer drag rotate, not scroll */
+}
+
+/* hint + click popup */
+.globe-hint {
+  position: absolute;
+  bottom: 12px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.3px;
+  pointer-events: none;
+  z-index: 3;
+}
+.globe-pop {
+  position: absolute;
+  top: 14px; left: 14px;
+  z-index: 4;
+  width: 190px;
+  background: rgba(10,14,26,0.92);
+  border: 1px solid rgba(120,160,255,0.35);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  color: #e8eefc;
+  animation: fade-in 0.2s ease;
+}
+.pop-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.pop-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pop-title { font-size: 12.5px; font-weight: 700; flex: 1; }
+.pop-close {
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.5); font-size: 16px; line-height: 1;
+  padding: 0; font-family: var(--font);
+}
+.pop-close:hover { color: #fff; }
+.pop-rows { padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.pop-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.pop-row span:first-child { color: rgba(255,255,255,0.5); }
+.pop-row span:last-child  { font-weight: 600; }
 .comp-side { display: flex; flex-direction: column; }
 .mc-dot {
   width: 8px; height: 8px;
