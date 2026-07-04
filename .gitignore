@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# env — never commit real keys; .env.example documents every variable
+.env
+.env.*
+!.env.example
+
+# builds & misc
+*.tsbuildinfo
+.DS_Store
+
+# playtest artifacts (screenshots, recordings) — proof lives in the demo, not git
+playtest-artifacts/
