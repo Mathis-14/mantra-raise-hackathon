@@ -464,6 +464,7 @@ function shouldNudgePostWin(postWin: PostWinState, text: string | null): boolean
 
 function postWinSweepExpired(postWin: PostWinState, turn: number): boolean {
   if (postWin.startedAt === null || postWin.startTurn === null) return false;
+  if (postWin.nextLevelChecked) return false;
   return turn - postWin.startTurn >= POST_WIN_MAX_TURNS || Date.now() - postWin.startedAt >= POST_WIN_MAX_MS;
 }
 
@@ -491,7 +492,7 @@ function normalizeText(text: string): string {
 }
 
 function looksLikeWin(text: string): boolean {
-  return text.includes("victoire") || text.includes("victory") || text.includes("win") || text.includes("niveau suivant");
+  return text.includes("victoire") || text.includes("victory") || text.includes("won") || text.includes("next level") || text.includes("niveau suivant");
 }
 
 function looksLikeNextLevel(text: string): boolean {
