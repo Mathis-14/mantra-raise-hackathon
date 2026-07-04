@@ -304,16 +304,15 @@ a.logo {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  perspective: 900px;
-  gap: 28px;
-  padding: 20px 0 24px;
+  perspective: 1100px;
+  gap: 24px;
   overflow: hidden;
 }
 
 .carousel-ring {
   position: relative;
-  width: 210px;
-  height: 340px;
+  width: 0;
+  height: 0;
   transform-style: preserve-3d;
   flex-shrink: 0;
 }
@@ -321,57 +320,78 @@ a.logo {
 .phone-slot {
   position: absolute;
   top: 0; left: 0;
+  transform-style: preserve-3d;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
 }
 
-/* ── 3D iPhone effect ── */
-.iphone-frame {
+/* ── 3D iPhone wrapper ── */
+.iphone-wrap {
   position: relative;
-  width: 210px;
-  background: #1c1c1e;
-  border-radius: 36px;
-  padding: 12px 8px 16px;
-  /* top/left face */
-  box-shadow:
-    /* right side face — gives depth */
-    8px 8px 0 2px #111,
-    9px 9px 0 2px #2a2a2e,
-    /* bottom side face */
-    4px 12px 0 2px #0d0d0f,
-    /* outer ring */
-    0 0 0 2px #3a3a3e,
-    0 0 0 3px #1c1c1e,
-    0 0 0 4px #3a3a3e,
-    /* ambient shadow */
-    12px 20px 40px rgba(0,0,0,0.55),
-    inset 0 1px 0 rgba(255,255,255,0.07);
-  transform-origin: center center;
+  transform-style: preserve-3d;
+  width: 132px;
 }
 
-/* left side bar */
+/* Front face */
+.iphone-frame {
+  position: relative;
+  width: 132px;
+  background: #1c1c1e;
+  border-radius: 28px;
+  padding: 10px 7px 13px;
+  box-shadow:
+    0 0 0 1.5px #3a3a3e,
+    0 0 0 2.5px #1c1c1e,
+    0 0 0 3.5px #3a3a3e,
+    0 20px 50px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  transform: translateZ(6px);
+}
+
+/* Right side face — real extruded thickness */
+.iphone-side {
+  position: absolute;
+  top: 6px;
+  right: -12px;
+  width: 12px;
+  height: calc(100% - 12px);
+  background: linear-gradient(to bottom, #2e2e32, #1a1a1c);
+  border-radius: 0 4px 4px 0;
+  transform: rotateY(90deg) translateZ(-6px);
+  transform-origin: left center;
+}
+
+/* Top side face */
+.iphone-side-top {
+  position: absolute;
+  top: -6px;
+  left: 6px;
+  width: calc(100% - 6px);
+  height: 12px;
+  background: linear-gradient(to right, #2e2e32, #1a1a1c);
+  border-radius: 0 4px 0 0;
+  transform: rotateX(90deg) translateZ(6px);
+  transform-origin: center bottom;
+}
+
+/* Volume/power button nubs on side */
 .iphone-frame::before {
   content: '';
   position: absolute;
-  left: -4px;
-  top: 28px;
-  width: 3px;
-  height: 26px;
-  background: #2a2a2e;
+  left: -5px; top: 30px;
+  width: 3px; height: 18px;
+  background: #3a3a3e;
   border-radius: 2px 0 0 2px;
-  box-shadow: 0 36px 0 #2a2a2e;
+  box-shadow: 0 26px 0 #3a3a3e;
 }
-/* right side volume/power buttons */
 .iphone-frame::after {
   content: '';
   position: absolute;
-  right: -4px;
-  top: 52px;
-  width: 3px;
-  height: 38px;
-  background: #2a2a2e;
+  right: -5px; top: 46px;
+  width: 3px; height: 30px;
+  background: #3a3a3e;
   border-radius: 0 2px 2px 0;
 }
 
@@ -380,7 +400,7 @@ a.logo {
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  width: 160px;
+  width: 132px;
 }
 .phone-title {
   font-size: 11px;

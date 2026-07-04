@@ -229,13 +229,17 @@ export function renderPlaytest(root: HTMLElement) {
       <div class="carousel-scene">
         <div class="carousel-ring" id="carousel-ring" style="transform-style:preserve-3d">
           ${SESSIONS.map(s => `
-            <div class="phone-slot" id="slot-${s.id}" style="transform:rotateY(${s.angle}deg) translateZ(260px)">
-              <div class="iphone-frame">
-                <div class="iphone-notch"></div>
-                <div class="iphone-screen">
-                  <canvas id="canvas-${s.id}" width="${CW}" height="${CH}"></canvas>
+            <div class="phone-slot" id="slot-${s.id}" style="transform:rotateY(${s.angle}deg) translateZ(200px)">
+              <div class="iphone-wrap">
+                <div class="iphone-frame">
+                  <div class="iphone-notch"></div>
+                  <div class="iphone-screen">
+                    <canvas id="canvas-${s.id}" width="${CW}" height="${CH}"></canvas>
+                  </div>
+                  <div class="iphone-home"></div>
                 </div>
-                <div class="iphone-home"></div>
+                <div class="iphone-side"></div>
+                <div class="iphone-side-top"></div>
               </div>
               <div class="phone-meta">
                 <span class="phone-title" style="color:${s.color}">${s.title}</span>
@@ -279,24 +283,16 @@ export function renderPlaytest(root: HTMLElement) {
   function frame(now: number) {
     requestAnimationFrame(frame)
 
-    // Spin
+    // Spin ring
     baseAngle += 0.15
     ring.style.transform = `rotateY(${baseAngle}deg)`
 
-    // Counter-rotate each slot so phones face camera
+    // Fade phones facing away — no counter-rotation, let them angle naturally
     SESSIONS.forEach(s => {
       const slot = document.getElementById('slot-' + s.id)!
-      // Reapply position + counter-rotate inner content
-      slot.style.transform = `rotateY(${s.angle}deg) translateZ(260px)`
-      const frame_ = slot.querySelector<HTMLElement>('.iphone-frame')!
-      const meta   = slot.querySelector<HTMLElement>('.phone-meta')!
-      const counterAngle = -(s.angle + baseAngle)
-      frame_.style.transform = `rotateY(${counterAngle}deg)`
-      meta.style.transform   = `rotateY(${counterAngle}deg)`
-      // Fade phones facing away
       const rad = ((s.angle + baseAngle) * Math.PI) / 180
       const facing = Math.cos(rad)
-      slot.style.opacity = String(0.2 + ((facing + 1) / 2) * 0.8)
+      slot.style.opacity = String(Math.max(0.08, (facing + 1) / 2))
     })
 
     // Games
