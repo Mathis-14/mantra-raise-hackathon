@@ -43,6 +43,11 @@ interface Competitor {
   cpi: string
   ctr: string
   installs: string   // last 30d
+  revenue: string    // est. net revenue 30d
+  adSpend: string    // est. UA spend 30d
+  spendTrend: number // MoM ad-spend change, %
+  topNetwork: string // where they buy most impressions
+  creatives: number  // active ad creatives (Sensor Tower Creative library)
   city: string
   lat: number
   lng: number
@@ -53,15 +58,75 @@ const MARKET = {
   genre: 'Hypercasual · Arcade dodge',
   medianCpi: '$0.58',
   medianCtr: '3.4%',
+  totalSpend: '$4.6M',       // category UA spend, 30d
+  spendTrend: 12,            // category MoM, %
   competitors: [
-    { name: 'Lane Rush 3D',  publisher: 'Voodoo',     genre: 'Arcade',  cpi: '$0.51', ctr: '4.1%', installs: '2.4M', city: 'Paris, FR',     lat: 48.86, lng: 2.35,   color: '#2563eb' },
-    { name: 'Sky Jumper',    publisher: 'Homa',       genre: 'Arcade',  cpi: '$0.44', ctr: '4.9%', installs: '1.8M', city: 'Paris, FR',     lat: 48.85, lng: 2.34,   color: '#7c3aed' },
-    { name: 'Brick Smash!',  publisher: 'Azur Games', genre: 'Arcade',  cpi: '$0.72', ctr: '2.7%', installs: '640K', city: 'Nicosia, CY',   lat: 35.19, lng: 33.38,  color: '#0891b2' },
-    { name: 'Astro Blaster', publisher: 'CrazyLabs',  genre: 'Shooter', cpi: '$0.63', ctr: '3.2%', installs: '910K', city: 'Tel Aviv, IL',  lat: 32.08, lng: 34.78,  color: '#d97706' },
-    { name: 'Dash Mania',    publisher: 'SayGames',   genre: 'Arcade',  cpi: '$0.55', ctr: '3.8%', installs: '1.2M', city: 'Minsk, BY',     lat: 53.90, lng: 27.56,  color: '#059669' },
-    { name: 'Hopper Go',     publisher: 'Kwalee',     genre: 'Arcade',  cpi: '$0.60', ctr: '3.5%', installs: '780K', city: 'Leamington, UK', lat: 52.29, lng: -1.53, color: '#db2777' },
+    { name: 'Lane Rush 3D',  publisher: 'Voodoo',     genre: 'Arcade',  cpi: '$0.51', ctr: '4.1%', installs: '2.4M', revenue: '$1.9M', adSpend: '$1.22M', spendTrend: 18,  topNetwork: 'Meta',     creatives: 214, city: 'Paris, FR',      lat: 48.86, lng: 2.35,   color: '#2563eb' },
+    { name: 'Sky Jumper',    publisher: 'Homa',       genre: 'Arcade',  cpi: '$0.44', ctr: '4.9%', installs: '1.8M', revenue: '$1.4M', adSpend: '$0.79M', spendTrend: 26,  topNetwork: 'TikTok',   creatives: 188, city: 'Paris, FR',      lat: 48.85, lng: 2.34,   color: '#7c3aed' },
+    { name: 'Brick Smash!',  publisher: 'Azur Games', genre: 'Arcade',  cpi: '$0.72', ctr: '2.7%', installs: '640K', revenue: '$0.5M', adSpend: '$0.46M', spendTrend: -9,  topNetwork: 'Unity',    creatives: 96,  city: 'Nicosia, CY',    lat: 35.19, lng: 33.38,  color: '#0891b2' },
+    { name: 'Astro Blaster', publisher: 'CrazyLabs',  genre: 'Shooter', cpi: '$0.63', ctr: '3.2%', installs: '910K', revenue: '$0.8M', adSpend: '$0.57M', spendTrend: 4,   topNetwork: 'AppLovin', creatives: 131, city: 'Tel Aviv, IL',   lat: 32.08, lng: 34.78,  color: '#d97706' },
+    { name: 'Dash Mania',    publisher: 'SayGames',   genre: 'Arcade',  cpi: '$0.55', ctr: '3.8%', installs: '1.2M', revenue: '$0.9M', adSpend: '$0.66M', spendTrend: 15,  topNetwork: 'Meta',     creatives: 152, city: 'Minsk, BY',      lat: 53.90, lng: 27.56,  color: '#059669' },
+    { name: 'Hopper Go',     publisher: 'Kwalee',     genre: 'Arcade',  cpi: '$0.60', ctr: '3.5%', installs: '780K', revenue: '$0.6M', adSpend: '$0.47M', spendTrend: 8,   topNetwork: 'TikTok',   creatives: 118, city: 'Leamington, UK', lat: 52.29, lng: -1.53, color: '#db2777' },
   ] as Competitor[],
 }
+
+// UA spend split by network across the category (Sensor Tower, 30d) — for Metrics tab.
+const NETWORK_SPLIT = [
+  { network: 'Meta',     share: 34, trend:  9 },
+  { network: 'TikTok',   share: 27, trend: 22 },
+  { network: 'AppLovin', share: 18, trend:  5 },
+  { network: 'Unity',    share: 12, trend: -6 },
+  { network: 'Google',   share:  9, trend:  3 },
+]
+
+// ── Deeper market intelligence (Sensor Tower + creative library), seeded ──
+
+// Category headline KPIs for the Metrics tab.
+const METRIC_KPIS = [
+  { val: '$4.6M', lbl: 'Category UA spend · 30d', trend: 12 },
+  { val: '6.1M',  lbl: 'Est. installs · 30d',     trend: 8 },
+  { val: '899',   lbl: 'Active ad creatives',     trend: 19 },
+  { val: '4.2d',  lbl: 'Avg. creative lifespan',  trend: -14 },
+]
+
+// Share of Voice + velocity — who is winning impressions and how fast (Voodoo-style).
+const SOV = [
+  { name: 'Lane Rush 3D',  pub: 'Voodoo',     sov: 27, velocity:  6 },
+  { name: 'Sky Jumper',    pub: 'Homa',       sov: 21, velocity: 14 },
+  { name: 'Dash Mania',    pub: 'SayGames',   sov: 16, velocity:  9 },
+  { name: 'Astro Blaster', pub: 'CrazyLabs',  sov: 13, velocity:  3 },
+  { name: 'Hopper Go',     pub: 'Kwalee',     sov: 12, velocity:  5 },
+  { name: 'Brick Smash!',  pub: 'Azur Games', sov: 11, velocity: -7 },
+]
+
+// Emotional pitch distribution across deconstructed ad creatives (Voodoo-style).
+const PITCH_MIX = [
+  { pitch: 'Satisfying / ASMR', pct: 31, color: '#2563eb' },
+  { pitch: 'Fail / frustration', pct: 24, color: '#db2777' },
+  { pitch: 'Power fantasy',      pct: 19, color: '#7c3aed' },
+  { pitch: 'Speed / flow',       pct: 15, color: '#0891b2' },
+  { pitch: 'Cute / cozy',        pct: 11, color: '#059669' },
+]
+
+// Creative freshness: how much of each rival's library is new this month.
+const FRESHNESS = [
+  { name: 'Sky Jumper',   fresh: 62, color: '#7c3aed' },
+  { name: 'Dash Mania',   fresh: 54, color: '#059669' },
+  { name: 'Lane Rush 3D', fresh: 41, color: '#2563eb' },
+  { name: 'Hopper Go',    fresh: 38, color: '#db2777' },
+  { name: 'Astro Blaster', fresh: 29, color: '#d97706' },
+  { name: 'Brick Smash!', fresh: 17, color: '#0891b2' },
+]
+
+// Top geos by category install volume (Sensor Tower).
+const GEO_SPLIT = [
+  { geo: '🇺🇸 United States', share: 28 },
+  { geo: '🇧🇷 Brazil',        share: 16 },
+  { geo: '🇮🇳 India',         share: 14 },
+  { geo: '🇩🇪 Germany',       share: 11 },
+  { geo: '🇫🇷 France',        share:  9 },
+  { geo: '🌍 Rest of world',  share: 22 },
+]
 
 // Our studio origin — arcs radiate from here to each competitor market
 const HOME: [number, number] = [48.86, 2.35]  // Paris (demo studio)
@@ -71,7 +136,7 @@ const VW = 132
 const VH = 234
 
 const TABS = [
-  { id: 'overview',    icon: '🎬', label: 'Creatives' },
+  { id: 'overview',    icon: '📊', label: 'Overview' },
   { id: 'competitors', icon: '🛰️', label: 'Competitors' },
   { id: 'metrics',     icon: '📈', label: 'Metrics' },
   { id: 'decision',    icon: '🧠', label: 'Decision' },
@@ -132,13 +197,32 @@ export function renderPipeline(root: HTMLElement) {
               <span>🛰️ Competitor map · Sensor Tower</span>
               <span class="market-genre">${MARKET.genre}</span>
             </div>
+
+            <!-- market spend summary strip -->
+            <div class="market-kpis">
+              <div class="mkpi"><span class="mkpi-val">${MARKET.totalSpend}</span><span class="mkpi-lbl">Category UA spend · 30d</span></div>
+              <div class="mkpi"><span class="mkpi-val mkpi-up">▲ ${MARKET.spendTrend}%</span><span class="mkpi-lbl">Spend MoM</span></div>
+              <div class="mkpi"><span class="mkpi-val">${MARKET.medianCpi}</span><span class="mkpi-lbl">Median CPI</span></div>
+              <div class="mkpi"><span class="mkpi-val">${MARKET.competitors.length}</span><span class="mkpi-lbl">Active competitors</span></div>
+            </div>
+
+            <p class="globe-caption">
+              Each point is a competing studio's HQ, sized and coloured per publisher.
+              Arcs trace where each rival is buying installs from our market. Click a
+              point for its Sensor Tower spend profile.
+            </p>
             <div class="comp-layout">
               <div class="globe-wrap" id="globe-wrap">
+                <div class="globe-legend">
+                  <span class="gl-item"><span class="gl-dot" style="background:#fff"></span>Our studio</span>
+                  <span class="gl-item"><span class="gl-dot" style="background:#2563eb"></span>Competitor HQ</span>
+                  <span class="gl-item"><span class="gl-arc"></span>UA reach</span>
+                </div>
                 <div class="globe-hint">Drag to rotate · click a marker</div>
                 <div class="globe-pop" id="globe-pop" style="display:none"></div>
               </div>
               <div class="comp-side">
-                <div class="market-sub">Competitor HQs · 30d installs</div>
+                <div class="market-sub">Competitor spend & scale · 30d</div>
                 <div class="market-list" id="market-list"></div>
               </div>
             </div>
@@ -146,8 +230,44 @@ export function renderPipeline(root: HTMLElement) {
 
           <!-- Metrics -->
           <section class="tab-panel" data-panel="metrics">
-            <div class="col-title">Metrics · our creatives vs. market</div>
-            <div class="market-bench" id="market-bench"></div>
+            <div class="col-title market-title">
+              <span>📈 Market intelligence · how competitors invest</span>
+              <span class="market-genre">Sensor Tower · 30d · seeded</span>
+            </div>
+
+            <div class="market-kpis" id="metric-kpis"></div>
+
+            <div class="metrics-grid">
+              <div class="metrics-block">
+                <div class="market-sub">Share of Voice & velocity</div>
+                <div class="sov-list" id="sov-list"></div>
+              </div>
+              <div class="metrics-block">
+                <div class="market-sub">Est. ad spend by competitor · 30d</div>
+                <div class="spend-list" id="spend-list"></div>
+              </div>
+              <div class="metrics-block">
+                <div class="market-sub">UA spend by network</div>
+                <div class="net-list" id="net-list"></div>
+              </div>
+              <div class="metrics-block">
+                <div class="market-sub">Creative emotional-pitch mix</div>
+                <div class="pitch-bar" id="pitch-bar"></div>
+                <div class="pitch-legend" id="pitch-legend"></div>
+              </div>
+              <div class="metrics-block">
+                <div class="market-sub">Creative freshness · % new this month</div>
+                <div class="fresh-list" id="fresh-list"></div>
+              </div>
+              <div class="metrics-block">
+                <div class="market-sub">Top install geos</div>
+                <div class="geo-list" id="geo-list"></div>
+              </div>
+              <div class="metrics-block metrics-block--wide">
+                <div class="market-sub">Our creatives vs. market CPI</div>
+                <div class="market-bench" id="market-bench"></div>
+              </div>
+            </div>
           </section>
 
           <!-- Decision -->
@@ -219,10 +339,13 @@ export function renderPipeline(root: HTMLElement) {
       meta: {
         Publisher: c.publisher,
         HQ: c.city,
-        Genre: c.genre,
+        'Ad spend 30d': c.adSpend,
+        'Spend MoM': (c.spendTrend >= 0 ? '▲ ' : '▼ ') + Math.abs(c.spendTrend) + '%',
+        'Top network': c.topNetwork,
+        'Active ads': String(c.creatives),
         Installs: c.installs + ' /30d',
+        Revenue: c.revenue + ' /30d',
         CPI: c.cpi,
-        CTR: c.ctr,
       },
     }))
     points.push({ lat: HOME[0], lng: HOME[1], label: 'Our studio', color: '#ffffff', size: 0.03,
@@ -305,8 +428,9 @@ export function renderPipeline(root: HTMLElement) {
     if (globeDispose) globeDispose()
   }, { once: true })
 
-  // ── Competitor list (Competitors tab) ──
+  // ── Competitor list (Competitors tab) — spend & scale ──
   MARKET.competitors.forEach(c => {
+    const up = c.spendTrend >= 0
     const row = document.createElement('div')
     row.className = 'market-comp'
     row.innerHTML = `
@@ -314,13 +438,126 @@ export function renderPipeline(root: HTMLElement) {
       <div class="mc-main">
         <span class="mc-name">${c.name}</span>
         <span class="mc-pub">${c.publisher} · ${c.city}</span>
+        <span class="mc-tags">
+          <span class="mc-tag">Ad spend ${c.adSpend}</span>
+          <span class="mc-tag mc-trend ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(c.spendTrend)}%</span>
+          <span class="mc-tag">${c.topNetwork}</span>
+        </span>
       </div>
       <div class="mc-stats">
         <span title="Installs 30d">${c.installs}</span>
-        <span title="CPI">${c.cpi}</span>
+        <span title="Active creatives">${c.creatives} ads</span>
       </div>
     `
     marketList.appendChild(row)
+  })
+
+  // ── Metrics: headline KPIs ──
+  const kpiWrap = document.getElementById('metric-kpis')!
+  METRIC_KPIS.forEach(k => {
+    const up = k.trend >= 0
+    const el = document.createElement('div')
+    el.className = 'mkpi'
+    el.innerHTML = `
+      <span class="mkpi-val">${k.val}</span>
+      <span class="mkpi-lbl">${k.lbl}</span>
+      <span class="mkpi-trend ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(k.trend)}% MoM</span>
+    `
+    kpiWrap.appendChild(el)
+  })
+
+  // ── Metrics: Share of Voice + velocity ──
+  const sovList = document.getElementById('sov-list')!
+  const maxSov = Math.max(...SOV.map(s => s.sov))
+  SOV.forEach(s => {
+    const up = s.velocity >= 0
+    const row = document.createElement('div')
+    row.className = 'sov-row'
+    row.innerHTML = `
+      <span class="sov-name">${s.name}<span class="sov-pub">${s.pub}</span></span>
+      <div class="sov-bar-wrap"><div class="sov-bar" style="width:${(s.sov / maxSov * 100).toFixed(0)}%"></div></div>
+      <span class="sov-val">${s.sov}%</span>
+      <span class="sov-vel ${up ? 'up' : 'down'}">${up ? '▲' : '▼'}${Math.abs(s.velocity)}%</span>
+    `
+    sovList.appendChild(row)
+  })
+
+  // ── Metrics: emotional-pitch mix (stacked bar) ──
+  const pitchBar = document.getElementById('pitch-bar')!
+  const pitchLegend = document.getElementById('pitch-legend')!
+  PITCH_MIX.forEach(p => {
+    const seg = document.createElement('div')
+    seg.className = 'pitch-seg'
+    seg.style.width = p.pct + '%'
+    seg.style.background = p.color
+    seg.title = `${p.pitch} · ${p.pct}%`
+    pitchBar.appendChild(seg)
+    const leg = document.createElement('span')
+    leg.className = 'pitch-leg'
+    leg.innerHTML = `<span class="pl-dot" style="background:${p.color}"></span>${p.pitch} <strong>${p.pct}%</strong>`
+    pitchLegend.appendChild(leg)
+  })
+
+  // ── Metrics: creative freshness ──
+  const freshList = document.getElementById('fresh-list')!
+  FRESHNESS.forEach(f => {
+    const row = document.createElement('div')
+    row.className = 'fresh-row'
+    row.innerHTML = `
+      <span class="fresh-name">${f.name}</span>
+      <div class="fresh-bar-wrap"><div class="fresh-bar" style="width:${f.fresh}%;background:${f.color}"></div></div>
+      <span class="fresh-val">${f.fresh}%</span>
+    `
+    freshList.appendChild(row)
+  })
+
+  // ── Metrics: top geos ──
+  const geoList = document.getElementById('geo-list')!
+  const maxGeo = Math.max(...GEO_SPLIT.map(g => g.share))
+  GEO_SPLIT.forEach(g => {
+    const row = document.createElement('div')
+    row.className = 'geo-row'
+    row.innerHTML = `
+      <span class="geo-name">${g.geo}</span>
+      <div class="geo-bar-wrap"><div class="geo-bar" style="width:${(g.share / maxGeo * 100).toFixed(0)}%"></div></div>
+      <span class="geo-val">${g.share}%</span>
+    `
+    geoList.appendChild(row)
+  })
+
+  // ── Metrics: UA spend by network ──
+  const netList = document.getElementById('net-list')!
+  const maxShare = Math.max(...NETWORK_SPLIT.map(n => n.share))
+  NETWORK_SPLIT.forEach(n => {
+    const up = n.trend >= 0
+    const row = document.createElement('div')
+    row.className = 'net-row'
+    row.innerHTML = `
+      <span class="net-name">${n.network}</span>
+      <div class="net-bar-wrap">
+        <div class="net-bar" style="width:${(n.share / maxShare * 100).toFixed(0)}%"></div>
+      </div>
+      <span class="net-share">${n.share}%</span>
+      <span class="net-trend ${up ? 'up' : 'down'}">${up ? '▲' : '▼'}${Math.abs(n.trend)}%</span>
+    `
+    netList.appendChild(row)
+  })
+
+  // ── Metrics: est. ad spend by competitor ──
+  const spendList = document.getElementById('spend-list')!
+  const spendVals = MARKET.competitors.map(c => parseFloat(c.adSpend.replace(/[$M]/g, '')))
+  const maxSpend = Math.max(...spendVals)
+  MARKET.competitors.forEach((c, i) => {
+    const row = document.createElement('div')
+    row.className = 'spend-row'
+    row.innerHTML = `
+      <span class="spend-name" style="color:${c.color}">${c.name}</span>
+      <div class="spend-bar-wrap">
+        <div class="spend-bar" style="width:${(spendVals[i] / maxSpend * 100).toFixed(0)}%;background:${c.color}"></div>
+      </div>
+      <span class="spend-val">${c.adSpend}</span>
+    `
+    spendList.appendChild(row)
   })
 
   // ── Benchmark bars (Metrics tab) ──
