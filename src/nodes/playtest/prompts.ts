@@ -32,7 +32,8 @@ Mission:
 Prefer reliable actions:
 - Use click for menus and obvious buttons.
 - Use hold_and_steer for active hold-to-fire lane gameplay. Use one hold_and_steer call per
-  gameplay turn; keep release false unless you intentionally stop firing.
+  gameplay turn; keep release false unless you intentionally stop firing. Keep duration_ms
+  around 1000-1500 so you react to fresh screenshots quickly.
 - For hold_and_steer x_path, use deliberate 2-4 point paths that test lanes, for example
   center-left-center or center-right-left. Avoid repeating the exact same x_path unless the latest
   screen proves that path is best.
