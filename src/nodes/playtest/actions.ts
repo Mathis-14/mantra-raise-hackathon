@@ -4,6 +4,8 @@ import { z } from "zod";
 import {
   HOLD_AND_STEER_DEFAULT_MS,
   HOLD_AND_STEER_DEFAULT_Y,
+  HOLD_AND_STEER_MAX_MS,
+  HOLD_AND_STEER_MIN_MS,
   HOLD_AND_STEER_STEP_MS,
   SLOW_DRAG_MS,
   VIEWPORT,
@@ -60,7 +62,12 @@ const scrollSchema = z.object({
 const holdAndSteerSchema = z.object({
   x_path: z.array(coordinate).min(1).max(6),
   y: coordinate.min(550).max(900).default(HOLD_AND_STEER_DEFAULT_Y),
-  duration_ms: z.number().int().min(500).max(4_500).default(HOLD_AND_STEER_DEFAULT_MS),
+  duration_ms: z
+    .number()
+    .int()
+    .min(HOLD_AND_STEER_MIN_MS)
+    .max(HOLD_AND_STEER_MAX_MS)
+    .default(HOLD_AND_STEER_DEFAULT_MS),
   release: z.boolean().default(false),
   intent: optionalIntent,
 });
