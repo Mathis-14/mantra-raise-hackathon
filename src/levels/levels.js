@@ -17,6 +17,7 @@ import {
   waveSizeForLevel,
   redSpeedForLevel,
 } from '../core/constants.js';
+import { layoutKeyForLevel, layoutForLevel } from './layouts.js';
 
 /**
  * @param {import('../core/app.js').Ctx} ctx
@@ -69,10 +70,14 @@ export function createLevels(ctx) {
     ctx.sys.cannon.reset();
     ctx.time.reset();
     ctx.cameraRig.setBaseYOffset(0);
+    ctx.audio.setGameplayActive(true); // réactive les sons de partie (coupés en fin de partie précédente)
     setGameFilter(''); // retire la désaturation de défaite
 
     state.playerHp = PLAYER_HP_START;
     state.bossLevel = state.level % BOSS_LEVEL_INTERVAL === 0;
+    // layout du niveau (classic / slalom / maze / horde) : murs via obstacles, marée via waves
+    state.layoutKey = layoutKeyForLevel(state.level);
+    state.hordeMult = layoutForLevel(state.level).hordeMult;
     state.enemyHpMax = state.enemyHp = enemyHpForLevel(state.level) + (state.bossLevel ? BOSS_HP : 0);
     state.waveTimer = WAVE_FIRST_DELAY;
 
@@ -90,6 +95,7 @@ export function createLevels(ctx) {
   function win() {
     const gain = coinsForLevel(state.level);
     state.coins += gain;
+    ctx.audio.setGameplayActive(false); // coupe les sons de partie ; garde jingle + pièces (bus UI)
     ctx.audio.synth?.jingleWin();
     ctx.sys.overlays.showWin(gain);
   }
@@ -97,6 +103,7 @@ export function createLevels(ctx) {
   /** Défaite : gèle la partie, jingle, désature #game, abaisse la caméra, affiche l'overlay. */
   function lose() {
     state.playing = false;
+    ctx.audio.setGameplayActive(false); // coupe les sons de partie ; garde le jingle de défaite (bus UI)
     ctx.audio.synth?.jingleLose();
     setGameFilter('grayscale(0.6)');
     ctx.cameraRig.setBaseYOffset(-1);

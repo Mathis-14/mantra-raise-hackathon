@@ -79,8 +79,11 @@ export function createFlyingCoins({ coinPillEl, onTick }) {
     const x = ie * ie * c.sx + 2 * ie * e * c.cx + e * e * c.ex;
     const y = ie * ie * c.sy + 2 * ie * e * c.cy + e * e * c.ey;
     const scale = u < POP_IN_FRAC ? 0.6 + (u / POP_IN_FRAC) * 0.4 : 1;
+    // Juice : rotation qui s'amortit en approchant du compteur (la pièce « tournoie » en vol).
+    const rot = (c.spin || 0) * (1 - e);
     c.el.style.transform =
-      'translate(' + (x - SPRITE_PX / 2) + 'px,' + (y - SPRITE_PX / 2) + 'px) scale(' + scale + ')';
+      'translate(' + (x - SPRITE_PX / 2) + 'px,' + (y - SPRITE_PX / 2) + 'px)' +
+      ' rotate(' + rot + 'deg) scale(' + scale + ')';
   }
 
   return {
@@ -95,6 +98,7 @@ export function createFlyingCoins({ coinPillEl, onTick }) {
           started: false,
           index: launchIndex++,
           fromXY,
+          spin: (Math.random() * 2 - 1) * 420, // degrés de tournoiement initial (s'amortit)
           sx: 0, sy: 0, cx: 0, cy: 0, ex: 0, ey: 0,
         });
       }
