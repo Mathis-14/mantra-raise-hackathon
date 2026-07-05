@@ -23,6 +23,7 @@ import { createGiants } from '../enemy/giants.js';
 import { createBase } from '../enemy/base.js';
 import { createLevels } from '../levels/levels.js';
 import { createObstacles } from '../levels/obstacles.js';
+import { createSkins } from '../levels/skins.js';
 import { createHud } from '../ui/hud.js';
 import { createOverlays } from '../ui/overlays.js';
 
@@ -47,6 +48,13 @@ const ASSET_URLS = {
   crate: `${PK}/crate.glb`,
   crateStrong: `${PK}/crate-strong.glb`,
   barrel: `${PK}/barrel.glb`,
+  // skins de map (voir levels/skins.js)
+  treeSnow: `${PK}/tree-snow.glb`,
+  treePineSnow: `${PK}/tree-pine-snow.glb`,
+  jewel: `${PK}/jewel.glb`,
+  blockSnow: `${PK}/block-snow.glb`, // murs du skin neige
+  blockSnowTall: `${PK}/block-snow-large-tall.glb`,      // falaises de l'environnement neige
+  cliffSnowHex: `${PK}/block-snow-overhang-hexagon.glb`, // mesas/buttes de l'environnement neige
   blockTall: `${PK}/block-grass-large-tall.glb`,
   blockLow: `${PK}/block-grass-low-large.glb`,
   flag: `${PK}/flag.glb`,
@@ -172,101 +180,130 @@ function buildDecor(scene, gltf) {
   }
   addInstancedProp(scene, gltf.fenceLow, fencePlacements);   // ~60 barrières → 1 draw call
 
-  // props hors piste (couleurs naturelles Kenney) — dispersés des deux côtés
+  // ── ENVIRONNEMENT THÉMABLE (falaises + végétation) : construit DEUX fois avec le même
+  // seed déterministe (silhouettes identiques) mais des kits d'assets différents (canyon vert /
+  // tout-neige). Les skins (levels/skins.js) basculent la visibilité des groupes par niveau —
+  // le background suit ENFIN le thème (plus de falaises vertes sous la neige).
   const edge = C.TRACK.w / 2 + 1.4;
-  // [source, x, z, taille, rotationY]
-  const props = [
-    [gltf.tree,          -edge - 2.4,  -6,  4.2, 0.4],
-    [gltf.treePine,       edge + 2.0, -12,  4.6, 1.1],
-    [gltf.tree,           edge + 3.2,   4,  3.8, 2.2],
-    [gltf.treePine,      -edge - 3.0,  10,  4.4, 0.7],
-    [gltf.treePineSmall,  edge + 1.6,  18,  2.6, 0.2],
-    [gltf.treePineSmall, -edge - 1.5, -18,  2.4, 1.5],
-    [gltf.tree,           edge + 3.6, -22,  4.0, 0.9],
-    [gltf.treePine,      -edge - 3.4, -24,  4.8, 2.6],
-    [gltf.rocks,         -edge - 0.6, -16,  1.6, 0.3],
-    [gltf.rocks,          edge + 0.6,  -2,  1.4, 1.9],
-    [gltf.stones,        -edge - 0.5,  16,  1.2, 0.8],
-    [gltf.stones,         edge + 0.7, -20,  1.1, 2.1],
-    [gltf.hedge,          edge + 0.5,  14,  1.6, 0],
-    [gltf.hedge,         -edge - 0.5,  -1,  1.6, 0],
-    [gltf.flowers,       -edge - 0.2,   2,  1.0, 0.5],
-    [gltf.flowers,        edge + 0.2,   8,  1.0, 1.7],
-    [gltf.flowersTall,    edge + 0.3, -10,  1.4, 0.9],
-    [gltf.flowersTall,   -edge - 0.3, -12,  1.3, 2.4],
-    [gltf.mushrooms,     -edge - 0.4,  -3,  0.9, 1.2],
-    [gltf.mushrooms,      edge + 0.4,  20,  0.9, 0.4],
-    [gltf.plant,          edge + 0.3,   0,  1.1, 1.9],
-    [gltf.plant,         -edge - 0.3,   6,  1.0, 0.6],
-    [gltf.grassTuft,     -edge + 0.1, -8,   0.9, 0.3],
-    [gltf.grassTuft,      edge - 0.1,  12,  0.9, 1.1],
-    [gltf.grassTuft,     -edge + 0.2,  22,  0.8, 2.0],
-    [gltf.grassTuft,      edge + 1.1,  -6,  0.8, 0.7],
-  ];
-  for (const [g, x, z, size, ry] of props) {
-    const o = makeProp(g, size);
-    o.position.set(x, 0, z);
-    o.rotation.y = ry;
-    scene.add(o);
-  }
-
-  // ── canyon : la voie serpente entre des falaises à sommet herbeux et flancs sable ──
-  // Réf. Mob Control (references/mob-control-gifs/4-blue-vs-red). Blocs Kenney « overhang »
-  // (herbe verte au sommet, roche sable dessous) alignés en continu des deux côtés + au fond,
-  // enfoncés sous le sol pour former des parois pleines, coiffés de buissons/arbres.
-  // `place` renvoie le sommet (topY) pour asseoir la végétation ; PRNG déterministe (rendu stable).
-  function place(g, x, y, z, size, ry) {
-    const o = makeProp(g, size);
-    o.position.set(x, y, z);
-    o.rotation.y = ry;
-    scene.add(o);
-    return { o, topY: y + (o.userData.height || 0) };
-  }
-  let seed = 20260704;
-  const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-
-  // Blocs DROITS (non « overhang ») pour les parois latérales : flancs verticaux qui ne
-  // débordent JAMAIS au-dessus de la piste. Poussés au-delà des props (WALL_X) + gabarit borné.
-  const WALL_X = 10.5;                                  // face interne des falaises (bien au-delà de la piste)
-  const zTop = C.TRACK.z + C.TRACK.len / 2;
-  const zBot = C.TRACK.z - C.TRACK.len / 2;
-  const wallNormH = makeProp(gltf.blockTall, 1).userData.height || 0;   // hauteur du bloc normalisé (maxDim=1)
-  const rims = [];                                      // {x,z,topY} pour semer la végétation du rebord
-  const wallPlacements = [];
-  // Ordre des tirages rand() PRÉSERVÉ (size, x, y, z, ry, rim) : layout déterministe inchangé.
-  for (let z = zTop; z >= zBot - 2; z -= 3.0) {
-    for (const s of [-1, 1]) {
-      const size = 6 + rand() * 3.4;                    // gabarit borné → ligne de crête découpée sans envahir
-      const x = s * (WALL_X + rand() * 1.8);
-      const y = -1.8 - rand() * 1.6;
-      const zz = z + (rand() - 0.5) * 1.2;
-      const ry = rand() * Math.PI;
-      wallPlacements.push({ x, y, z: zz, size, ry });
-      if (rand() < 0.8) rims.push({ x, z: zz, topY: y + size * wallNormH - 0.25 });
+  function buildEnvironment(root, kit) {
+    // props de bord de piste
+    for (const [g, x, z, size, ry] of kit.edgeProps) {
+      const o = makeProp(g, size);
+      o.position.set(x, 0, z);
+      o.rotation.y = ry;
+      root.add(o);
     }
-  }
-  addInstancedProp(scene, gltf.blockTall, wallPlacements);   // ~42 parois de canyon → 1 draw call
-
-  // mesa de fond : ferme le canyon derrière la base ennemie
-  const hexPlacements = [];
-  for (let x = -13; x <= 13; x += 4.2) {
-    hexPlacements.push({ x: x + (rand() - 0.5) * 2, y: -1.4, z: -31 - rand() * 4, size: 8.5 + rand() * 4, ry: rand() * Math.PI });
-  }
-  // buttes/pitons sable épars, plus loin, pour la silhouette caractéristique du canyon
-  for (const [x, z, sz] of [[-16, 3, 9], [17, -9, 10.5], [-18, -19, 11], [16, -27, 10], [18, 13, 8.5]]) {
-    hexPlacements.push({ x, y: -1.2, z, size: sz, ry: rand() * Math.PI });
-  }
-  addInstancedProp(scene, gltf.cliffHex, hexPlacements);     // mesa + buttes → 1 draw call
-  // rebords herbeux habillés : buissons ronds + quelques arbres (réf. touffes vertes du canyon)
-  const rimProps = [gltf.hedge, gltf.tree, gltf.hedge, gltf.treePine, gltf.hedge, gltf.treePineSmall];
-  rims.forEach((r) => {
-    const n = 1 + (rand() < 0.6 ? 1 : 0);               // 1 à 2 éléments par rebord
-    for (let k = 0; k < n; k++) {
-      const g = rimProps[Math.floor(rand() * rimProps.length)];
-      place(g, r.x + (rand() - 0.5) * 2.4, r.topY, r.z + (rand() - 0.5) * 2.4,
-        1.6 + rand() * 1.3, rand() * Math.PI);
+    function place(g, x, y, z, size, ry) {
+      const o = makeProp(g, size);
+      o.position.set(x, y, z);
+      o.rotation.y = ry;
+      root.add(o);
+      return { o, topY: y + (o.userData.height || 0) };
     }
-  });
+    let seed = 20260704; // même seed pour tous les kits → mêmes silhouettes
+    const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+
+    // parois latérales (blocs droits, jamais au-dessus de la piste)
+    const WALL_X = 10.5;
+    const zTop = C.TRACK.z + C.TRACK.len / 2;
+    const zBot = C.TRACK.z - C.TRACK.len / 2;
+    const wallNormH = makeProp(kit.wall, 1).userData.height || 0;
+    const rims = [];
+    const wallPlacements = [];
+    for (let z = zTop; z >= zBot - 2; z -= 3.0) {
+      for (const s of [-1, 1]) {
+        const size = 6 + rand() * 3.4;
+        const x = s * (WALL_X + rand() * 1.8);
+        const y = -1.8 - rand() * 1.6;
+        const zz = z + (rand() - 0.5) * 1.2;
+        const ry = rand() * Math.PI;
+        wallPlacements.push({ x, y, z: zz, size, ry });
+        if (rand() < 0.8) rims.push({ x, z: zz, topY: y + size * wallNormH - 0.25 });
+      }
+    }
+    addInstancedProp(root, kit.wall, wallPlacements);
+
+    // mesa de fond + buttes éparses
+    const hexPlacements = [];
+    for (let x = -13; x <= 13; x += 4.2) {
+      hexPlacements.push({ x: x + (rand() - 0.5) * 2, y: -1.4, z: -31 - rand() * 4, size: 8.5 + rand() * 4, ry: rand() * Math.PI });
+    }
+    for (const [x, z, sz] of [[-16, 3, 9], [17, -9, 10.5], [-18, -19, 11], [16, -27, 10], [18, 13, 8.5]]) {
+      hexPlacements.push({ x, y: -1.2, z, size: sz, ry: rand() * Math.PI });
+    }
+    addInstancedProp(root, kit.hex, hexPlacements);
+
+    // végétation de rebord
+    rims.forEach((r) => {
+      const n = 1 + (rand() < 0.6 ? 1 : 0);
+      for (let k = 0; k < n; k++) {
+        const g = kit.rimProps[Math.floor(rand() * kit.rimProps.length)];
+        place(g, r.x + (rand() - 0.5) * 2.4, r.topY, r.z + (rand() - 0.5) * 2.4,
+          1.6 + rand() * 1.3, rand() * Math.PI);
+      }
+    });
+  }
+
+  const CANYON_KIT = {
+    wall: gltf.blockTall,
+    hex: gltf.cliffHex,
+    rimProps: [gltf.hedge, gltf.tree, gltf.hedge, gltf.treePine, gltf.hedge, gltf.treePineSmall],
+    edgeProps: [
+      [gltf.tree,          -edge - 2.4,  -6,  4.2, 0.4],
+      [gltf.treePine,       edge + 2.0, -12,  4.6, 1.1],
+      [gltf.tree,           edge + 3.2,   4,  3.8, 2.2],
+      [gltf.treePine,      -edge - 3.0,  10,  4.4, 0.7],
+      [gltf.treePineSmall,  edge + 1.6,  18,  2.6, 0.2],
+      [gltf.treePineSmall, -edge - 1.5, -18,  2.4, 1.5],
+      [gltf.tree,           edge + 3.6, -22,  4.0, 0.9],
+      [gltf.treePine,      -edge - 3.4, -24,  4.8, 2.6],
+      [gltf.rocks,         -edge - 0.6, -16,  1.6, 0.3],
+      [gltf.rocks,          edge + 0.6,  -2,  1.4, 1.9],
+      [gltf.stones,        -edge - 0.5,  16,  1.2, 0.8],
+      [gltf.stones,         edge + 0.7, -20,  1.1, 2.1],
+      [gltf.hedge,          edge + 0.5,  14,  1.6, 0],
+      [gltf.hedge,         -edge - 0.5,  -1,  1.6, 0],
+      [gltf.flowers,       -edge - 0.2,   2,  1.0, 0.5],
+      [gltf.flowers,        edge + 0.2,   8,  1.0, 1.7],
+      [gltf.flowersTall,    edge + 0.3, -10,  1.4, 0.9],
+      [gltf.flowersTall,   -edge - 0.3, -12,  1.3, 2.4],
+      [gltf.mushrooms,     -edge - 0.4,  -3,  0.9, 1.2],
+      [gltf.mushrooms,      edge + 0.4,  20,  0.9, 0.4],
+      [gltf.plant,          edge + 0.3,   0,  1.1, 1.9],
+      [gltf.plant,         -edge - 0.3,   6,  1.0, 0.6],
+      [gltf.grassTuft,     -edge + 0.1, -8,   0.9, 0.3],
+      [gltf.grassTuft,      edge - 0.1,  12,  0.9, 1.1],
+      [gltf.grassTuft,     -edge + 0.2,  22,  0.8, 2.0],
+      [gltf.grassTuft,      edge + 1.1,  -6,  0.8, 0.7],
+    ],
+  };
+  const SNOW_KIT = {
+    wall: gltf.blockSnowTall,
+    hex: gltf.cliffSnowHex,
+    rimProps: [gltf.treePineSnow, gltf.treeSnow, gltf.treePineSnow],
+    edgeProps: [
+      [gltf.treeSnow,      -edge - 2.4,  -6,  4.2, 0.4],
+      [gltf.treePineSnow,   edge + 2.0, -12,  4.6, 1.1],
+      [gltf.treeSnow,       edge + 3.2,   4,  3.8, 2.2],
+      [gltf.treePineSnow,  -edge - 3.0,  10,  4.4, 0.7],
+      [gltf.treePineSnow,   edge + 1.6,  18,  2.6, 0.2],
+      [gltf.treePineSnow,  -edge - 1.5, -18,  2.4, 1.5],
+      [gltf.treeSnow,       edge + 3.6, -22,  4.0, 0.9],
+      [gltf.treePineSnow,  -edge - 3.4, -24,  4.8, 2.6],
+      [gltf.rocks,         -edge - 0.6, -16,  1.6, 0.3],
+      [gltf.rocks,          edge + 0.6,  -2,  1.4, 1.9],
+      [gltf.stones,        -edge - 0.5,  16,  1.2, 0.8],
+      [gltf.stones,         edge + 0.7, -20,  1.1, 2.1],
+    ],
+  };
+
+  const envCanyon = new THREE.Group();
+  buildEnvironment(envCanyon, CANYON_KIT);
+  scene.add(envCanyon);
+  const envSnow = new THREE.Group();
+  buildEnvironment(envSnow, SNOW_KIT);
+  envSnow.visible = false; // activé par le skin neige (levels/skins.js)
+  scene.add(envSnow);
 
   // nuages procéduraux (3 sphères fusionnées, flat), drift en boucle
   const clouds = [];
@@ -283,7 +320,7 @@ function buildDecor(scene, gltf) {
     scene.add(g);
     clouds.push(g);
   }
-  return clouds;
+  return { clouds, ground, road, envs: { canyon: envCanyon, snow: envSnow } };
 }
 
 export async function createApp({ container = document.getElementById('game') } = {}) {
@@ -322,7 +359,8 @@ export async function createApp({ container = document.getElementById('game') } 
     scene.add(dome);
   }
 
-  scene.add(new THREE.HemisphereLight(C.LIGHTS.hemi.sky, C.LIGHTS.hemi.ground, C.LIGHTS.hemi.intensity));
+  const hemi = new THREE.HemisphereLight(C.LIGHTS.hemi.sky, C.LIGHTS.hemi.ground, C.LIGHTS.hemi.intensity);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(C.LIGHTS.dir.color, C.LIGHTS.dir.intensity);
   sun.position.set(...C.LIGHTS.dir.pos);
   scene.add(sun);
@@ -344,7 +382,7 @@ export async function createApp({ container = document.getElementById('game') } 
   let colormap = null;
   gltf.maleA.scene.traverse((o) => { if (!colormap && o.material && o.material.map) colormap = o.material.map; });
 
-  const clouds = buildDecor(scene, gltf);
+  const { clouds, ground, road, envs } = buildDecor(scene, gltf); // refs retenues pour les skins de map
 
   // 4. librairies
   const time = createTime();
@@ -374,6 +412,7 @@ export async function createApp({ container = document.getElementById('game') } 
     flyingCoins: null, // rempli juste après (closure sur ctx.sys.overlays)
     state,
     assets: { gltf, bakedUnit, colormap },
+    decor: { ground, road, envs, hemi, sun }, // refs du décor persistant, pilotées par levels/skins.js
     sys: {},
   };
 
@@ -400,6 +439,7 @@ export async function createApp({ container = document.getElementById('game') } 
     solidColor: C.COLORS.red,
   });
   ctx.sys.gates = createGates(ctx);
+  ctx.sys.skins = createSkins(ctx);
   ctx.sys.obstacles = createObstacles(ctx);
   ctx.sys.waves = createWaves(ctx);
   ctx.sys.giants = createGiants(ctx);

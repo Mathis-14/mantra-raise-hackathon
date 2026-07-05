@@ -119,14 +119,26 @@ export function createObstacles(ctx) {
 
   function addWall(w) {
     const group = new THREE.Group();
-    const count = Math.max(1, Math.round((w.halfW * 2) / CRATE_SIZE));
-    const step = (w.halfW * 2) / count;
-    // mélange d'assets Kenney (caisses, caisses renforcées, barils) — mur vivant, pas un motif répété
-    const kinds = [ctx.assets.gltf.crate, ctx.assets.gltf.crateStrong, ctx.assets.gltf.crate, ctx.assets.gltf.barrel];
+    const mound = w.kind === 'mound';
+    const alongZ = w.axis === 'z'; // mur longitudinal (séparateur de couloirs)
+    const halfLen = alongZ ? (w.halfD || 0.75) : w.halfW;
+    const count = Math.max(1, Math.round((halfLen * 2) / CRATE_SIZE));
+    const step = (halfLen * 2) / count;
+    // PURETÉ THÉMATIQUE : les assets de mur viennent du SKIN courant (blocs de neige en neige,
+    // briques améthyste au crépuscule, caisses/barils en canyon) ; mottes = pierres teintées skin.
+    const skin = ctx.sys.skins ? ctx.sys.skins.current : null;
+    const kinds = mound
+      ? [ctx.assets.gltf.stones, ctx.assets.gltf.rocks, ctx.assets.gltf.stones]
+      : (skin ? skin.wallKinds : ['crate']).map((k) => ctx.assets.gltf[k]);
+    const tint = mound ? ((skin && skin.mound) || 0xB8996B) : (skin ? skin.wallTint : null);
+    const tintMat = tint ? new THREE.MeshLambertMaterial({ color: tint }) : null; // matériau à nous, par mur
     for (let i = 0; i < count; i++) {
       const piece = makeAssetHolder(kinds[i % kinds.length] || ctx.assets.gltf.crate, CRATE_SIZE);
-      piece.position.set(w.x - w.halfW + (i + 0.5) * step, 0, w.z + (i % 2) * 0.06);
-      piece.rotation.y = (i % 3 - 1) * 0.08; // pièces légèrement désalignées
+      const d = -halfLen + (i + 0.5) * step;
+      if (alongZ) piece.position.set(w.x + (i % 2) * 0.06, 0, w.z + d);
+      else piece.position.set(w.x + d, 0, w.z + (i % 2) * 0.06);
+      piece.rotation.y = mound ? (i * 1.7) % 3.1 : (i % 3 - 1) * 0.08; // terre : rotations franches
+      if (tintMat) piece.traverse((o) => { if (o.isMesh) o.material = tintMat; });
       group.add(piece);
     }
     scene.add(group);
@@ -150,13 +162,35 @@ export function createObstacles(ctx) {
     }
   }
 
+  // PHYSIQUE DES DÉBRIS : au smash, les pièces du mur sont ÉJECTÉES (vélocité radiale depuis le
+  // point d'impact + gravité + rotation) au lieu de disparaître — puis nettoyées à la fin de vie.
+  const DEBRIS_GRAVITY = 14;
+  const DEBRIS_LIFE = 1.3;
+  const debris = []; // { group, pieces: [{ mesh, vx, vy, vz, ax, az, life }] }
+
   /** Le champion fracasse les murs qu'il touche (récompense de puissance). */
   function smashWallsAt(x, z, radius) {
     for (const w of walls) {
       if (w.broken) continue;
       if (Math.abs(z - w.z) > w.halfD + radius || Math.abs(x - w.x) > w.halfW + radius) continue;
       w.broken = true;
-      scene.remove(w.group);
+      const pieces = [];
+      for (const mesh of w.group.children) {
+        const dx = mesh.position.x - x;
+        const dz = mesh.position.z - z;
+        const len = Math.hypot(dx, dz) || 1;
+        const kick = 3 + Math.random() * 3;
+        pieces.push({
+          mesh,
+          vx: (dx / len) * kick,
+          vy: 3.5 + Math.random() * 3,
+          vz: (dz / len) * kick - 1.5, // légère poussée vers la base (sens de charge du champion)
+          ax: (Math.random() * 2 - 1) * 7,
+          az: (Math.random() * 2 - 1) * 7,
+          life: DEBRIS_LIFE,
+        });
+      }
+      debris.push({ group: w.group, pieces });
       ctx.particles.burst(w.x, 0.8, w.z, { color: COLORS.gold, shape: 'quad', count: 12, speed: 5 });
       ctx.particles.ring(w.x, w.z, COLORS.gold);
       ctx.floatingText.spawn('SMASH!', w.x, 1.6, w.z, { color: '#ffe66d', size: 1.1 });
@@ -165,10 +199,36 @@ export function createObstacles(ctx) {
     }
   }
 
+  /** Intègre la physique des débris (appelé chaque frame par update, dt scalé → gèle en hit-stop). */
+  function debrisStep(dt) {
+    for (let i = debris.length - 1; i >= 0; i--) {
+      const batch = debris[i];
+      let alive = 0;
+      for (const p of batch.pieces) {
+        if (p.life <= 0) continue;
+        p.life -= dt;
+        if (p.life <= 0) { p.mesh.visible = false; continue; }
+        alive++;
+        p.vy -= DEBRIS_GRAVITY * dt;
+        p.mesh.position.x += p.vx * dt;
+        p.mesh.position.y += p.vy * dt;
+        p.mesh.position.z += p.vz * dt;
+        p.mesh.rotation.x += p.ax * dt;
+        p.mesh.rotation.z += p.az * dt;
+        if (p.mesh.position.y < -1.5) { p.life = 0; p.mesh.visible = false; alive--; }
+      }
+      if (alive <= 0) {
+        scene.remove(batch.group);
+        debris.splice(i, 1);
+      }
+    }
+  }
+
   function clear() {
     for (const o of state.obstacles) scene.remove(o.group);
     for (const b of state.boosts) scene.remove(b.group);
     for (const w of walls) scene.remove(w.group);
+    for (const batch of debris) scene.remove(batch.group); // débris en vol d'un niveau précédent
     for (const mesh of ownedMeshes) {
       mesh.geometry?.dispose();
       mesh.material?.dispose();
@@ -176,27 +236,24 @@ export function createObstacles(ctx) {
     state.obstacles.length = 0;
     state.boosts.length = 0;
     walls.length = 0;
+    debris.length = 0;
     ownedMeshes.length = 0;
   }
 
   function build(level) {
     clear();
-    // murs bloquants du layout (slalom / labyrinthe / horde — voir layouts.js)
-    for (const w of layoutForLevel(level).walls) addWall(w);
+    const layout = layoutForLevel(level);
+    // murs bloquants du layout (slalom / labyrinthe / horde / couloirs — voir layouts.js)
+    for (const w of layout.walls || []) addWall(w);
     if (level >= BOOST_MIN_LEVEL) addBoost(0, 12.5);
+    if (level >= 5) addBoost(LANE_HALF * 0.42, -15.5);
     if (level < OBSTACLE_MIN_LEVEL) return;
 
-    addObstacle('saw', 0, 1.4);
-    if (level >= 3) {
-      addObstacle('spikes', -LANE_HALF * 0.48, -9.5);
-      addObstacle('spikes', LANE_HALF * 0.48, -13.6);
+    // dangers létaux PILOTÉS PAR LE LAYOUT (jamais de scie au milieu d'un passage : les
+    // positions vivent dans layouts.js, sur les flancs, avec leur propre minLevel).
+    for (const h of layout.hazards || []) {
+      if (level >= (h.minLevel || OBSTACLE_MIN_LEVEL)) addObstacle(h.type, h.x, h.z);
     }
-    if (level >= 4) {
-      addObstacle('saw', -LANE_HALF * 0.5, 4.0);
-      addObstacle('saw', LANE_HALF * 0.5, -2.1);
-    }
-    if (level >= 5) addBoost(LANE_HALF * 0.42, -15.5);
-    if (level >= 6) addObstacle('spikesLarge', 0, -18.2);
   }
 
   function hitStep() {
@@ -240,6 +297,7 @@ export function createObstacles(ctx) {
   }
 
   function update(dt, t) {
+    debrisStep(dt); // physique des morceaux de murs fracassés
     for (const o of state.obstacles) {
       if (o.type === 'saw') {
         o.holder.rotation.z += SAW_SPIN * dt;

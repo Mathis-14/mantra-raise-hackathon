@@ -47,15 +47,21 @@ export function createWaves(ctx) {
     const mult = (ctx.state.hordeMult || 1) * ((ctx.variant && ctx.variant.wavePressure) || 1);
     const count = Math.round(waveSizeForLevel(level) * mult);
     const carpet = mult >= 2; // marée « tapis rouge » : rangées denses réparties sur la largeur
+    const lanes = ctx.state.lanesX; // layout « couloirs » : ennemis séparés par les murs
     for (let i = 0; i < count && reds.length < MAX_RED; i++) {
       const z = carpet
         ? BASE_Z + 2 + Math.floor(i / 8) * 1.1 + Math.random() * 0.4
         : BASE_Z + 2 + Math.random() * 1.5;
+      const laneX = lanes
+        ? lanes[carpet ? i % lanes.length : Math.floor(Math.random() * lanes.length)] + (Math.random() - 0.5) * 1.2
+        : null;
       reds.push({
         id: nextId(),
-        x: carpet
-          ? -(LANE_HALF - 0.7) + (i % 8) * ((LANE_HALF - 0.7) * 2 / 7) + (Math.random() - 0.5) * 0.5
-          : (Math.random() * 2 - 1) * (LANE_HALF - 0.6),
+        x: laneX != null
+          ? laneX
+          : carpet
+            ? -(LANE_HALF - 0.7) + (i % 8) * ((LANE_HALF - 0.7) * 2 / 7) + (Math.random() - 0.5) * 0.5
+            : (Math.random() * 2 - 1) * (LANE_HALF - 0.6),
         z,
         pz: z,
         hp: 1,
