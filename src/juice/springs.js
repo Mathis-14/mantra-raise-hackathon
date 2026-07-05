@@ -1,4 +1,4 @@
-// MOB RUSH — helpers de spring/lerp. Module-librairie PUR (CONTRACT §5.4).
+// MRUSH — helpers de spring/lerp. Module-librairie PUR (CONTRACT §5.4).
 // Aucun état, aucun effet de bord, aucun import de GameState/ctx. Opère sur les arguments fournis.
 
 /**

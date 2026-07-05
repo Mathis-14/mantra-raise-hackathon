@@ -22,6 +22,7 @@ dist/
 
 # playtest artifacts (screenshots, recordings) — proof lives in the demo, not git
 playtest-artifacts/
+marketing-artifacts/
 local-games/
 
 # throwaway verification scripts — means-to-verify, never committed (AGENTS.md)

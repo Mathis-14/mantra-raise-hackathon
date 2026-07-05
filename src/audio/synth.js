@@ -1,4 +1,4 @@
-// MOB RUSH — sons "signature" jouons à partir d'ÉCHANTILLONS FOLEY (aucune synthèse).
+// MRUSH — sons "signature" jouons à partir d'ÉCHANTILLONS FOLEY (aucune synthèse).
 // audio-manager injecte des outils { playUrl, foley } ; on rejoue de vrais impacts CC0/CC-BY
 // (Kenney Impact + Little Robot coins). Le ding montant, l'arpège de victoire, etc. utilisent
 // playbackRate sur un vrai échantillon (variation de hauteur = lecture d'échantillon, pas du synthé).

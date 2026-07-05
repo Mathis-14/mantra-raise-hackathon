@@ -1,8 +1,8 @@
-// MOB RUSH — point d'entrée (CONTRACT §6.12) + capture d'erreurs runtime visible (aide au debug headless).
+// MRUSH — point d'entrée (CONTRACT §6.12) + capture d'erreurs runtime visible (aide au debug headless).
 import { createApp } from './core/app.js';
 
 function showError(label, err) {
-  console.error(`[MOB RUSH] ${label}`, err);
+  console.error(`[MRUSH] ${label}`, err);
   let box = document.getElementById('errbox');
   if (!box) {
     box = document.createElement('div');

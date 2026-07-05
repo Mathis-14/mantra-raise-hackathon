@@ -1,4 +1,4 @@
-// MOB RUSH — vignette de danger (juice) : CONTRACT §5.11 / spec §5.6.
+// MRUSH — vignette de danger (juice) : CONTRACT §5.11 / spec §5.6.
 // Pilote UNIQUEMENT le DOM #dangerVignette (opacité). Aucune autre dépendance.
 // Temps RÉEL : le DOM ne subit pas le slow-mo. Aucun effet de bord à l'import.
 

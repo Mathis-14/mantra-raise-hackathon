@@ -1,4 +1,4 @@
-// MOB RUSH — layouts de niveaux (réf. ads Mob Control : couloirs de caisses, slalom, marée rouge).
+// MRUSH — layouts de niveaux (réf. ads Mob Control : couloirs de caisses, slalom, marée rouge).
 // Module-librairie pur : données + sélection par niveau. Consommé par levels (clé/horde),
 // obstacles (murs bloquants) et waves (multiplicateur de horde).
 //

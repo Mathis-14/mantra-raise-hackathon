@@ -1,4 +1,4 @@
-// MOB RUSH — textes flottants IN-SCENE (juice) : CONTRACT §5.10 / §3.6.
+// MRUSH — textes flottants IN-SCENE (juice) : CONTRACT §5.10 / §3.6.
 // Module-librairie pur : n'importe QUE three. Ne connaît ni GameState ni ctx.
 // JAMAIS de DOM : sprites THREE.Sprite (billboard) + CanvasTexture. Aucun effet de bord à l'import.
 

@@ -1,4 +1,4 @@
-# CONTRACT.md — MOB RUSH : contrat d'interfaces Phase 2
+# CONTRACT.md — MRUSH : contrat d'interfaces Phase 2
 
 > Artefact d'architecture (Fable). Ce document est **normatif** : il fixe les noms, signatures,
 > structures de données et conventions que TOUS les agents d'implémentation doivent respecter à la
@@ -861,7 +861,7 @@ export async function createApp({ container = document.getElementById('game') } 
 import { createApp } from './core/app.js';
 createApp()
   .then((app) => app.start())
-  .catch((err) => { console.error('[MOB RUSH] boot failed', err); });
+  .catch((err) => { console.error('[MRUSH] boot failed', err); });
 ```
 
 ---

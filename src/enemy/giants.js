@@ -1,4 +1,4 @@
-// MOB RUSH — enemy/giants.js : visuels des géants rouges + juice combat 5.4.
+// MRUSH — enemy/giants.js : visuels des géants rouges + juice combat 5.4.
 // Système (CONTRACT §6.6). Clones animés (skeletonClone) pilotés par les RedUnit géants de state.reds,
 // pool indexé par red.id. N'importe aucun autre système ; appelé par waves via ctx.sys.giants.
 

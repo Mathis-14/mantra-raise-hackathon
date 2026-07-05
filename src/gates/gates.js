@@ -1,4 +1,4 @@
-// MOB RUSH — portes (module-système, CONTRACT §6.4).
+// MRUSH — portes (module-système, CONTRACT §6.4).
 // Factory createGates(ctx). N'importe AUCUN autre système : toute interaction inter-système passe
 // par ctx.sys.* dans les méthodes (jamais dans le corps de la factory).
 // Parité gameplay : buildGates / makeGate / gateTexture / franchissement du prototype.

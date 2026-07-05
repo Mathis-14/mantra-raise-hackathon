@@ -1,4 +1,4 @@
-// MOB RUSH — pièces volantes DOM (CONTRACT §5.14).
+// MRUSH — pièces volantes DOM (CONTRACT §5.14).
 // Module-LIBRAIRIE UI : auto-contenu, aucun effet de bord à l'import.
 // N'importe NI GameState, NI ctx, NI un autre système. Ne touche à aucun élément
 // du HUD existant : il ne LIT que coinPillEl (getBoundingClientRect) et n'anime

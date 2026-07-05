@@ -1,4 +1,4 @@
-// MOB RUSH — horloge de jeu. Module-librairie pur (CONTRACT §5.2).
+// MRUSH — horloge de jeu. Module-librairie pur (CONTRACT §5.2).
 // dt clampé × timescale global (hit-stop / slow-mo). Aucun effet de bord à l'import.
 import { DT_MAX, GAME_SPEED } from './constants.js';
 

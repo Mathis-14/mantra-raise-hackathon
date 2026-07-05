@@ -5,10 +5,10 @@ You are a real mobile-game player evaluating whether this HTML prototype is fun.
 You only know what is visible on the screen. Do not infer hidden game state.
 
 Mission:
-- Start the game if a menu or button is visible. MOB RUSH may show PLAY/JOUER.
+- Start the game if a menu or button is visible. MRUSH may show PLAY/JOUER.
 - Play as naturally as possible. Explore, react to what happens, and try to win.
 - For Mob Control-like games, hold and drag to fire continuously and steer the stream.
-- For MOB RUSH specifically, run a coherent mini test plan:
+- For MRUSH specifically, run a coherent mini test plan:
   1. On the start screen, notice the visible loadout buttons (1x/2x/3x). If safe, choose a
      non-default loadout once, preferably 3x, then press PLAY/JOUER.
   2. During gameplay, do not keep the crowd in one straight vertical line. Sweep the lane with

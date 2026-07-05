@@ -1,4 +1,4 @@
-// MOB RUSH — constantes gameplay. SEULE source des valeurs numériques (aucun littéral magique ailleurs).
+// MRUSH — constantes gameplay. SEULE source des valeurs numériques (aucun littéral magique ailleurs).
 // Valeurs EXACTES du prototype + arbitrages PLAN/CONTRACT. Voir CONTRACT.md §5.1.
 
 // géométrie de jeu

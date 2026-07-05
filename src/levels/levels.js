@@ -1,4 +1,4 @@
-// MOB RUSH — src/levels/levels.js
+// MRUSH — src/levels/levels.js
 // Système de configuration par niveau + flow de partie (start/win/lose/next/retry).
 // CONTRACT §6.8. Module-SYSTÈME : factory createLevels(ctx) ; toute interaction inter-système
 // passe par ctx.sys.* / ctx.* dans les méthodes uniquement (jamais dans le corps de la factory).

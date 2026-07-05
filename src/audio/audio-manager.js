@@ -1,4 +1,4 @@
-// MOB RUSH — gestionnaire audio (module-librairie).
+// MRUSH — gestionnaire audio (module-librairie).
 // Charge/décode les OGG, joue les SFX (pools, alternance, rotation, throttle), pilote mute + synth.
 // Aucun effet de bord à l'import (le préfetch se déclenche dans createAudio). Mémoire de session only.
 // Réf. CONTRACT §5.13 + table §8.2.

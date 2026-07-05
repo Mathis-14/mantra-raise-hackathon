@@ -1,4 +1,4 @@
-// MOB RUSH — obstacles et zones de boost.
+// MRUSH — obstacles et zones de boost.
 // Système de niveau : construit les pièges/boosts, détecte les collisions avec les bleus,
 // anime les props. Toute interaction externe passe par ctx.
 

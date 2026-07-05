@@ -1,4 +1,4 @@
-// MOB RUSH — enemy/waves.js : vagues rouges, ligne de défaite, collisions bleu/rouge.
+// MRUSH — enemy/waves.js : vagues rouges, ligne de défaite, collisions bleu/rouge.
 // Système (CONTRACT §6.5). Possède state.reds (spawn / mouvement / collisions / splice).
 // Parité prototype game/mob-control-clone.html (boucle loop()). Aucun littéral gameplay hors constants.
 

@@ -1,4 +1,4 @@
-// MOB RUSH — orchestrateur (CONTRACT §6.11 + ordre d'update §7.2).
+// MRUSH — orchestrateur (CONTRACT §6.11 + ordre d'update §7.2).
 // SEUL module qui : crée renderer/scene/lumières/décor, précharge les assets, construit ctx,
 // instancie les systèmes, remplit ctx.sys, possède la boucle RAF.
 import * as THREE from 'three';

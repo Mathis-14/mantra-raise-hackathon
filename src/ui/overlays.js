@@ -1,4 +1,4 @@
-// MOB RUSH — overlays start / win / lose (CONTRACT §6.10). Module-SYSTÈME.
+// MRUSH — overlays start / win / lose (CONTRACT §6.10). Module-SYSTÈME.
 // SEUL module (avec hud / vignette / flying-coins) autorisé à toucher le DOM.
 // Interactions inter-système via ctx.sys.* UNIQUEMENT dans les méthodes (jamais dans la factory).
 // Ids DOM EXACTS (index.html) : startOverlay startBtn winOverlay winCoins nextBtn loseOverlay retryBtn.
