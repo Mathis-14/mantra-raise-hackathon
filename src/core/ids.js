@@ -1,4 +1,4 @@
-// MOB RUSH — compteur d'id global monotone, PARTAGÉ par toutes les équipes.
+// MRUSH — compteur d'id global monotone, PARTAGÉ par toutes les équipes.
 // CONTRACT §3 : `id` est un « compteur global monotone (unique toutes équipes) ».
 // Utilisé par crowd (bleus) ET waves (rouges) pour garantir des ids uniques,
 // nécessaires notamment au binding visuel des héros par id.

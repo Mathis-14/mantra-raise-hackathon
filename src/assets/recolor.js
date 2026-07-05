@@ -1,4 +1,4 @@
-// MOB RUSH — recoloration d'équipe. CONTRACT §5.6 (arbitrage A9).
+// MRUSH — recoloration d'équipe. CONTRACT §5.6 (arbitrage A9).
 // Module-LIBRAIRIE : n'importe QUE three. Ne mute JAMAIS un matériau/texture d'origine partagé.
 
 import * as THREE from 'three';

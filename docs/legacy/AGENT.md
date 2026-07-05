@@ -1,4 +1,4 @@
-# AGENT.md — Mission : reconstruction complète de MOB RUSH
+# AGENT.md — Mission : reconstruction complète de MRUSH
 
 ## Rôle
 

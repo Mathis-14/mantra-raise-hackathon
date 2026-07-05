@@ -1,4 +1,4 @@
-// MOB RUSH — heroes : clones animés du premier plan (CONTRACT §6.3, PLAN §3).
+// MRUSH — heroes : clones animés du premier plan (CONTRACT §6.3, PLAN §3).
 // Habillage visuel PUR : les héros ne comptent pas, ne collisionnent pas, ne possèdent aucun état
 // gameplay. Ils sont un MIROIR des `count` unités logiques les plus proches du front.
 //

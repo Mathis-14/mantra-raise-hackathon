@@ -1,4 +1,4 @@
-// MOB RUSH — HUD (CONTRACT §6.9). Module-SYSTÈME : factory createHud(ctx).
+// MRUSH — HUD (CONTRACT §6.9). Module-SYSTÈME : factory createHud(ctx).
 // SEUL module (avec overlays / vignette / flying-coins) autorisé à toucher le DOM.
 // Ne LIT que ctx.state ; n'appelle AUCUN autre système (aucun ctx.sys.*).
 // Ids DOM EXACTS (index.html) : levelPill coinPill playerHpVal enemyFill enemyGhost

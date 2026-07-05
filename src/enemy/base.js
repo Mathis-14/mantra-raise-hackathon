@@ -1,4 +1,4 @@
-// MOB RUSH — base ennemie composite (CONTRACT §6.7 + §3 Chunk).
+// MRUSH — base ennemie composite (CONTRACT §6.7 + §3 Chunk).
 // Module-SYSTÈME : factory createBase(ctx). N'importe aucun autre système ; toute interaction
 // inter-système passe par ctx.sys.* dans les méthodes (jamais dans le corps de la factory).
 // Dépendances autorisées : three, core/constants.js, juice/springs.js, librairies d'assets.

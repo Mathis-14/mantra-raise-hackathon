@@ -1,4 +1,4 @@
-// MOB RUSH — juice/particles.js
+// MRUSH — juice/particles.js
 // Système de particules instanciées (pools, zéro allocation par émission).
 // Module-LIBRAIRIE : ne connaît ni GameState ni ctx. Dépendances : three, core/constants.js.
 // Budget : 3 InstancedMesh au total — pops (sphères), génériques (billboards atlas), anneaux (sol).

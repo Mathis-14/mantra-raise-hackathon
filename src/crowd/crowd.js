@@ -1,4 +1,4 @@
-// MOB RUSH — src/crowd/crowd.js — masse bleue instanciée (CONTRACT §6.2, PLAN §3/§5).
+// MRUSH — src/crowd/crowd.js — masse bleue instanciée (CONTRACT §6.2, PLAN §3/§5).
 // Module-SYSTÈME : factory createCrowd(ctx). Possède state.blues (spawn/kill).
 // N'importe aucun autre système ; interactions inter-systèmes uniquement via ctx dans les méthodes.
 

@@ -1,4 +1,4 @@
-// MOB RUSH — cuisson de pose. CONTRACT §5.7.
+// MRUSH — cuisson de pose. CONTRACT §5.7.
 // Module-LIBRAIRIE : n'importe QUE three + addons. Ne mute JAMAIS le gltf d'origine
 // (skeletonClone duplique la hiérarchie et le squelette ; les géométries source sont copiées).
 //

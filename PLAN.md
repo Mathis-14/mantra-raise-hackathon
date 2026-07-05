@@ -1,4 +1,4 @@
-# PLAN.md — MOB RUSH : plan d'intégration (Phase 1, Fable)
+# PLAN.md — MRUSH : plan d'intégration (Phase 1, Fable)
 
 > Artefact de handoff Fable → Opus, conformément à AGENT.md.
 > Sources lues intégralement, dans l'ordre : `references/CONTEXT.md`, `references/mob-juice.md` (spec contractuelle),

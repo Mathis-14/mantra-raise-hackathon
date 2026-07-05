@@ -1,4 +1,4 @@
-# MOB RUSH — Spécification des assets & plan de juice
+# MRUSH — Spécification des assets & plan de juice
 
 ## 0. Direction artistique globale (à respecter pour TOUT asset)
 

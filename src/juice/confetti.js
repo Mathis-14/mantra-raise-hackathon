@@ -1,4 +1,4 @@
-// MOB RUSH — confetti (juice) : CONTRACT §5.9.
+// MRUSH — confetti (juice) : CONTRACT §5.9.
 // Module-librairie pur : n'importe QUE three + core/constants.js (palette).
 // Ne connaît ni GameState ni ctx. Aucun effet de bord à l'import.
 

@@ -1,4 +1,4 @@
-// MOB RUSH — src/crowd/cannon.js — canon, visée, tir (CONTRACT §6.1, spec 5.1, PLAN §5).
+// MRUSH — src/crowd/cannon.js — canon, visée, tir (CONTRACT §6.1, spec 5.1, PLAN §5).
 // Module-SYSTÈME : factory createCannon(ctx). N'importe aucun autre système.
 // Interactions inter-systèmes (crowd/particles/audio) UNIQUEMENT dans les méthodes.
 

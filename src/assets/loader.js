@@ -1,4 +1,4 @@
-// MOB RUSH — chargement GLB. CONTRACT §5.5.
+// MRUSH — chargement GLB. CONTRACT §5.5.
 // Module-LIBRAIRIE : ne connaît ni GameState ni ctx. Un seul GLTFLoader interne, cache par URL.
 // L'objet GLTF caché est l'ORIGINAL PARTAGÉ : ne jamais l'ajouter à la scène ni muter ses
 // matériaux/géométries — les consommateurs clonent (skeletonClone / recolor / bake).

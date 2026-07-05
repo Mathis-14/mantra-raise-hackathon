@@ -1,4 +1,4 @@
-// MOB RUSH — champion bleu.
+// MRUSH — champion bleu.
 // Gère la jauge, le release et le clone géant qui nettoie une ligne jusqu'à la base.
 
 import * as THREE from 'three';

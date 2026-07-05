@@ -1,4 +1,4 @@
-// MOB RUSH — rig caméra. Module-librairie (CONTRACT §5.3).
+// MRUSH — rig caméra. Module-librairie (CONTRACT §5.3).
 // Caméra responsive (formule proto EXACTE) + trauma shake (shake = trauma²).
 // Dépendances autorisées : three, core/constants.js, juice/springs.js. Aucun import de GameState/ctx.
 import * as THREE from 'three';
