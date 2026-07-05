@@ -21,7 +21,8 @@ interface AdPlan {
   hook: string; tone: string; duration_s: number; cta: string
   voiceover: string; assets: string[]; edl: EdlStep[]
 }
-interface Status { state: 'idle' | 'running' | 'done' | 'error'; step: string; log: string[]; ads: AdEntry[] }
+interface Status { state: 'idle' | 'running' | 'done' | 'error'; step: string; html?: string; log: string[]; ads: AdEntry[] }
+interface HtmlTarget { label: string; value: string; kind: 'file' | 'url' }
 
 const AD_COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#059669', '#d97706']
 const base = (p: string) => `${import.meta.env.BASE_URL}${p}`
@@ -77,7 +78,7 @@ export function renderAds(root: HTMLElement, route: FlowRoute) {
   )
 }
 
-// Decide whether to auto-generate, then render.
+// Router d'état : sélection de l'HTML au début de la pipeline, suivi si en cours, rendu si fini.
 async function bootstrap(list: HTMLElement, badge: HTMLElement, modelTag: HTMLElement, openFull: (src: string) => void) {
   let status: Status | null = null
   try {
@@ -91,15 +92,60 @@ async function bootstrap(list: HTMLElement, badge: HTMLElement, modelTag: HTMLEl
     return renderServerHint(list, badge)
   }
 
-  if (status.state === 'done' && status.ads.length) {
+  if (status.state === 'running') return followProgress(list, badge, modelTag, openFull)
+
+  // des pubs existent (done, ou publiées avant un restart/une erreur) → les montrer,
+  // le bouton « ↻ Régénérer… » ramène au sélecteur d'HTML
+  if (status.ads.length) {
     return renderAds_(status.ads, list, badge, modelTag, openFull)
   }
 
-  // idle or empty → kick off generation; running → just follow progress
-  if (status.state !== 'running') {
-    try { await fetch(`${PUBGEN}/generate`, { method: 'POST' }) } catch { /* ignore */ }
-  }
-  followProgress(list, badge, modelTag, openFull)
+  // rien à montrer → panneau de démarrage : choisir l'HTML source puis générer
+  renderStartPanel(list, badge, modelTag, openFull, status.state === 'error' ? status.step : null)
+}
+
+// Panneau de départ : sélecteur d'HTML (servi par GET /htmls) + lancement explicite.
+async function renderStartPanel(
+  list: HTMLElement, badge: HTMLElement, modelTag: HTMLElement,
+  openFull: (src: string) => void, lastError: string | null,
+) {
+  let targets: HtmlTarget[] = []
+  try { targets = await fetch(`${PUBGEN}/htmls`).then(r => r.json()) } catch { /* défauts */ }
+  if (!targets.length) targets = [{ label: 'game/mob-control-clone.html (prototype autonome)', value: 'game/mob-control-clone.html', kind: 'file' }]
+
+  list.innerHTML = `
+    <div class="ads-empty">
+      <div class="ads-empty-icon">🎬</div>
+      <div class="ads-empty-title">Générer des pubs</div>
+      <div class="ads-empty-copy" style="max-width:520px">
+        Choisis le <strong>HTML source</strong> à capturer (début de la pipeline), puis lance :
+        capture gameplay → VLM → Nemotron 3 → FFmpeg.
+        ${lastError ? `<div style="color:#dc2626;margin-top:8px">Dernier run en erreur : ${lastError}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap;justify-content:center">
+        <select id="ads-html-select" style="padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;max-width:420px">
+          ${targets.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
+        </select>
+        <select id="ads-count-select" style="padding:8px 10px;border-radius:8px;border:1px solid #d1d5db">
+          ${[1, 2, 3, 5].map(n => `<option value="${n}" ${n === 5 ? 'selected' : ''}>${n} pub${n > 1 ? 's' : ''}</option>`).join('')}
+        </select>
+        <button id="ads-generate-btn" class="btn-primary" style="padding:8px 18px;border-radius:8px;cursor:pointer">Générer</button>
+      </div>
+    </div>`
+  badge.innerHTML = '<span style="color:var(--text-faint)">En attente de lancement</span>'
+
+  document.getElementById('ads-generate-btn')!.addEventListener('click', async () => {
+    const html = (document.getElementById('ads-html-select') as HTMLSelectElement).value
+    const count = +(document.getElementById('ads-count-select') as HTMLSelectElement).value
+    try {
+      await fetch(`${PUBGEN}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html, count }),
+      })
+    } catch { /* le suivi affichera l'état */ }
+    followProgress(list, badge, modelTag, openFull)
+  })
 }
 
 async function fetchPublishedAds(): Promise<AdEntry[]> {
@@ -124,14 +170,18 @@ function followProgress(list: HTMLElement, badge: HTMLElement, modelTag: HTMLEle
   const timer = setInterval(async () => {
     let s: Status
     try { s = await fetch(`${PUBGEN}/status`).then(r => r.json()) } catch { return }
-    stepEl.textContent = s.step || s.state
-    logEl.innerHTML = s.log.slice(-8).map(l => `<div class="ads-log-line">${l}</div>`).join('')
+    stepEl.textContent = `${s.step || s.state}${s.html ? `  ·  source : ${s.html}` : ''}`
+    logEl.innerHTML = s.log.slice(-14).map(l => `<div class="ads-log-line">${l}</div>`).join('')
     if (s.state === 'done' && s.ads.length) {
       clearInterval(timer)
       renderAds_(s.ads, list, badge, modelTag, openFull)
     } else if (s.state === 'error') {
       clearInterval(timer)
       badge.innerHTML = '<span style="color:#dc2626">Generation failed</span>'
+      // debug : garder le log affiché + permettre de relancer avec un autre HTML
+      stepEl.innerHTML = `❌ ${s.step} &nbsp; <button id="ads-retry-btn" style="padding:4px 12px;border-radius:6px;cursor:pointer">↻ Relancer</button>`
+      document.getElementById('ads-retry-btn')?.addEventListener('click', () =>
+        renderStartPanel(list, badge, modelTag, openFull, s.step))
     }
   }, 1200)
 }
@@ -158,8 +208,13 @@ async function renderAds_(ads: AdEntry[], list: HTMLElement, badge: HTMLElement,
     catch { return null }
   }))
 
-  list.innerHTML = ads.map((ad, i) => adCard(ad, plans[i], i)).join('')
+  list.innerHTML = `
+    <div style="grid-column:1/-1;display:flex;justify-content:flex-end">
+      <button id="ads-regen-btn" style="padding:6px 14px;border-radius:8px;cursor:pointer" title="Choisir un autre HTML et régénérer">↻ Régénérer…</button>
+    </div>` + ads.map((ad, i) => adCard(ad, plans[i], i)).join('')
   badge.innerHTML = `<span style="color:var(--accent);font-weight:600;font-size:13px">✓ ${ads.length} ads generated</span>`
+  document.getElementById('ads-regen-btn')?.addEventListener('click', () =>
+    renderStartPanel(list, badge, modelTag, openFull, null))
 
   list.querySelectorAll<HTMLElement>('.ad-card').forEach((card) => {
     const v = card.querySelector('video') as HTMLVideoElement

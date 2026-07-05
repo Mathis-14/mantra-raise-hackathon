@@ -1,8 +1,10 @@
-// ── Capture real gameplay clips from game/mob-control-clone.html ──
+// ── Capture real gameplay clips from a selectable game HTML ──
 // Opens the game in headless Chromium, auto-plays it with random inputs,
 // records the canvas via MediaRecorder (webm), converts to mp4 (ffmpeg-static).
 //
-// Usage: node capture.mjs [count]   (default 5)
+// Usage: node capture.mjs [count] [target]   (default 5, game/mob-control-clone.html)
+//   target = chemin d'un .html (relatif à la racine du repo ou absolu) OU une URL http(s)
+//            (ex. http://localhost:5173/?autostart — le jeu Vite complet, serveur requis).
 import { chromium } from 'playwright'
 import ffmpegPath from 'ffmpeg-static'
 import { execFile } from 'node:child_process'
@@ -13,9 +15,20 @@ import { fileURLToPath } from 'node:url'
 
 const run = promisify(execFile)
 const __dir = dirname(fileURLToPath(import.meta.url))
-const GAME = resolve(__dir, '../../game/mob-control-clone.html')
+const REPO = resolve(__dir, '../..')
+const DEFAULT_TARGET = resolve(REPO, 'game/mob-control-clone.html')
 const OUT = join(__dir, 'output')
 const CLIP_SECONDS = 9
+
+// Résout la cible sélectionnée au début de la pipeline : URL http(s) telle quelle,
+// sinon chemin de fichier (absolu ou relatif à la racine du repo) → URL file://.
+function targetToUrl(raw) {
+  const t = (raw || '').trim()
+  if (!t) return 'file://' + DEFAULT_TARGET
+  if (/^https?:\/\//i.test(t)) return t
+  const p = t.startsWith('/') ? t : resolve(REPO, t)
+  return 'file://' + p
+}
 
 // Runs BEFORE any page script: patch AudioContext so the game's WebAudio output
 // is tapped into a MediaStreamDestination we can record. Exposes the audio
@@ -58,10 +71,10 @@ const TAP_AUDIO = () => {
 const RECORD_FN = (seconds) => new Promise((res) => {
   const canvas = document.querySelector('#game canvas') || document.querySelector('canvas')
   if (!canvas) { res(null); return }
-  const stream = canvas.captureStream(30)
+  const stream = canvas.captureStream(60) // 60 fps : fluide (le jeu tourne à 60 sur GPU réel)
   const audio = window.__gameAudioStream
   if (audio) for (const t of audio.getAudioTracks()) stream.addTrack(t)
-  const rec = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: 4_000_000 })
+  const rec = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: 8_000_000 })
   const chunks = []
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data) }
   rec.onstop = async () => {
@@ -103,11 +116,11 @@ async function tryStart(page) {
   await page.mouse.click(200, 400).catch(() => {})
 }
 
-async function captureOne(browser, index) {
+async function captureOne(browser, index, targetUrl) {
   const name = index === 0 ? 'variant-1' : `variant-${index + 1}`
   const page = await browser.newPage({ viewport: { width: 420, height: 740 } })
   await page.addInitScript(TAP_AUDIO)      // patch AudioContext before game loads
-  await page.goto('file://' + GAME, { waitUntil: 'load' })
+  await page.goto(targetUrl, { waitUntil: 'load' })
   await page.waitForTimeout(800)
   await tryStart(page)
   await page.waitForTimeout(400)
@@ -123,23 +136,30 @@ async function captureOne(browser, index) {
   const mp4 = join(OUT, `${name}.mp4`)
   writeFileSync(webm, Buffer.from(b64, 'base64'))
 
-  const vfCrop = 'scale=720:-2,crop=720:1280:(iw-720)/2:(ih-1280)/2,format=yuv420p'
-  const vfPad = 'scale=720:-2,pad=720:1280:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p'
-  const audioArgs = ['-c:a', 'aac', '-b:a', '128k', '-shortest']
+  // A/V SYNC : le webm de MediaRecorder est en VFR avec des timestamps qui dérivent
+  // (vidéo légèrement « lente » → décalage sous-titres/son). On normalise dès ici :
+  // fps=30 CFR côté vidéo + aresample async côté audio → timeline verrouillée.
+  const vfCrop = 'scale=720:-2,crop=720:1280:(iw-720)/2:(ih-1280)/2,fps=30,format=yuv420p'
+  const vfPad = 'scale=720:-2,pad=720:1280:(ow-iw)/2:(oh-ih)/2:black,fps=30,format=yuv420p'
+  const audioArgs = ['-af', 'aresample=async=1:first_pts=0', '-c:a', 'aac', '-b:a', '128k', '-shortest']
 
   // webm → mp4, keep audio (AAC). crop to fill; pad on failure.
   await run(ffmpegPath, [
     '-hide_banner', '-loglevel', 'error',
+    '-fflags', '+genpts',
     '-i', webm,
     '-vf', vfCrop,
+    '-vsync', 'cfr',
     '-c:v', 'libx264', '-preset', 'veryfast', '-movflags', '+faststart',
     ...audioArgs,
     '-y', mp4,
   ]).catch(async () => {
     await run(ffmpegPath, [
       '-hide_banner', '-loglevel', 'error',
+      '-fflags', '+genpts',
       '-i', webm,
       '-vf', vfPad,
+      '-vsync', 'cfr',
       '-c:v', 'libx264', '-preset', 'veryfast', '-movflags', '+faststart',
       ...audioArgs,
       '-y', mp4,
@@ -151,13 +171,27 @@ async function captureOne(browser, index) {
 }
 
 async function main() {
+  // Usage : node capture.mjs [count] [target] [startIndex]
+  // startIndex décale le nommage (variant-<startIndex+1>…) → le serveur peut capturer
+  // chaque clip depuis une CIBLE DIFFÉRENTE (5 pubs = 5 variantes de gameplay).
   const count = +(process.argv[2] || 5)
+  const targetUrl = targetToUrl(process.argv[3])
+  const startIndex = +(process.argv[4] || 0)
+  console.log(`capture target: ${targetUrl}`)
   mkdirSync(OUT, { recursive: true })
-  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] })
+  // FLUIDITÉ : headless AVEC GPU réel via ANGLE Metal (mesuré : 116 fps sur Apple Silicon,
+  // contre 27 fps en swiftshader logiciel — la cause des vidéos saccadées). Aucune fenêtre.
+  // PUBGEN_SOFTWARE=1 pour forcer swiftshader (machines sans GPU/Metal).
+  const software = process.env.PUBGEN_SOFTWARE === '1'
+  const browser = await chromium.launch({
+    args: software
+      ? ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
+      : ['--use-angle=metal', '--enable-webgl', '--ignore-gpu-blocklist'],
+  })
   try {
     for (let i = 0; i < count; i++) {
-      try { await captureOne(browser, i) }
-      catch (e) { console.error(`clip ${i + 1} failed:`, e.message) }
+      try { await captureOne(browser, startIndex + i, targetUrl) }
+      catch (e) { console.error(`clip ${startIndex + i + 1} failed:`, e.message) }
     }
   } finally {
     await browser.close()

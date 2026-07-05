@@ -1,10 +1,10 @@
 {
-  "game": "Mob Control clone",
+  "game": "Mob Control clone — maze layout (crate walls), purple night theme",
   "source": "variant-3.mp4",
-  "createdAt": "2026-07-05T05:48:38.453Z",
-  "tookMs": 10880,
+  "createdAt": "2026-07-05T07:48:22.620Z",
+  "tookMs": 95198,
   "models": {
-    "vlm": "meta/llama-3.2-11b-vision-instruct",
+    "vlm": "meta/llama-3.2-90b-vision-instruct",
     "nemotron": "nvidia/nemotron-3-super-120b-a12b"
   },
   "artifacts": {
@@ -15,37 +15,32 @@
     "video": "ad.mp4"
   },
   "plan": {
-    "hook": "Watch your troops explode into a massive army!",
+    "hook": "Ever seen a maze multiply your army in seconds?",
     "tone": "humorous",
-    "duration_s": 12,
-    "cta": "Tap to download and lead the charge!",
-    "voiceover": "Start with a small squad, multiply your forces, and overwhelm the enemy. Can you build the biggest mob?",
+    "duration_s": 10,
+    "cta": "Download now and dominate the maze!",
+    "voiceover": "Guide your crowd through the purple night maze, watch your numbers explode, and crush every obstacle. Install today and lead the ultimate mob!",
     "assets": [
       "download_button",
       "gold_popup",
-      "multiplier_icon"
+      "maze_highlight"
     ],
     "edl": [
       {
         "time": 0,
-        "source_time": 0,
-        "zoom": 1,
-        "caption": "x2 | x3",
-        "overlay": ""
-      },
-      {
-        "time": 4,
         "source_time": 3,
         "zoom": 1.2,
-        "caption": "x2 x3",
-        "overlay": ""
+        "shake": false,
+        "caption": "Double your troops!",
+        "overlay": "glow"
       },
       {
-        "time": 8,
+        "time": 5,
         "source_time": 6,
-        "zoom": 1.2,
-        "caption": "x2 x3",
-        "overlay": ""
+        "zoom": 1.1,
+        "shake": true,
+        "caption": "Watch the army grow!",
+        "overlay": "sparkle"
       }
     ]
   }

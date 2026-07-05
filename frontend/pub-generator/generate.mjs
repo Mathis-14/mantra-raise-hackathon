@@ -78,16 +78,18 @@ async function main() {
 
   // 4 ─ Downstream, all driven by the plan
   const assets = await fluxGenerateAssets(plan.assets)
-  const voice = await kokoroTts(plan.voiceover)
+  const voice = await kokoroTts(plan.voiceover, runDir) // TTS RÉELLE (macOS say) → voiceover.m4a
   writeFileSync(join(runDir, 'assets.json'), JSON.stringify(assets, null, 2))
   writeFileSync(join(runDir, 'voiceover.json'), JSON.stringify(voice, null, 2))
   log('flux', `${assets.length} assets planned (stub)`)
-  log('tts', `voiceover script ready (stub)`)
+  log('tts', voice.status === 'synthesized'
+    ? `voiceover synthesized (${voice.voice}, macos-say) → voiceover.m4a`
+    : `voiceover script ready (stub: ${voice.reason || 'no output dir'})`)
 
-  // 5 ─ Composition: apply the EDL to the gameplay → ad.mp4
+  // 5 ─ Composition: EDL + voix off mixée + écran de fin « Télécharger le jeu » → ad.mp4
   const adPath = join(runDir, 'ad.mp4')
-  await composeAd(videoPath, plan, adPath, join(runDir, 'overlays'))
-  log('compose', `ad.mp4 rendered`)
+  await composeAd(videoPath, plan, adPath, join(runDir, 'overlays'), { voPath: voice.file })
+  log('compose', `ad.mp4 rendered (VO ${voice.file ? 'mixée' : 'absente'} + end card)`)
 
   // Manifest ties it all together for the frontend viewer.
   const manifest = {

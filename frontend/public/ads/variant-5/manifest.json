@@ -1,10 +1,10 @@
 {
-  "game": "Mob Control clone",
+  "game": "Mob Control clone — BOSS level, snow theme",
   "source": "variant-5.mp4",
-  "createdAt": "2026-07-05T05:49:04.807Z",
-  "tookMs": 14148,
+  "createdAt": "2026-07-05T07:49:18.449Z",
+  "tookMs": 31521,
   "models": {
-    "vlm": "meta/llama-3.2-11b-vision-instruct",
+    "vlm": "meta/llama-3.2-90b-vision-instruct",
     "nemotron": "nvidia/nemotron-3-super-120b-a12b"
   },
   "artifacts": {
@@ -15,37 +15,38 @@
     "video": "ad.mp4"
   },
   "plan": {
-    "hook": "Ever wondered what happens when you double, triple, double your army?",
-    "tone": "humorous",
-    "duration_s": 12,
-    "cta": "Download now and start multiplying!",
-    "voiceover": "Watch your troops explode in numbers as you merge and multiply. It's chaotic fun you can't put down!",
+    "hook": "Ready to crush the snow boss?",
+    "tone": "competitive",
+    "duration_s": 10,
+    "cta": "Download now and conquer the snow!",
+    "voiceover": "Take control, build your army, and topple the icy boss—download now!",
     "assets": [
       "download_button",
-      "gold_popup",
-      "multiply_icon"
+      "snow_effect",
+      "boss_popup"
     ],
     "edl": [
       {
         "time": 0,
+        "source_time": 0,
+        "zoom": 1,
+        "caption": "Ready to crush the snow boss?"
+      },
+      {
+        "time": 2,
         "source_time": 3,
-        "zoom": 1.2,
-        "caption": "Multiply your army!",
-        "overlay": "x2 x3 x2"
+        "zoom": 1.2
       },
       {
-        "time": 6,
+        "time": 5,
         "source_time": 6,
-        "zoom": 1,
+        "zoom": 1.3,
         "shake": true,
-        "caption": "Chaos unleashed!",
-        "overlay": "x2 x3 x2"
+        "caption": "Boss incoming!"
       },
       {
-        "time": 10,
+        "time": 8,
         "source_time": 6,
-        "zoom": 1,
-        "caption": "Tap to download!",
         "overlay": "download_button"
       }
     ]

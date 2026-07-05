@@ -1,71 +1,71 @@
 [
   {
     "clip": "variant-1",
-    "game": "Mob Control clone",
+    "game": "Mob Control clone — classic layout, canyon theme",
     "video": "ads/variant-1/ad.mp4",
     "manifest": "ads/variant-1/manifest.json",
-    "hook": "Watch your army explode in numbers!",
-    "cta": "Download now and dominate the battlefield!",
-    "tone": "humorous",
+    "hook": "Ready to crush the canyon?",
+    "cta": "Install now and lead the charge!",
+    "tone": "competitive",
     "duration_s": 12,
     "models": {
-      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "vlm": "meta/llama-3.2-90b-vision-instruct",
       "nemotron": "nvidia/nemotron-3-super-120b-a12b"
     }
   },
   {
     "clip": "variant-2",
-    "game": "Mob Control clone",
+    "game": "Mob Control clone — lanes layout (3 enemy corridors), canyon theme",
     "video": "ads/variant-2/ad.mp4",
     "manifest": "ads/variant-2/manifest.json",
-    "hook": "Ever wondered how fast a crowd can multiply?",
-    "cta": "Tap to multiply your fun – download now!",
+    "hook": "Ready to multiply your mob?",
+    "cta": "Install now and dominate the canyon!",
     "tone": "humorous",
-    "duration_s": 10,
+    "duration_s": 12,
     "models": {
-      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "vlm": "meta/llama-3.2-90b-vision-instruct",
       "nemotron": "nvidia/nemotron-3-super-120b-a12b"
     }
   },
   {
     "clip": "variant-3",
-    "game": "Mob Control clone",
+    "game": "Mob Control clone — maze layout (crate walls), purple night theme",
     "video": "ads/variant-3/ad.mp4",
     "manifest": "ads/variant-3/manifest.json",
-    "hook": "Watch your troops explode into a massive army!",
-    "cta": "Tap to download and lead the charge!",
+    "hook": "Ever seen a maze multiply your army in seconds?",
+    "cta": "Download now and dominate the maze!",
     "tone": "humorous",
-    "duration_s": 12,
+    "duration_s": 10,
     "models": {
-      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "vlm": "meta/llama-3.2-90b-vision-instruct",
       "nemotron": "nvidia/nemotron-3-super-120b-a12b"
     }
   },
   {
     "clip": "variant-4",
-    "game": "Mob Control clone",
+    "game": "Mob Control clone — red horde tide layout, snow theme",
     "video": "ads/variant-4/ad.mp4",
     "manifest": "ads/variant-4/manifest.json",
-    "hook": "Watch your army multiply in seconds!",
-    "cta": "Download now and lead the horde!",
+    "hook": "Can you stop the red tide before it buries your base?",
+    "cta": "Tap to download and command the horde!",
     "tone": "competitive",
     "duration_s": 12,
     "models": {
-      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "vlm": "meta/llama-3.2-90b-vision-instruct",
       "nemotron": "nvidia/nemotron-3-super-120b-a12b"
     }
   },
   {
     "clip": "variant-5",
-    "game": "Mob Control clone",
+    "game": "Mob Control clone — BOSS level, snow theme",
     "video": "ads/variant-5/ad.mp4",
     "manifest": "ads/variant-5/manifest.json",
-    "hook": "Ever wondered what happens when you double, triple, double your army?",
-    "cta": "Download now and start multiplying!",
-    "tone": "humorous",
-    "duration_s": 12,
+    "hook": "Ready to crush the snow boss?",
+    "cta": "Download now and conquer the snow!",
+    "tone": "competitive",
+    "duration_s": 10,
     "models": {
-      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "vlm": "meta/llama-3.2-90b-vision-instruct",
       "nemotron": "nvidia/nemotron-3-super-120b-a12b"
     }
   }

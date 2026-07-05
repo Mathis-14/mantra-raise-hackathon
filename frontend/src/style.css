@@ -655,6 +655,7 @@ a.logo {
 .ads-log-line { white-space: pre-wrap; word-break: break-word; }
 
 /* ── fullscreen lightbox ── */
+.ad-lightbox[hidden] { display: none; } /* display:flex écrasait l'attribut hidden → lightbox ouverte au chargement */
 .ad-lightbox {
   position: fixed;
   inset: 0;

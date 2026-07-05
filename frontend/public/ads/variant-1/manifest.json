@@ -1,10 +1,10 @@
 {
-  "game": "Mob Control clone",
+  "game": "Mob Control clone — classic layout, canyon theme",
   "source": "variant-1.mp4",
-  "createdAt": "2026-07-05T05:48:15.705Z",
-  "tookMs": 10864,
+  "createdAt": "2026-07-05T07:46:20.833Z",
+  "tookMs": 78844,
   "models": {
-    "vlm": "meta/llama-3.2-11b-vision-instruct",
+    "vlm": "meta/llama-3.2-90b-vision-instruct",
     "nemotron": "nvidia/nemotron-3-super-120b-a12b"
   },
   "artifacts": {
@@ -15,31 +15,45 @@
     "video": "ad.mp4"
   },
   "plan": {
-    "hook": "Watch your army explode in numbers!",
-    "tone": "humorous",
+    "hook": "Ready to crush the canyon?",
+    "tone": "competitive",
     "duration_s": 12,
-    "cta": "Download now and dominate the battlefield!",
-    "voiceover": "Start with a tiny squad, multiply your forces, and crush the opposition. Can you handle the chaos?",
+    "cta": "Install now and lead the charge!",
+    "voiceover": "Gather your squad, multiply your forces, and conquer the canyon—only in Mob Control!",
     "assets": [
       "download_button",
       "gold_popup",
-      "multiplier_icon"
+      "canyon_bg"
     ],
     "edl": [
       {
         "time": 0,
         "source_time": 0,
         "zoom": 1,
-        "caption": "x2 | x3",
-        "overlay": "multiply_effect"
+        "caption": "Ready to crush the canyon?",
+        "overlay": null
+      },
+      {
+        "time": 2,
+        "source_time": 3,
+        "zoom": 1.2,
+        "caption": "Triple your troops!",
+        "overlay": null
       },
       {
         "time": 6,
         "source_time": 6,
-        "zoom": 1.2,
+        "zoom": 1.5,
         "shake": true,
-        "caption": "Massive Mob!",
-        "overlay": "explosion_effect"
+        "caption": "Double the fun!",
+        "overlay": null
+      },
+      {
+        "time": 10,
+        "source_time": 6,
+        "zoom": 1.3,
+        "caption": "Install now and lead the charge!",
+        "overlay": "download_button"
       }
     ]
   }

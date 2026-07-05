@@ -1,10 +1,10 @@
 {
-  "game": "Mob Control clone",
+  "game": "Mob Control clone — lanes layout (3 enemy corridors), canyon theme",
   "source": "variant-2.mp4",
-  "createdAt": "2026-07-05T05:48:27.315Z",
-  "tookMs": 11328,
+  "createdAt": "2026-07-05T07:46:47.272Z",
+  "tookMs": 26275,
   "models": {
-    "vlm": "meta/llama-3.2-11b-vision-instruct",
+    "vlm": "meta/llama-3.2-90b-vision-instruct",
     "nemotron": "nvidia/nemotron-3-super-120b-a12b"
   },
   "artifacts": {
@@ -15,15 +15,15 @@
     "video": "ad.mp4"
   },
   "plan": {
-    "hook": "Ever wondered how fast a crowd can multiply?",
+    "hook": "Ready to multiply your mob?",
     "tone": "humorous",
-    "duration_s": 10,
-    "cta": "Tap to multiply your fun – download now!",
-    "voiceover": "Watch your tiny squad explode into a massive mob in seconds. It’s addictive, it’s chaotic, it’s waiting for you.",
+    "duration_s": 12,
+    "cta": "Install now and dominate the canyon!",
+    "voiceover": "Guide your crowd through the canyon, multiply your forces, and crush the enemy lanes—download today!",
     "assets": [
       "download_button",
       "gold_popup",
-      "mob_icon",
+      "lane_highlight",
       "explosion_effect"
     ],
     "edl": [
@@ -31,31 +31,28 @@
         "time": 0,
         "source_time": 0,
         "zoom": 1,
-        "caption": "Ever wondered how fast a crowd can multiply?",
-        "overlay": null
+        "caption": "Ready to multiply your mob?"
       },
       {
-        "time": 3,
+        "time": 2,
         "source_time": 3,
         "zoom": 1.2,
-        "shake": false,
-        "caption": "x2 x3 x2",
-        "overlay": null
+        "caption": "x2 x3",
+        "overlay": "multiplier"
       },
       {
         "time": 6,
         "source_time": 6,
-        "zoom": 1,
+        "zoom": 1.3,
         "shake": true,
-        "caption": "Keep growing!",
-        "overlay": null
+        "caption": "x1 x2 x3",
+        "overlay": "triple lane"
       },
       {
-        "time": 9,
+        "time": 10,
         "source_time": 6,
         "zoom": 1,
-        "shake": false,
-        "caption": "Tap to multiply your fun – download now!",
+        "caption": "Install now and dominate the canyon!",
         "overlay": "download_button"
       }
     ]
