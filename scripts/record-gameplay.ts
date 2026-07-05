@@ -23,6 +23,7 @@ const argsSchema = z.object({
     .string()
     .regex(/^[a-z0-9-]+$/i, "label must be alphanumeric/dashes")
     .optional(),
+  quality: z.enum(["high", "standard"]).default("high"),
 });
 
 async function main(): Promise<void> {
@@ -30,8 +31,10 @@ async function main(): Promise<void> {
   const gameUrl = toGameUrl(args.game);
   const label = args.label ?? new Date().toISOString().replace(/[:.]/g, "-");
 
-  const recording = await startGameplayRecording({ gameUrl, label });
-  console.log(`recording_started game_url=${gameUrl} duration_s=${args.duration}`);
+  const recording = await startGameplayRecording({ gameUrl, label, quality: args.quality });
+  console.log(
+    `recording_started game_url=${gameUrl} duration_s=${args.duration} quality=${args.quality}`,
+  );
 
   await new Promise((resolve) => setTimeout(resolve, args.duration * 1_000));
 
@@ -54,6 +57,9 @@ function parseArgs(argv: string[]) {
       index += 1;
     } else if (token === "--label") {
       values.label = readNext(argv, index, token);
+      index += 1;
+    } else if (token === "--quality") {
+      values.quality = readNext(argv, index, token);
       index += 1;
     }
   }
