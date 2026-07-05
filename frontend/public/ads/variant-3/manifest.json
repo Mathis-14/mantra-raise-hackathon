@@ -1,0 +1,47 @@
+{
+  "game": "Mob Control clone — maze layout (crate walls), purple night theme",
+  "source": "variant-3.mp4",
+  "createdAt": "2026-07-05T07:48:22.620Z",
+  "tookMs": 95198,
+  "models": {
+    "vlm": "meta/llama-3.2-90b-vision-instruct",
+    "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+  },
+  "artifacts": {
+    "sceneTimeline": "scene-timeline.json",
+    "adPlan": "ad-plan.json",
+    "assets": "assets.json",
+    "voiceover": "voiceover.json",
+    "video": "ad.mp4"
+  },
+  "plan": {
+    "hook": "Ever seen a maze multiply your army in seconds?",
+    "tone": "humorous",
+    "duration_s": 10,
+    "cta": "Download now and dominate the maze!",
+    "voiceover": "Guide your crowd through the purple night maze, watch your numbers explode, and crush every obstacle. Install today and lead the ultimate mob!",
+    "assets": [
+      "download_button",
+      "gold_popup",
+      "maze_highlight"
+    ],
+    "edl": [
+      {
+        "time": 0,
+        "source_time": 3,
+        "zoom": 1.2,
+        "shake": false,
+        "caption": "Double your troops!",
+        "overlay": "glow"
+      },
+      {
+        "time": 5,
+        "source_time": 6,
+        "zoom": 1.1,
+        "shake": true,
+        "caption": "Watch the army grow!",
+        "overlay": "sparkle"
+      }
+    ]
+  }
+}

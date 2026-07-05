@@ -22,6 +22,14 @@ const googleAdsSchema = z.object({
   GOOGLE_ADS_CUSTOMER_ID: z.string().regex(/^\d{10}$/),
 });
 
+const nvidiaSchema = z.object({
+  NVIDIA_API_KEY: z.string().min(1),
+  NVIDIA_API_BASE_URL: z.url().default("https://integrate.api.nvidia.com/v1"),
+  NVIDIA_GAMEPLAY_MODEL: z.string().min(1).default(
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+  ),
+});
+
 const publicSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
@@ -72,4 +80,16 @@ export function googleAdsEnv() {
     GOOGLE_ADS_CUSTOMER_ID: process.env.GOOGLE_ADS_CUSTOMER_ID,
   });
   return cachedGoogleAds;
+}
+
+let cachedNvidia: z.infer<typeof nvidiaSchema> | null = null;
+
+/** Server/worker only — validates the NVIDIA gameplay-analysis boundary. */
+export function nvidiaEnv() {
+  cachedNvidia ??= nvidiaSchema.parse({
+    NVIDIA_API_KEY: process.env.NVIDIA_API_KEY,
+    NVIDIA_API_BASE_URL: process.env.NVIDIA_API_BASE_URL,
+    NVIDIA_GAMEPLAY_MODEL: process.env.NVIDIA_GAMEPLAY_MODEL,
+  });
+  return cachedNvidia;
 }

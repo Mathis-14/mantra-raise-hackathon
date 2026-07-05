@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { emitEvent } from "@/lib/events";
@@ -49,6 +49,49 @@ export function sinkFrame(args: {
         message: error instanceof Error ? error.message : String(error),
       });
     });
+}
+
+export async function uploadPlaytestVideo(args: {
+  runId: string;
+  situation?: number;
+  filePath: string;
+}): Promise<string> {
+  const video = await readFile(args.filePath);
+  // Situation-scoped path: each of the 5 parallel sessions records its own video.
+  const storagePath = `${args.runId}/${situationSegment(args.situation)}/gameplay.webm`;
+  const { error } = await withTimeout(
+    supabaseAdmin()
+      .storage
+      .from(PLAYTEST_MEDIA_BUCKET)
+      .upload(storagePath, video, {
+        contentType: "video/webm",
+        upsert: true,
+      }),
+    STORAGE_UPLOAD_TIMEOUT_MS,
+    "playtest_video_upload_timeout",
+  );
+  if (error) throw new Error(error.message);
+
+  const { data } = supabaseAdmin()
+    .storage
+    .from(PLAYTEST_MEDIA_BUCKET)
+    .getPublicUrl(storagePath);
+  await emitEvent({
+    run_id: args.runId,
+    node: "playtest",
+    type: "observation",
+    message: "playtest_video_ready",
+    screenshot_url: null,
+    data: {
+      situation: args.situation ?? 1,
+      video_url: data.publicUrl,
+      video_bytes: video.byteLength,
+      content_type: "video/webm",
+      audio_present: false,
+      nvidia_comparison_compatible: false,
+    },
+  });
+  return data.publicUrl;
 }
 
 async function uploadFrame(args: {

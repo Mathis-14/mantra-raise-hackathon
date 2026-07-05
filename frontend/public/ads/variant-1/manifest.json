@@ -1,0 +1,57 @@
+{
+  "game": "Mob Control clone",
+  "source": "variant-1.mp4",
+  "createdAt": "2026-07-05T07:57:15.763Z",
+  "tookMs": 21889,
+  "models": {
+    "vlm": "meta/llama-3.2-90b-vision-instruct",
+    "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+  },
+  "artifacts": {
+    "sceneTimeline": "scene-timeline.json",
+    "adPlan": "ad-plan.json",
+    "assets": "assets.json",
+    "voiceover": "voiceover.json",
+    "video": "ad.mp4"
+  },
+  "plan": {
+    "hook": "Ever wondered how a tiny crowd can take over a massive base?",
+    "tone": "humorous",
+    "duration_s": 12,
+    "cta": "Download now and lead the charge!",
+    "voiceover": "Watch your squad grow, smash obstacles, and dominate the battlefield—all in one tap!",
+    "assets": [
+      "download_button",
+      "crowd_icon",
+      "explosion_effect"
+    ],
+    "edl": [
+      {
+        "time": 0,
+        "source_time": 0,
+        "zoom": 1,
+        "caption": "Ever wondered how a tiny crowd can take over a massive base?"
+      },
+      {
+        "time": 4,
+        "source_time": 3,
+        "zoom": 1.2,
+        "caption": "Grow your mob!"
+      },
+      {
+        "time": 8,
+        "source_time": 6,
+        "zoom": 1.5,
+        "shake": true,
+        "caption": "Crush the enemy!"
+      },
+      {
+        "time": 10,
+        "source_time": 6,
+        "zoom": 1.2,
+        "overlay": "download_button",
+        "caption": "Download now and lead the charge!"
+      }
+    ]
+  }
+}

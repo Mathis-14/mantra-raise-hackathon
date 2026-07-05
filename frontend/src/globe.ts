@@ -72,7 +72,7 @@ export function createGlobe(
   let autoDir = 1
   let dragging = false
   let lastX = 0
-  let velocity = 0.004     // idle auto-rotate speed
+  let velocity = 0.0018    // idle auto-rotate speed (slow)
   let raf = 0
 
   const globe = createCobe(canvas, {
@@ -101,7 +101,7 @@ export function createGlobe(
     if (!dragging) {
       phi += velocity * autoDir
       // ease idle velocity back toward the gentle default after a drag fling
-      velocity += (0.004 - velocity) * 0.03
+      velocity += (0.0018 - velocity) * 0.03
     }
     globe.update({ phi })
   }
