@@ -10,6 +10,8 @@
 //   4. on node error: status → failed with failed_step set, emit an "error"
 //      event, and keep looping — one broken run must not stop the worker.
 
+import { hostname } from "node:os";
+
 import { canTransition, RUN_STATUSES, type PlaytestReport, type RunStatus } from "@/contracts/types";
 import { emitEvent } from "@/lib/events";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -211,13 +213,15 @@ async function processVariantRun(run: RunCandidate): Promise<void> {
 async function processPlaytest(run: RunCandidate): Promise<void> {
   const gameUrl = await readProjectGameUrl(run.projectId);
 
+  // Supabase is shared across the team: the hostname makes it obvious in the activity
+  // log when another machine's worker won the claim (its live stream is not reachable here).
   await emitEvent({
     run_id: run.id,
     node: "orchestrator",
     type: "status",
-    message: "playtesting_started",
+    message: `playtesting_started on ${hostname()}`,
     screenshot_url: null,
-    data: { game_url: gameUrl, live_stream_url: `http://127.0.0.1:4317/runs/${run.id}/stream` },
+    data: { game_url: gameUrl, live_stream_url: `http://127.0.0.1:4317/runs/${run.id}/stream`, worker_host: hostname() },
   });
 
   try {
@@ -246,6 +250,8 @@ async function processPlaytest(run: RunCandidate): Promise<void> {
 export async function runOrchestrator(): Promise<void> {
   console.info("orchestrator_started", { poll_ms: POLL_MS, playtest_budget_s: PLAYTEST_BUDGET_S });
 
+  let variantJobRunId: string | null = null;
+
   while (true) {
     try {
       const run = await claimNextCreatedRun();
@@ -254,10 +260,16 @@ export async function runOrchestrator(): Promise<void> {
         continue;
       }
 
-      const variantRun = await readNextVariantRun();
-      if (variantRun) {
-        await processVariantRun(variantRun);
-        continue;
+      // Variants take minutes of LLM calls; run them as a guarded background job
+      // so they never starve new playtest claims (a fresh upload must go live in ~2s).
+      if (variantJobRunId === null) {
+        const variantRun = await readNextVariantRun();
+        if (variantRun) {
+          variantJobRunId = variantRun.id;
+          void processVariantRun(variantRun).finally(() => {
+            variantJobRunId = null;
+          });
+        }
       }
     } catch (error) {
       console.error("orchestrator_loop_error", error);
