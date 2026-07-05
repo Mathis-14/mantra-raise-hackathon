@@ -15,8 +15,13 @@ interface LiveClient {
 let server: Server | null = null;
 let serverStart: Promise<void> | null = null;
 const clientsByRunId = new Map<string, Set<LiveClient>>();
-const latestFrameByRunId = new Map<string, LiveFramePayload>();
-const latestStatusByRunId = new Map<string, LiveStatusPayload>();
+// Keyed per (runId, situation) so a late-connecting client replays all five cards.
+const latestFrameByRunSituation = new Map<string, LiveFramePayload>();
+const latestStatusByRunSituation = new Map<string, LiveStatusPayload>();
+
+function runSituationKey(runId: string, situation: number): string {
+  return `${runId}:${situation}`;
+}
 
 export async function startPlaytestLiveStreamServer(): Promise<void> {
   if (server) return;
@@ -50,12 +55,12 @@ export async function startPlaytestLiveStreamServer(): Promise<void> {
 }
 
 export function publishFrameToRun(runId: string, payload: LiveFramePayload): void {
-  latestFrameByRunId.set(runId, payload);
+  latestFrameByRunSituation.set(runSituationKey(runId, payload.situation), payload);
   publishToRun(runId, "frame", payload);
 }
 
 export function publishStatusToRun(runId: string, payload: LiveStatusPayload): void {
-  latestStatusByRunId.set(runId, payload);
+  latestStatusByRunSituation.set(runSituationKey(runId, payload.situation), payload);
   publishToRun(runId, "status", payload);
 }
 
@@ -124,11 +129,12 @@ function connectClient(runId: string, response: ServerResponse, origin: string |
   clients.add(client);
   clientsByRunId.set(runId, clients);
 
-  const latestStatus = latestStatusByRunId.get(runId);
-  if (latestStatus) writeSse(response, "status", latestStatus);
-
-  const latestFrame = latestFrameByRunId.get(runId);
-  if (latestFrame) writeSse(response, "frame", latestFrame);
+  for (const [key, status] of latestStatusByRunSituation) {
+    if (key.startsWith(`${runId}:`)) writeSse(response, "status", status);
+  }
+  for (const [key, frame] of latestFrameByRunSituation) {
+    if (key.startsWith(`${runId}:`)) writeSse(response, "frame", frame);
+  }
 
   response.on("close", () => {
     clearInterval(client.heartbeat);

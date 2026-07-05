@@ -8,6 +8,12 @@ export const PLAYTEST_GEMINI_SERVICE_TIER = "priority";
 export const VIEWPORT = { width: 720, height: 1278 } as const;
 export const HEADED_WINDOW_CHROME_HEIGHT_PX = 120;
 
+// One parallel CU session per situation card; each plays the game at ?level=N.
+export const SITUATION_COUNT = 5;
+export const SESSION_START_STAGGER_MS = 1_500;
+// Each session agent plays at most its assigned level plus one continuation.
+export const MAX_GAMES_PER_SESSION = 2;
+
 export const MAX_TURNS = 40;
 export const MAX_CALLS_PER_TURN = 4;
 export const REPORT_GRACE_S = 30;

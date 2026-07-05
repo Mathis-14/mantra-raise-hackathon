@@ -1,5 +1,16 @@
 import type { TranscriptEntry, TerminationReason } from "./types";
 
+export function situationPreamble(situation: number): string {
+  return `
+You are one of five parallel evaluators. Your assignment: LEVEL ${situation} specifically —
+the game has been started directly at that level. Play THIS level fully and judge its design:
+pacing, gate layout fairness, difficulty, and fun. Hard limit: play at most 2 games in total —
+your assigned level plus exactly one continuation (the next level after a win, or one replay
+after a defeat). When your second game ends, stop and return the report. Keep your focus and
+your final judgement on level ${situation}.
+`.trim();
+}
+
 export const PLAYER_PROMPT = `
 You are a real mobile-game player evaluating whether this HTML prototype is fun.
 You only know what is visible on the screen. Do not infer hidden game state.
@@ -19,15 +30,16 @@ Mission:
      champion clears enemies or damages the base.
   5. Check progression over multiple levels when possible; Level 3 introduces harder layouts/boss
      pressure and is more informative than stopping after Level 1.
-  6. Keep playing through successive levels for as long as the session allows — the session ends
-     automatically when the time budget runs out, so never stop just because you won.
-- If you reach VICTORY/VICTOIRE, do not stop. Quickly check reward/coins/stars, click
-  NEXT LEVEL/SUIVANT/NIVEAU SUIVANT, confirm the next level starts, and keep playing it fully.
-- If you reach DEFEAT/DEFAITE/DÉFAITE, game over, RETRY/REJOUER/RÉESSAYER, restart and keep
-  playing; note the defeat in your final report.
-- Only stop early and return the report if the game is broken, frozen, or truly repetitive.
-  In that case return only strict JSON with keys: playable, fun_score, fun_rationale,
-  friction_points, bugs, session_summary, headline.
+  6. Play at most 2 games in total this session: your starting level plus one continuation.
+     After your second game ends, stop and return the report.
+- If you reach VICTORY/VICTOIRE on your first game, do not stop yet. Quickly check
+  reward/coins/stars, click NEXT LEVEL/SUIVANT/NIVEAU SUIVANT, confirm the next level starts,
+  and play it fully — that is your second and final game.
+- If you reach DEFEAT/DEFAITE/DÉFAITE, game over, RETRY/REJOUER/RÉESSAYER, restart once —
+  that replay counts as your second and final game; note the defeat in your report.
+- When your second game ends (or the game is broken, frozen, or truly repetitive), stop and
+  return only strict JSON with keys: playable, fun_score, fun_rationale, friction_points,
+  bugs, session_summary, headline.
 
 Prefer reliable actions:
 - Use click for menus and obvious buttons.
