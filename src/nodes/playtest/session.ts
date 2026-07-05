@@ -13,7 +13,7 @@ import {
 } from "./config";
 import { CuStepError, imageContent, cuStep } from "./gemini";
 import { ACTION_LOOP_NUDGE, PLAYER_PROMPT, POST_WIN_SWEEP_PROMPT, situationPreamble } from "./prompts";
-import { sinkFrame } from "./screens";
+import { sinkFrame, uploadPlaytestVideo } from "./screens";
 import { publishLiveAction, publishLiveFrame, publishLiveStatus, startPlaytestScreencast, type LiveScreencast } from "./live-stream";
 import type {
   CuCallResult,
@@ -302,9 +302,25 @@ export async function runPlaytestSession(args: {
     if (turn >= MAX_TURNS) terminationReason = "max_turns";
   } finally {
     const cleanupStartedAt = Date.now();
+    const recording = session.page.video();
     await executor.release();
     await screencast?.stop();
     await session.browser.close();
+    if (recording) {
+      try {
+        const filePath = await recording.path();
+        await uploadPlaytestVideo({ runId, situation, filePath });
+      } catch (error) {
+        await emitEvent({
+          run_id: runId,
+          node: "playtest",
+          type: "error",
+          message: "playtest_video_upload_failed",
+          screenshot_url: null,
+          data: { situation, error: error instanceof Error ? error.message : String(error) },
+        });
+      }
+    }
     timings.cleanupMs = Date.now() - cleanupStartedAt;
   }
 

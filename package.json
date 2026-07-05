@@ -15,6 +15,7 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "worker": "node --env-file=.env --import tsx src/worker/index.ts",
+    "nvidia:compare": "node --env-file=.env --import tsx src/worker/nvidia-compare.ts",
     "stack": "node --import tsx scripts/stack.ts"
   },
   "dependencies": {
