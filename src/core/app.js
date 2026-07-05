@@ -44,6 +44,9 @@ const ASSET_URLS = {
   trapSpikes: `${PK}/trap-spikes.glb`,
   trapSpikesLarge: `${PK}/trap-spikes-large.glb`,
   conveyor: `${PK}/conveyor-belt.glb`,
+  crate: `${PK}/crate.glb`,
+  crateStrong: `${PK}/crate-strong.glb`,
+  barrel: `${PK}/barrel.glb`,
   blockTall: `${PK}/block-grass-large-tall.glb`,
   blockLow: `${PK}/block-grass-low-large.glb`,
   flag: `${PK}/flag.glb`,
@@ -360,6 +363,9 @@ export async function createApp({ container = document.getElementById('game') } 
     fireTimer: 0, waveTimer: 0, holding: false, cannonX: 0, targetX: 0,
     blues: [], reds: [], champions: [], gates: [], obstacles: [], boosts: [], pops: particles.pops, // alias (A4)
   };
+  // debug/test : ?level=N démarre directement au niveau N (layouts slalom/maze/horde testables)
+  const forcedLevel = parseInt(params.get('level'), 10);
+  if (Number.isFinite(forcedLevel) && forcedLevel > 0) state.level = Math.min(50, forcedLevel);
 
   // 6. contexte partagé (CONTRACT §4)
   const ctx = {

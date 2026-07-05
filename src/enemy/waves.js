@@ -43,12 +43,19 @@ export function createWaves(ctx) {
   function spawnWave() {
     const reds = ctx.state.reds;
     const level = ctx.state.level;
-    const count = waveSizeForLevel(level);
+    // pression de horde : layout (state.hordeMult) × variant d'ad éventuel (ctx.variant.wavePressure)
+    const mult = (ctx.state.hordeMult || 1) * ((ctx.variant && ctx.variant.wavePressure) || 1);
+    const count = Math.round(waveSizeForLevel(level) * mult);
+    const carpet = mult >= 2; // marée « tapis rouge » : rangées denses réparties sur la largeur
     for (let i = 0; i < count && reds.length < MAX_RED; i++) {
-      const z = BASE_Z + 2 + Math.random() * 1.5;
+      const z = carpet
+        ? BASE_Z + 2 + Math.floor(i / 8) * 1.1 + Math.random() * 0.4
+        : BASE_Z + 2 + Math.random() * 1.5;
       reds.push({
         id: nextId(),
-        x: (Math.random() * 2 - 1) * (LANE_HALF - 0.6),
+        x: carpet
+          ? -(LANE_HALF - 0.7) + (i % 8) * ((LANE_HALF - 0.7) * 2 / 7) + (Math.random() - 0.5) * 0.5
+          : (Math.random() * 2 - 1) * (LANE_HALF - 0.6),
         z,
         pz: z,
         hp: 1,

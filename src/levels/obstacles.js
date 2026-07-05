@@ -14,8 +14,10 @@ import {
   BOOST_ZONE_DEPTH,
   BOOST_SPEED_MULT,
   BOOST_DURATION,
+  TRAUMA,
   COLORS,
 } from '../core/constants.js';
+import { layoutForLevel } from './layouts.js';
 
 const BOOST_Y = 0.06;
 const BOOST_H = 0.08;
@@ -110,20 +112,77 @@ export function createObstacles(ctx) {
     state.obstacles.push({ type, x, z, radius, group, holder, hitCooldown: 0 });
   }
 
+  // --- MURS BLOQUANTS (rangées de caisses, réf. ads Mob Control) ---
+  // Ils ne tuent pas : les unités GLISSENT sur leur flanc. Le champion les fracasse.
+  const walls = [];
+  const CRATE_SIZE = 1.15;
+
+  function addWall(w) {
+    const group = new THREE.Group();
+    const count = Math.max(1, Math.round((w.halfW * 2) / CRATE_SIZE));
+    const step = (w.halfW * 2) / count;
+    // mélange d'assets Kenney (caisses, caisses renforcées, barils) — mur vivant, pas un motif répété
+    const kinds = [ctx.assets.gltf.crate, ctx.assets.gltf.crateStrong, ctx.assets.gltf.crate, ctx.assets.gltf.barrel];
+    for (let i = 0; i < count; i++) {
+      const piece = makeAssetHolder(kinds[i % kinds.length] || ctx.assets.gltf.crate, CRATE_SIZE);
+      piece.position.set(w.x - w.halfW + (i + 0.5) * step, 0, w.z + (i % 2) * 0.06);
+      piece.rotation.y = (i % 3 - 1) * 0.08; // pièces légèrement désalignées
+      group.add(piece);
+    }
+    scene.add(group);
+    walls.push({ x: w.x, z: w.z, halfW: w.halfW, halfD: w.halfD || 0.75, group, broken: false });
+  }
+
+  /** Glissement le long d'un mur : pousse la coordonnée x de l'unité hors de l'emprise. */
+  function deflect(u, margin) {
+    for (const w of walls) {
+      if (w.broken) continue;
+      if (Math.abs(u.z - w.z) > w.halfD + margin) continue;
+      const dx = u.x - w.x;
+      if (Math.abs(dx) > w.halfW + margin) continue;
+      let side = dx >= 0 ? 1 : -1;
+      let nx = w.x + side * (w.halfW + margin + 0.02);
+      if (Math.abs(nx) > LANE_HALF - 0.3) { // bord de piste : sortir par l'autre flanc
+        side = -side;
+        nx = w.x + side * (w.halfW + margin + 0.02);
+      }
+      u.x = Math.max(-(LANE_HALF - 0.3), Math.min(LANE_HALF - 0.3, nx));
+    }
+  }
+
+  /** Le champion fracasse les murs qu'il touche (récompense de puissance). */
+  function smashWallsAt(x, z, radius) {
+    for (const w of walls) {
+      if (w.broken) continue;
+      if (Math.abs(z - w.z) > w.halfD + radius || Math.abs(x - w.x) > w.halfW + radius) continue;
+      w.broken = true;
+      scene.remove(w.group);
+      ctx.particles.burst(w.x, 0.8, w.z, { color: COLORS.gold, shape: 'quad', count: 12, speed: 5 });
+      ctx.particles.ring(w.x, w.z, COLORS.gold);
+      ctx.floatingText.spawn('SMASH!', w.x, 1.6, w.z, { color: '#ffe66d', size: 1.1 });
+      ctx.cameraRig.addTrauma(TRAUMA.crack);
+      ctx.audio.play('rubble');
+    }
+  }
+
   function clear() {
     for (const o of state.obstacles) scene.remove(o.group);
     for (const b of state.boosts) scene.remove(b.group);
+    for (const w of walls) scene.remove(w.group);
     for (const mesh of ownedMeshes) {
       mesh.geometry?.dispose();
       mesh.material?.dispose();
     }
     state.obstacles.length = 0;
     state.boosts.length = 0;
+    walls.length = 0;
     ownedMeshes.length = 0;
   }
 
   function build(level) {
     clear();
+    // murs bloquants du layout (slalom / labyrinthe / horde — voir layouts.js)
+    for (const w of layoutForLevel(level).walls) addWall(w);
     if (level >= BOOST_MIN_LEVEL) addBoost(0, 12.5);
     if (level < OBSTACLE_MIN_LEVEL) return;
 
@@ -142,6 +201,13 @@ export function createObstacles(ctx) {
 
   function hitStep() {
     if (!state.playing) return;
+    // murs : déviation des deux foules (les flots contournent, réf. image « choose wisely »)
+    if (walls.length) {
+      for (const u of state.blues) deflect(u, 0.35);
+      for (const r of state.reds) if (!r.boss) deflect(r, r.giant ? 0.6 : 0.35);
+      // le champion fracasse ce qu'il touche
+      for (const c of state.champions) smashWallsAt(c.x, c.z, 1.1);
+    }
     const blues = state.blues;
     for (let i = blues.length - 1; i >= 0; i--) {
       const u = blues[i];
