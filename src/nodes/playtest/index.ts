@@ -17,7 +17,7 @@ import {
 import { buildReport, parseFastPathReport } from "./report";
 import { CuStepError, imageContent, cuStep } from "./gemini";
 import { ACTION_LOOP_NUDGE, PLAYER_PROMPT, POST_WIN_SWEEP_PROMPT } from "./prompts";
-import { sinkFrame } from "./screens";
+import { sinkFrame, uploadPlaytestVideo } from "./screens";
 import type {
   CuCallResult,
   FrameCapture,
@@ -259,8 +259,24 @@ export async function runPlaytest(input: PlaytestInput): Promise<PlaytestReport>
     if (turn >= MAX_TURNS) terminationReason = "max_turns";
   } finally {
     const cleanupStartedAt = Date.now();
+    const recording = session.page.video();
     await executor.release();
     await session.browser.close();
+    if (recording) {
+      try {
+        const filePath = await recording.path();
+        await uploadPlaytestVideo({ runId: input.runId, filePath });
+      } catch (error) {
+        await emitEvent({
+          run_id: input.runId,
+          node: "playtest",
+          type: "error",
+          message: "playtest_video_upload_failed",
+          screenshot_url: null,
+          data: { error: error instanceof Error ? error.message : String(error) },
+        });
+      }
+    }
     timings.cleanupMs = Date.now() - cleanupStartedAt;
   }
 

@@ -1,0 +1,17 @@
+{
+  "runId": "demo-run",
+  "versions": [
+    {
+      "id": "original",
+      "name": "Original",
+      "videoUrl": "https://public.example/original-gameplay.mp4",
+      "audioPresent": true
+    },
+    {
+      "id": "high-contrast",
+      "name": "High Contrast",
+      "videoUrl": "https://public.example/high-contrast-gameplay.mp4",
+      "audioPresent": true
+    }
+  ]
+}

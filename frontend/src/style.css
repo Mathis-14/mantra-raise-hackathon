@@ -808,6 +808,108 @@ a.logo {
 .tab-panel { display: none; animation: fade-in 0.25s ease; }
 .tab-panel--active { display: block; }
 
+/* NVIDIA gameplay comparison */
+.nv-provenance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.nv-provider {
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: #76b900;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+.nv-model { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.nv-mode { margin-left: auto; color: #b45309; }
+.nv-load {
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+.nv-load:hover { border-color: #76b900; color: #568800; }
+.nv-winner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 22px;
+  border: 1px solid rgba(118,185,0,0.35);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(118,185,0,0.11), rgba(37,99,235,0.05));
+}
+.nv-kicker {
+  color: #568800;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.nv-winner h2 { margin: 3px 0 5px; font-size: 22px; color: var(--text); }
+.nv-winner p { margin: 0; color: var(--text-muted); font-size: 13px; }
+.nv-winner-score { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.nv-winner-score strong { color: #568800; font-size: 34px; line-height: 1; }
+.nv-winner-score span { margin-top: 4px; color: var(--text-faint); font-size: 10px; }
+.nv-weights {
+  margin: 10px 2px 16px;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  text-align: right;
+}
+.nv-version-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.nv-version {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.nv-version--winner { border-color: rgba(118,185,0,0.55); box-shadow: 0 6px 20px rgba(86,136,0,0.12); }
+.nv-version-head { display: flex; align-items: flex-start; gap: 8px; }
+.nv-version-head h3 { margin: 0 0 3px; color: var(--text); font-size: 13px; }
+.nv-rank { color: var(--text-faint); font-size: 10px; font-weight: 800; }
+.nv-score { margin-left: auto; color: var(--text); font-size: 20px; }
+.nv-verdict {
+  display: inline-block;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.nv-verdict--promising { background: #ecfccb; color: #4d7c0f; }
+.nv-verdict--iterate { background: #fef3c7; color: #b45309; }
+.nv-verdict--kill { background: #fee2e2; color: #b91c1c; }
+.nv-summary { min-height: 46px; margin: 10px 0; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+.nv-dimensions { display: flex; flex-direction: column; gap: 9px; }
+.nv-dimension-head { display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-muted); }
+.nv-bar { height: 5px; margin-top: 3px; overflow: hidden; border-radius: 99px; background: var(--bg-subtle); }
+.nv-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #76b900, #2563eb); }
+.nv-dimension p { min-height: 28px; margin: 4px 0 0; color: var(--text-faint); font-size: 9px; line-height: 1.35; }
+.nv-evidence-title {
+  margin: 12px 0 6px;
+  color: var(--text-faint);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.nv-evidence { display: flex; flex-direction: column; gap: 5px; }
+.nv-evidence div { display: grid; grid-template-columns: 45px 1fr; gap: 5px; font-size: 9px; line-height: 1.35; }
+.nv-evidence time { color: #568800; font-weight: 700; }
+.nv-evidence span { color: var(--text-muted); }
+
 /* legacy single-column fallback */
 .pipeline-col {
   padding: 24px 20px;

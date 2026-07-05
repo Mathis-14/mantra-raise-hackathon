@@ -14,7 +14,8 @@
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "worker": "node --env-file=.env --import tsx src/worker/index.ts"
+    "worker": "node --env-file=.env --import tsx src/worker/index.ts",
+    "nvidia:compare": "node --env-file=.env --import tsx src/worker/nvidia-compare.ts"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",

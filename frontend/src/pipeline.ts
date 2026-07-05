@@ -1,6 +1,7 @@
 // ── Page 3 : Creative pipeline ──
 import { SESSIONS, GAME_FNS } from './games'
 import { createGlobe, type GlobePoint, type GlobeArc } from './globe'
+import { renderNvidiaComparison } from './nvidia-comparison'
 
 // One creative per game session, with simulated ad metrics + keep/kill verdict.
 interface Variant {
@@ -21,6 +22,7 @@ const VARIANTS: Variant[] = [
 ]
 
 const PIPELINE_NODES = [
+  { id: 'nvidia',  icon: '◆', label: 'NVIDIA gameplay analysis', sub: 'Nemotron compares color · audio · pacing' },
   { id: 'variants', icon: '🎮', label: 'Variant generation',  sub: '5 game variants mutated from original' },
   { id: 'veo',      icon: '🎬', label: 'Video gen (Veo)',      sub: '5 × 9:16 ad creatives rendered' },
   { id: 'deploy',   icon: '📤', label: 'Deploy to Google Ads', sub: 'Creatives pushed to campaign stub' },
@@ -65,7 +67,8 @@ const VW = 132
 const VH = 234
 
 const TABS = [
-  { id: 'overview',    icon: '📊', label: 'Overview' },
+  { id: 'nvidia',      icon: '◆', label: 'NVIDIA Analysis' },
+  { id: 'overview',    icon: '🎬', label: 'Creatives' },
   { id: 'competitors', icon: '🛰️', label: 'Competitors' },
   { id: 'metrics',     icon: '📈', label: 'Metrics' },
   { id: 'decision',    icon: '🧠', label: 'Decision' },
@@ -103,8 +106,14 @@ export function renderPipeline(root: HTMLElement) {
         <!-- MAIN: tab panels -->
         <div class="analytics-main" id="analytics-main">
 
+          <!-- NVIDIA gameplay comparison -->
+          <section class="tab-panel tab-panel--active" data-panel="nvidia">
+            <div class="col-title">Gameplay version comparison · color, audio, video</div>
+            <div id="nvidia-comparison"></div>
+          </section>
+
           <!-- Overview -->
-          <section class="tab-panel tab-panel--active" data-panel="overview">
+          <section class="tab-panel" data-panel="overview">
             <div class="col-title">Creatives · 9:16 ad videos</div>
             <div class="variants-grid" id="variants-grid"></div>
           </section>
@@ -165,6 +174,7 @@ export function renderPipeline(root: HTMLElement) {
   const variantsGrid = document.getElementById('variants-grid')!
   const marketList   = document.getElementById('market-list')!
   const marketBench  = document.getElementById('market-bench')!
+  renderNvidiaComparison(document.getElementById('nvidia-comparison')!)
 
   // ── Tab switching ──
   const tabsBar = document.getElementById('analytics-tabs')!

@@ -59,6 +59,7 @@ npm install
 npx playwright install chromium   # once, for the playtest node
 npm run dev            # dashboard on :3000
 npm run worker         # orchestrator + nodes (needs .env)
+npm run nvidia:compare -- input.json  # compare 2-6 public gameplay recordings
 npm run typecheck
 npm run lint
 npm run build
@@ -90,6 +91,7 @@ Structural rules:
 - **All liveness goes through** `events` **rows** (`src/lib/events.ts`). If the dashboard can't see it, it didn't happen.
 - **Parse at the boundary.** Request bodies, env, and LLM/Veo output go through Zod before they touch logic. LLM output is a draft until validated — no uncontrolled AI writes.
 - **Time-box every external call** (Gemini, Veo, Supabase). One slow dependency must not hang the worker loop; a failed run goes to `failed` with `failed_step`, the loop keeps going.
+- **Why: a winner must be reproducible, not hidden inside model prose.** NVIDIA Nemotron emits validated per-dimension evidence; Mantra applies fixed comparison weights in code and displays them beside the ranking.
 - Don't scaffold speculative folders or abstractions. Monolith tripwire: split modules past ~300 lines.
 
 
@@ -184,6 +186,7 @@ Hackathon rule: the demo path is the test surface.
 - **D005** — 2026-07-04 — Long-running work (orchestrator + playtest) runs in `npm run worker` on a laptop; Vercel hosts dashboard + API. Why: Playwright/CU can't run in serverless routes. Both sides talk only to Supabase.
 - **D006** — 2026-07-04 — Ads deploy stubbed + metrics seeded, everything upstream real (the honesty line). Why: campaigns need ~48h to produce signal.
 - **D007** — 2026-07-04 — Contracts locked in `src/contracts/types.ts`; directory ownership per stream. Why: four parallel builders, zero integration hours to spare.
+- **D008** — 2026-07-05 — NVIDIA Nemotron 3 Nano Omni evaluates complete gameplay recordings with embedded audio; deterministic code ranks versions using visible weights (45% video, 30% color, 25% audio). Why: the model is specialized for joint video/audio understanding, while an auditable ranking prevents an opaque AI winner decision.
 
 
 
@@ -193,6 +196,7 @@ Hackathon rule: the demo path is the test surface.
 | Service    | Purpose                                                               | Env vars                                                                                 |
 | ---------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | Gemini API | Computer Use (playtest) + Veo (creatives) + LLM (variants, decisions) | `GEMINI_API_KEY`                                                                         |
+| NVIDIA NIM | Multimodal gameplay comparison across color, audio, and video pacing | `NVIDIA_API_KEY`, `NVIDIA_API_BASE_URL`, `NVIDIA_GAMEPLAY_MODEL`                         |
 | Supabase   | Pipeline state, events feed, knowledge base, realtime                 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
 | Vercel     | Dashboard + API hosting                                               | —                                                                                        |
 
