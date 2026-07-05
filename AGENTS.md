@@ -178,7 +178,7 @@ Hackathon rule: the demo path is the test surface.
   - Computer Use: [https://ai.google.dev/gemini-api/docs/computer-use](https://ai.google.dev/gemini-api/docs/computer-use)
   - Veo (video): [https://ai.google.dev/gemini-api/docs/video](https://ai.google.dev/gemini-api/docs/video)
   - SDK: `node_modules/@google/genai/` docs/types
-- **Protected paths (read-only):** `game/` **and** `references/`**.** Team-made game + assets and market references — never modify, reformat, or delete without explicit approval from Noé/Romain. Variants copy `game_html`; they never edit the source game.
+- **Protected paths (read-only):** `game/` **and** `references/`**.** Team-made game + assets and market references — never modify, reformat, or delete without explicit approval from Noé/Romain. Variants persist generated or wrapper `game_html`; they never edit the source game.
 - **No destructive commands without explicit approval:** `rm -rf`, dropping/truncating Supabase tables, deleting cloud resources, overwriting files you didn't create. Look at the target before deleting; if it doesn't match expectations, stop and surface it.
 - Don't kill teammates' dev servers or the worker process.
 - When adding a hard-won rule here, state the one-line **Why** first, then the rule.
@@ -194,7 +194,7 @@ Hackathon rule: the demo path is the test surface.
 - **D005** — 2026-07-04 — Long-running work (orchestrator + playtest) runs in `npm run worker` on a laptop; Vercel hosts dashboard + API. Why: Playwright/CU can't run in serverless routes. Both sides talk only to Supabase.
 - **D006** — 2026-07-04 — Ads deploy stubbed + metrics seeded, everything upstream real (the honesty line). Why: campaigns need ~48h to produce signal.
 - **D007** — 2026-07-04 — Contracts locked in `src/contracts/types.ts`; directory ownership per stream. Why: four parallel builders, zero integration hours to spare.
-- **D008** — 2026-07-05 — Variants persist phone-safe wrapper HTML that loads the variant-aware game runtime from `VARIANT_GAME_URL`; uploaded HTML remains the playtest input. Why: `srcdoc` phones need absolute game assets, and arbitrary uploaded HTML cannot be safely mutated.
+- **D013** — 2026-07-05 — Variants persist phone-safe wrapper HTML that loads the variant-aware game runtime from `VARIANT_GAME_URL`; uploaded HTML remains the playtest input. Why: `srcdoc` phones need absolute game assets, and arbitrary uploaded HTML cannot be safely mutated.
 - **D008 — UNRESOLVED** — 2026-07-05 — Production browser runner after the local demo. Default direction: keep Vercel for dashboard/API and move Playwright/CU to Vercel Sandbox if it proves stable; Cloudflare Browser Run remains the fallback candidate. Keep the hackathon demo local until this is tested.
 - **D009 — UNRESOLVED** — 2026-07-05 — Vercel-hosted dashboard reading a laptop worker stream. Why: public HTTPS pages talking to `127.0.0.1` need browser CORS/Private Network Access validation. The local worker stream must answer CORS preflights with `Access-Control-Allow-Private-Network: true`; do not assume this path is production-ready until tested from the deployed Vercel URL.
 - **D010** — 2026-07-05 — The live phone view is a local visual mirror, not source-of-truth state. Why: an OS/Playwright browser window cannot be embedded into an existing browser DOM phone. The worker streams frames/actions to the carousel for the demo; durable liveness still goes through `events` rows.
