@@ -184,6 +184,17 @@ export function renderPipeline(root: HTMLElement) {
                 <strong id="campaign-result-id"></strong>
                 <span class="campaign-paused">PAUSED</span>
               </div>
+              <div class="policy-proof" id="policy-proof" hidden>
+                <div class="policy-proof-head"><span>Google policy response</span><strong>CAMPAIGN NOT CREATED</strong></div>
+                <p>Google Ads accepted the authenticated request and enforced its mandatory EU political-advertising declaration.</p>
+                <code id="policy-proof-code"></code>
+                <div class="policy-proof-meta">
+                  <span>Source</span><strong>Google Ads API v24</strong>
+                  <span>Request ID</span><strong id="policy-proof-request"></strong>
+                  <span>Time</span><strong id="policy-proof-time"></strong>
+                </div>
+                <div class="policy-proof-safe"><span>✓ No campaign</span><span>✓ No serving</span><span>✓ No spend</span></div>
+              </div>
               <a class="ads-dashboard-link" href="https://ads.google.com/" target="_blank" rel="noreferrer">Open Google Ads dashboard <span aria-hidden="true">&nearr;</span></a>
               <div class="honesty-note"><strong>Real:</strong> connection + paused campaign ID <span></span> <strong>Simulated:</strong> every performance metric</div>
             </aside>
@@ -210,6 +221,7 @@ export function renderPipeline(root: HTMLElement) {
   const adsConnectionState = document.getElementById('ads-connection-state')!
   const adsAccount = document.getElementById('ads-account')!
   const campaignResult = document.getElementById('campaign-result')!
+  const policyProof = document.getElementById('policy-proof')!
 
   let verificationInFlight = false
   async function verifyAdsConnection() {
@@ -265,14 +277,25 @@ export function renderPipeline(root: HTMLElement) {
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ runId: 'pipeline-demo' }),
       })
-      if (!response.ok) throw new Error('campaign_create_failed')
       const result: unknown = await response.json()
+      if (!response.ok) {
+        if (!isGoogleAdsPolicyResponse(result)) throw new Error('campaign_create_failed')
+        document.getElementById('policy-proof-code')!.textContent = result.code
+        document.getElementById('policy-proof-request')!.textContent = result.requestId ?? 'Provided by Google'
+        document.getElementById('policy-proof-time')!.textContent = new Date(result.timestamp).toLocaleTimeString()
+        policyProof.hidden = false
+        launchAdsButton.textContent = 'Blocked safely by Google policy'
+        adsFeedback.textContent = 'Real API enforcement confirmed. The campaign was not created.'
+        return
+      }
       if (!isPausedTestCampaign(result)) throw new Error('unsafe_campaign_response')
 
       document.getElementById('campaign-result-id')!.textContent = `ID ${result.campaignId}`
       campaignResult.hidden = false
       launchAdsButton.textContent = result.created ? 'Paused test campaign created' : 'Existing paused campaign found'
-      adsFeedback.textContent = 'Real campaign shell confirmed. Performance remains deterministic and simulated.'
+      adsFeedback.textContent = result.previousRemovedCount > 0
+        ? `Attempt ${result.attempt} is paused; ${result.previousRemovedCount} removed attempt(s) preserved as history.`
+        : 'Real campaign shell confirmed. Performance remains deterministic and simulated.'
     } catch {
       launchAdsButton.textContent = 'Try campaign creation again'
       launchAdsButton.disabled = false
@@ -444,6 +467,18 @@ interface PausedTestCampaign {
   status: 'PAUSED'
   testAccount: true
   created: boolean
+  attempt: number
+  previousRemovedCount: number
+}
+
+interface GoogleAdsPolicyResponse {
+  code: 'EU_POLITICAL_ADVERTISING_DECLARATION_REQUIRED' | 'MISSING_EU_POLITICAL_ADVERTISING_SELF_DECLARATION'
+  source: 'Google Ads API v24'
+  requestId: string | null
+  timestamp: string
+  campaignCreated: false
+  adsServed: false
+  spend: false
 }
 
 function isVerifiedTestAccount(value: unknown): value is VerifiedAdsAccount {
@@ -465,4 +500,23 @@ function isPausedTestCampaign(value: unknown): value is PausedTestCampaign {
     && campaign.status === 'PAUSED'
     && campaign.testAccount === true
     && typeof campaign.created === 'boolean'
+    && typeof campaign.attempt === 'number'
+    && Number.isInteger(campaign.attempt)
+    && campaign.attempt > 0
+    && typeof campaign.previousRemovedCount === 'number'
+    && Number.isInteger(campaign.previousRemovedCount)
+    && campaign.previousRemovedCount >= 0
+}
+
+function isGoogleAdsPolicyResponse(value: unknown): value is GoogleAdsPolicyResponse {
+  if (typeof value !== 'object' || value === null) return false
+  const response = value as Record<string, unknown>
+  return (response.code === 'EU_POLITICAL_ADVERTISING_DECLARATION_REQUIRED'
+      || response.code === 'MISSING_EU_POLITICAL_ADVERTISING_SELF_DECLARATION')
+    && response.source === 'Google Ads API v24'
+    && (typeof response.requestId === 'string' || response.requestId === null)
+    && typeof response.timestamp === 'string'
+    && response.campaignCreated === false
+    && response.adsServed === false
+    && response.spend === false
 }

@@ -47,6 +47,12 @@ const campaignSearchSchema = z.array(z.object({
   })).default([]),
 }));
 
+const undeclaredCampaignSearchSchema = z.array(z.object({
+  results: z.array(z.object({
+    campaign: z.object({ id: z.string().min(1) }),
+  })).default([]),
+}));
+
 const mutateSchema = z.object({
   results: z.array(z.object({ resourceName: resourceNameSchema })).min(1),
 });
@@ -72,12 +78,34 @@ export interface TestCampaignResult {
   status: "PAUSED";
   testAccount: true;
   created: boolean;
+  attempt: number;
+  previousRemovedCount: number;
+}
+
+export interface ExistingTestCampaign {
+  campaignId: string;
+  resourceName: string;
+  name: string;
+  status: string;
+  attempt: number;
 }
 
 export class GoogleAdsConfigurationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "GoogleAdsConfigurationError";
+  }
+}
+
+export class GoogleAdsApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly policyCode: string | null,
+    readonly requestId: string | null,
+  ) {
+    super(message);
+    this.name = "GoogleAdsApiError";
   }
 }
 
@@ -123,7 +151,17 @@ async function googleAdsRequest(path: string, init?: RequestInit): Promise<unkno
         .join(": ")
         .replaceAll(/\d{10}/g, "[customer]")
       : "request rejected";
-    throw new Error(`Google Ads API request failed (${response.status}): ${reason}${requestId ? ` [${requestId}]` : ""}`);
+    const errorPayload = JSON.stringify(body);
+    const policyCode = reason.includes("EU_POLITICAL_ADVERTISING_DECLARATION_REQUIRED")
+      || errorPayload.includes("EU_POLITICAL_ADVERTISING_DECLARATION_REQUIRED")
+      ? "EU_POLITICAL_ADVERTISING_DECLARATION_REQUIRED"
+      : reason.includes("MISSING_EU_POLITICAL_ADVERTISING_SELF_DECLARATION")
+        || errorPayload.includes("MISSING_EU_POLITICAL_ADVERTISING_SELF_DECLARATION")
+        || errorPayload.includes("containsEuPoliticalAdvertising")
+        || errorPayload.includes("contains_eu_political_advertising")
+        ? "MISSING_EU_POLITICAL_ADVERTISING_SELF_DECLARATION"
+        : null;
+    throw new GoogleAdsApiError(reason, response.status, policyCode, requestId);
   }
   return response.json();
 }
@@ -188,8 +226,54 @@ export async function verifyGoogleAdsConnection(): Promise<VerifiedGoogleAdsAcco
   };
 }
 
+/** Returns campaign IDs that still require the mandatory EU declaration. Read-only. */
+export async function findUndeclaredEuPoliticalCampaignIds(): Promise<string[]> {
+  await verifyGoogleAdsConnection();
+  const env = googleAdsEnv();
+  const pages = undeclaredCampaignSearchSchema.parse(await search(
+    env.GOOGLE_ADS_CUSTOMER_ID,
+    "SELECT campaign.id FROM campaign WHERE campaign.missing_eu_political_advertising_declaration = true",
+  ));
+  return pages.flatMap((page) => page.results.map((result) => result.campaign.id));
+}
+
 function campaignName(runId: string): string {
   return `MANTRA_TEST_${runId}`;
+}
+
+function campaignAttempt(baseName: string, name: string): number | null {
+  if (name === baseName) return 1;
+  const match = new RegExp(`^${baseName}_A(\\d+)$`).exec(name);
+  if (!match?.[1]) return null;
+  const attempt = Number.parseInt(match[1], 10);
+  return Number.isSafeInteger(attempt) && attempt > 1 ? attempt : null;
+}
+
+async function campaignHistory(runId: string): Promise<ExistingTestCampaign[]> {
+  const env = googleAdsEnv();
+  const baseName = campaignName(runId);
+  const pages = campaignSearchSchema.parse(await search(
+    env.GOOGLE_ADS_CUSTOMER_ID,
+    `SELECT campaign.id, campaign.resource_name, campaign.name, campaign.status FROM campaign WHERE campaign.name LIKE '${baseName}%'`,
+  ));
+  return pages.flatMap((page) => page.results).flatMap(({ campaign }) => {
+    const attempt = campaignAttempt(baseName, campaign.name);
+    return attempt === null ? [] : [{
+      campaignId: campaign.id,
+      resourceName: campaign.resourceName,
+      name: campaign.name,
+      status: campaign.status,
+      attempt,
+    }];
+  });
+}
+
+/** Reads an existing deterministic Mantra campaign without performing a mutation. */
+export async function findTestCampaign(value: unknown): Promise<ExistingTestCampaign | null> {
+  const input = launchTestCampaignSchema.parse(value);
+  await verifyGoogleAdsConnection();
+  const history = await campaignHistory(input.runId);
+  return history.sort((left, right) => right.attempt - left.attempt)[0] ?? null;
 }
 
 function campaignIdFromResourceName(resourceName: string): string {
@@ -202,25 +286,30 @@ export async function createPausedTestCampaign(value: unknown): Promise<TestCamp
   const input = launchTestCampaignSchema.parse(value);
   const account = await verifyGoogleAdsConnection();
   const env = googleAdsEnv();
-  const name = campaignName(input.runId);
-
-  const existingPages = campaignSearchSchema.parse(await search(
-    env.GOOGLE_ADS_CUSTOMER_ID,
-    `SELECT campaign.id, campaign.resource_name, campaign.name, campaign.status FROM campaign WHERE campaign.name = '${name}' LIMIT 1`,
-  ));
-  const existing = firstResult(existingPages)?.campaign;
+  const history = await campaignHistory(input.runId);
+  const unsafe = history.find((campaign) => campaign.status !== "PAUSED" && campaign.status !== "REMOVED");
+  if (unsafe) {
+    throw new GoogleAdsConfigurationError("Existing Mantra test campaign has an unsafe status");
+  }
+  const existing = history
+    .filter((campaign) => campaign.status === "PAUSED")
+    .sort((left, right) => right.attempt - left.attempt)[0];
+  const previousRemovedCount = history.filter((campaign) => campaign.status === "REMOVED").length;
   if (existing) {
-    if (existing.status !== "PAUSED") {
-      throw new GoogleAdsConfigurationError("Existing Mantra test campaign is not paused");
-    }
     return {
-      campaignId: existing.id,
+      campaignId: existing.campaignId,
       resourceName: existing.resourceName,
       status: "PAUSED",
       testAccount: account.testAccount,
       created: false,
+      attempt: existing.attempt,
+      previousRemovedCount,
     };
   }
+
+  const attempt = history.reduce((maximum, campaign) => Math.max(maximum, campaign.attempt), 0) + 1;
+  const baseName = campaignName(input.runId);
+  const name = attempt === 1 ? baseName : `${baseName}_A${attempt}`;
 
   const budget = mutateSchema.parse(await googleAdsRequest(
     `/customers/${env.GOOGLE_ADS_CUSTOMER_ID}/campaignBudgets:mutate`,
@@ -250,6 +339,7 @@ export async function createPausedTestCampaign(value: unknown): Promise<TestCamp
           create: {
             name,
             status: "PAUSED",
+            containsEuPoliticalAdvertising: "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
             advertisingChannelType: "SEARCH",
             campaignBudget: budgetResourceName,
             manualCpc: {},
@@ -273,5 +363,7 @@ export async function createPausedTestCampaign(value: unknown): Promise<TestCamp
     status: "PAUSED",
     testAccount: true,
     created: true,
+    attempt,
+    previousRemovedCount,
   };
 }
