@@ -78,9 +78,11 @@ export function createLevels(ctx) {
     // layout du niveau (classic / slalom / maze / horde) : murs via obstacles, marée via waves
     state.layoutKey = layoutKeyForLevel(state.level);
     state.hordeMult = layoutForLevel(state.level).hordeMult;
+    state.lanesX = layoutForLevel(state.level).lanesX || null; // couloirs : spawn ennemi par couloir
     state.enemyHpMax = state.enemyHp = enemyHpForLevel(state.level) + (state.bossLevel ? BOSS_HP : 0);
     state.waveTimer = WAVE_FIRST_DELAY;
 
+    ctx.sys.skins.build(state.level); // AVANT obstacles : les mottes se teintent au skin courant
     ctx.sys.gates.build(state.level);
     ctx.sys.obstacles.reset(state.level);
     ctx.sys.base.reset(state.level);
@@ -89,12 +91,39 @@ export function createLevels(ctx) {
 
     state.playing = true;
     if (state.bossLevel) ctx.sys.waves.spawnBoss();
+
+    // RÉCOMPENSE DE BOSS : célèbre l'upgrade du canon gagné au niveau précédent (2x/3x).
+    // ≥ 3 feedbacks simultanés (règle juice) : son de jackpot + jingle, confettis + étoiles
+    // dorées + double anneau, texte qui claque + punch HUD + secousse.
+    if (state.loadoutReward) {
+      const label = state.loadoutReward;
+      state.loadoutReward = null;
+      const cx = state.cannonX;
+      // SON : pluie de pièces réelle (jackpot) + jingle montant en couche — l'upgrade s'ENTEND.
+      ctx.audio.play('coinsJackpot', { volume: 0.9 });
+      ctx.audio.synth?.jingleWin();
+      // PARTICULES : confettis au-dessus du canon + burst d'étoiles or + double anneau au sol.
+      ctx.confetti.burst(cx, 2.8, 18.5, 70);
+      ctx.particles.burst(cx, 2.2, 18.2, { color: 0xFFD54A, shape: 'star', count: 16, speed: 5, life: 0.9 });
+      ctx.particles.ring(cx, 18.8, 0xFFD54A);
+      ctx.particles.ring(cx, 17.6, 0xFFE66D);
+      ctx.floatingText.spawn('CANON ' + label + ' !', cx, 2.6, 17.5,
+        { color: '#ffe66d', size: 1.3, life: 1.4 });
+      ctx.sys.hud.punchCoins(); // punch générique du HUD (le pill 1x/2x/3x vient de changer)
+      ctx.cameraRig.addTrauma(0.14); // petite secousse de satisfaction
+    }
   }
 
   /** Appelé par base APRÈS la séquence de destruction (base a déjà mis state.playing=false). */
   function win() {
     const gain = coinsForLevel(state.level);
     state.coins += gain;
+    // MÉCANIQUE-REWARD DU CANON : vaincre le BOSS du niveau fait monter le loadout d'un cran
+    // (1x → 2x → 3x). C'est LA carotte des niveaux de boss — cadence et tirs multiples durables.
+    if (state.bossLevel && state.bossDefeated) {
+      if (state.loadout === 'single') { state.loadout = 'double'; state.loadoutReward = '2x'; }
+      else if (state.loadout === 'double') { state.loadout = 'triple'; state.loadoutReward = '3x'; }
+    }
     ctx.audio.setGameplayActive(false); // coupe les sons de partie ; garde jingle + pièces (bus UI)
     ctx.audio.synth?.jingleWin();
     ctx.sys.overlays.showWin(gain);
