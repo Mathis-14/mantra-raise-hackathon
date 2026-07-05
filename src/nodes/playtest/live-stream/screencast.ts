@@ -4,7 +4,9 @@ import { JPEG_QUALITY, VIEWPORT } from "../config";
 
 import { publishLiveFrame, publishLiveStatus } from "./publish";
 
-const SCREENCAST_FRAME_INTERVAL_MS = 180;
+// ~15 fps in the carousel phone: below this the mirror reads as laggy; the game itself
+// renders at 120 fps (D012), so display cadence is the only bottleneck.
+const SCREENCAST_FRAME_INTERVAL_MS = 66;
 // CDP screencast only fires on repaints; static screens (menus, win overlays) would freeze
 // the carousel phone, so an idle ticker keeps publishing real captures with fresh timestamps.
 const IDLE_FRAME_FALLBACK_MS = 700;
@@ -65,7 +67,7 @@ export async function startPlaytestScreencast(runId: string, page: Page): Promis
     quality: JPEG_QUALITY,
     maxWidth: VIEWPORT.width,
     maxHeight: VIEWPORT.height,
-    everyNthFrame: 2,
+    everyNthFrame: 1,
   });
   publishLiveStatus(runId, "live_stream_started");
 

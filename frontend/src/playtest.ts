@@ -1,6 +1,5 @@
 import { approveRun, fetchRunState, type RunState, type RunStatus } from './api'
 import { getErrorMessage, renderStepper, setRoute, type FlowRoute } from './flow'
-import currentGameHtml from '../../game/mob-control-clone.html?raw'
 
 const PHONE_COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#059669', '#d97706']
 const SITUATION_LABELS = [
@@ -10,8 +9,8 @@ const SITUATION_LABELS = [
   'Situation 4',
   'Situation 5',
 ]
-const ORIGINAL_PHONE_ID = 0
-const LIVE_AGENT_PHONE_ID = 1
+// The agent plays on Situation 1 today; Situations 2-5 host future agents.
+const LIVE_AGENT_PHONE_ID = 0
 const DEFAULT_LIVE_STREAM_BASE_URL = 'http://127.0.0.1:4317'
 const STREAM_FRAME_TIMEOUT_MS = 8000
 const NORMALIZED_COORD_MAX = 999
@@ -105,11 +104,10 @@ function renderPendingPhone(title: string) {
 
 function renderPhones(hasRun: boolean) {
   return SITUATION_LABELS.map((title, id) => {
-    const isOriginal = id === ORIGINAL_PHONE_ID
     const isLiveAgent = id === LIVE_AGENT_PHONE_ID && hasRun
-    const screenClass = isOriginal || isLiveAgent ? 'phone-screen--live' : 'phone-screen--pending'
-    const progress = isOriginal ? '100%' : isLiveAgent ? '12%' : '0%'
-    const status = isOriginal ? 'Uploaded' : isLiveAgent ? 'Waiting' : 'Pending'
+    const screenClass = isLiveAgent ? 'phone-screen--live' : 'phone-screen--pending'
+    const progress = isLiveAgent ? '12%' : '0%'
+    const status = isLiveAgent ? 'Waiting' : 'Pending'
 
     return `
       <div class="phone-slot" id="slot-${id}">
@@ -118,11 +116,7 @@ function renderPhones(hasRun: boolean) {
           <div class="iphone-frame">
             <div class="iphone-notch"></div>
             <div class="iphone-screen ${screenClass}" id="screen-${id}">
-              ${isOriginal
-                ? `<iframe id="game-0" class="phone-game-frame" title="${title}" sandbox="allow-scripts allow-same-origin allow-pointer-lock"></iframe>`
-                : isLiveAgent
-                  ? renderLiveFeed()
-                  : renderPendingPhone(title)}
+              ${isLiveAgent ? renderLiveFeed() : renderPendingPhone(title)}
             </div>
             <div class="iphone-home"></div>
           </div>
@@ -169,7 +163,7 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
               <div class="log-group-head">
                 <span class="log-dot" style="background:${PHONE_COLORS[id]}"></span>
                 <span class="log-group-name">${title}</span>
-                <span class="log-group-pct" id="logpct-${id}" style="color:${PHONE_COLORS[id]}">${id === ORIGINAL_PHONE_ID ? 'Uploaded' : id === LIVE_AGENT_PHONE_ID && route.runId ? 'Waiting' : 'Pending'}</span>
+                <span class="log-group-pct" id="logpct-${id}" style="color:${PHONE_COLORS[id]}">${id === LIVE_AGENT_PHONE_ID && route.runId ? 'Waiting' : 'Pending'}</span>
               </div>
               <div class="log-lines" id="logs-${id}"></div>
             </div>
@@ -180,7 +174,6 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
   `
 
   const backBtn = document.getElementById('back-btn')
-  const frame = document.getElementById('game-0') as HTMLIFrameElement | null
   const sendAgentBtn = document.getElementById('send-agent-btn') as HTMLButtonElement | null
   const badge = document.getElementById('session-badge')
   const liveScreen = document.getElementById(`screen-${LIVE_AGENT_PHONE_ID}`) as HTMLElement | null
@@ -196,11 +189,6 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
   const logBoxes = SITUATION_LABELS.map((_, id) => document.getElementById(`logs-${id}`))
 
   backBtn?.addEventListener('click', () => setRoute('landing'))
-
-  if (frame) {
-    if (route.gameUrl) frame.src = route.gameUrl
-    else frame.srcdoc = currentGameHtml
-  }
 
   let disposed = false
   let approving = false
@@ -266,9 +254,8 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
     const label = statusLabel(status)
     const amount = playtestProgress(status)
 
-    if (!gameUrl && state.project?.gameUrl && frame) {
+    if (!gameUrl && state.project?.gameUrl) {
       gameUrl = state.project.gameUrl
-      frame.src = gameUrl
     }
 
     if (liveProgress) liveProgress.style.width = `${amount}%`
@@ -393,20 +380,21 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
 
   sendAgentBtn?.addEventListener('click', () => {
     if (!route.runId) {
-      addLog(ORIGINAL_PHONE_ID, 'Upload an HTML file to start a backend agent run')
+      addLog(LIVE_AGENT_PHONE_ID, 'Upload an HTML file to start a backend agent run')
       return
     }
     addLog(LIVE_AGENT_PHONE_ID, 'Syncing backend agent state')
     void refreshState()
   })
 
-  addLog(ORIGINAL_PHONE_ID, route.runId ? 'Uploaded game preview loaded' : 'Local game preview loaded')
   if (route.runId) {
     addLog(LIVE_AGENT_PHONE_ID, 'Backend run created; waiting for worker claim')
     connectLiveStream(route.runId)
+  } else {
+    addLog(LIVE_AGENT_PHONE_ID, 'Upload an HTML game to start the agent playtest')
   }
-  for (let id = 2; id < SITUATION_LABELS.length; id++) {
-    addLog(id, 'Pending: gameplay situation extraction ships next')
+  for (let id = LIVE_AGENT_PHONE_ID + 1; id < SITUATION_LABELS.length; id++) {
+    addLog(id, 'Pending: future agent slot')
   }
 
   const poll = window.setInterval(() => {
