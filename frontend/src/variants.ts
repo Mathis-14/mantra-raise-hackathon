@@ -196,13 +196,8 @@ export function renderVariants(root: HTMLElement, route: FlowRoute) {
   })
 
   addLog('Variant generation stage opened')
-  addLog('Real generated game_html will replace these pending phones when available')
-
-  const pendingTimer = window.setTimeout(() => {
-    if (disposed || routed || loadedVariantIds.size > 0) return
-    addLog('Variant backend pending; opening dashboard shell')
-    openDashboard(true)
-  }, 7000)
+  addLog('Generating 5 variants — Gemini needs a minute or two; phones fill in as they land')
+  setBadge('Generating variants (1-2 min)')
 
   const poll = window.setInterval(() => {
     void refreshState()
@@ -241,6 +236,5 @@ export function renderVariants(root: HTMLElement, route: FlowRoute) {
   window.addEventListener('hashchange', () => {
     disposed = true
     window.clearInterval(poll)
-    window.clearTimeout(pendingTimer)
   }, { once: true })
 }

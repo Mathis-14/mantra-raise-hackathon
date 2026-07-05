@@ -287,13 +287,22 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
     }
   }
 
+  let stateSyncFailures = 0
+  const STATE_SYNC_FAILURE_THRESHOLD = 3
+
   async function refreshState() {
     if (!route.runId || disposed) return
     try {
       applyState(await fetchRunState(route.runId))
+      stateSyncFailures = 0
     } catch (error) {
-      addLog(LIVE_AGENT_PHONE_ID, `State sync failed: ${getErrorMessage(error)}`)
-      setBadge('State sync failed', true)
+      // Single failed polls happen while the dev server compiles routes; only a
+      // sustained streak means the API is really down.
+      stateSyncFailures += 1
+      if (stateSyncFailures === STATE_SYNC_FAILURE_THRESHOLD) {
+        addLog(LIVE_AGENT_PHONE_ID, `State sync failed: ${getErrorMessage(error)}`)
+        setBadge('State sync failed', true)
+      }
     }
   }
 
