@@ -1,6 +1,6 @@
-// owner: Aymen — Google Ads deploy (STUB by design) + metrics (SEEDED by design).
-// Honesty line: real ingestion architecture, simulated numbers — a live campaign
-// needs ~48h to exit the learning phase, which a one-day build cannot produce.
+// owner: Aymen — creative deployment (SIMULATED) + metrics (SEEDED by design).
+// A PAUSED campaign shell can be created separately in a verified test account;
+// creatives are never uploaded and all campaign performance remains simulated.
 // Seed believable curves where one creative clearly wins (that's the demo beat).
 
 import type { Creative, MetricPoint } from "@/contracts/types";
@@ -17,7 +17,7 @@ export interface DeployInput {
   creatives: Creative[];
 }
 
-/** Performs the stub deployment; the orchestrator persists creative statuses. */
+/** Records simulated creative deployment; the orchestrator persists creative statuses. */
 export async function deployCreatives(input: DeployInput): Promise<void> {
   const runId = parseRunId(input.runId);
   const creatives = parseCreatives(input.creatives);
@@ -30,24 +30,24 @@ export async function deployCreatives(input: DeployInput): Promise<void> {
     run_id: runId,
     node: "ads",
     type: "status",
-    message: "Preparing simulated Google Ads campaign",
+    message: "Preparing simulated creative deployment",
     screenshot_url: null,
     data: {
       ...campaignLifecycleStep(campaign, "preparing"),
       creative_count: creatives.length,
-      deployment_mode: "stubbed",
+      deployment_mode: "creative_deployment_simulated",
     },
   });
   await emitEvent({
     run_id: runId,
     node: "ads",
     type: "action",
-    message: `Deployed ${creatives.length} creative(s) to the simulated campaign`,
+    message: `Prepared ${creatives.length} creative(s) for simulated campaign evaluation`,
     screenshot_url: null,
     data: {
       ...campaignLifecycleStep(campaign, "deployed"),
       creative_ids: campaign.creativeIds,
-      deployment_mode: "stubbed",
+      deployment_mode: "creative_deployment_simulated",
     },
   });
 }

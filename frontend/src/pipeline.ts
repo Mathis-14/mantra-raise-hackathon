@@ -23,7 +23,7 @@ const VARIANTS: Variant[] = [
 const PIPELINE_NODES = [
   { id: 'variants', icon: '🎮', label: 'Variant generation',  sub: '5 game variants mutated from original' },
   { id: 'veo',      icon: '🎬', label: 'Video gen (Veo)',      sub: '5 × 9:16 ad creatives rendered' },
-  { id: 'deploy',   icon: '📤', label: 'Deploy to Google Ads', sub: 'Creatives pushed to campaign stub' },
+  { id: 'deploy',   icon: '📤', label: 'Google Ads test shell', sub: 'Real paused shell · creatives stay simulated' },
   { id: 'metrics',  icon: '📊', label: 'Metrics ingestion',    sub: 'CTR · CPI · retention — simulated' },
   { id: 'market',   icon: '🛰️', label: 'Competitor analysis',  sub: 'Sensor Tower — market benchmark' },
   { id: 'decide',   icon: '🧠', label: 'Keep / Kill decision', sub: 'Agent scores vs. market · A/B set' },
@@ -179,6 +179,11 @@ export function renderPipeline(root: HTMLElement) {
               <p class="ads-feedback" id="ads-feedback">Verify the server connection before launching.</p>
               <button class="ads-button ads-button--secondary" id="verify-ads-btn">Verify connection</button>
               <button class="ads-button ads-button--primary" id="launch-ads-btn" disabled><span>Create paused test campaign</span><span aria-hidden="true">&rarr;</span></button>
+              <div class="campaign-result" id="campaign-result" hidden>
+                <span class="campaign-result-label">Campaign created</span>
+                <strong id="campaign-result-id"></strong>
+                <span class="campaign-paused">PAUSED</span>
+              </div>
               <a class="ads-dashboard-link" href="https://ads.google.com/" target="_blank" rel="noreferrer">Open Google Ads dashboard <span aria-hidden="true">&nearr;</span></a>
               <div class="honesty-note"><strong>Real:</strong> connection + paused campaign ID <span></span> <strong>Simulated:</strong> every performance metric</div>
             </aside>
@@ -204,17 +209,25 @@ export function renderPipeline(root: HTMLElement) {
   const adsFeedback = document.getElementById('ads-feedback')!
   const adsConnectionState = document.getElementById('ads-connection-state')!
   const adsAccount = document.getElementById('ads-account')!
+  const campaignResult = document.getElementById('campaign-result')!
 
-  verifyAdsButton.addEventListener('click', async () => {
+  let verificationInFlight = false
+  async function verifyAdsConnection() {
+    if (verificationInFlight) return
+    verificationInFlight = true
     verifyAdsButton.disabled = true
     verifyAdsButton.textContent = 'Checking server...'
     adsFeedback.textContent = 'Running a read-only test-account verification.'
+    let verificationStage: 'request' | 'response' | 'validation' | 'render' = 'request'
     try {
-      const response = await fetch('/api/google-ads/connection', { headers: { Accept: 'application/json' } })
+      const response = await fetch('/api/integrations/acquisition/connection', { headers: { Accept: 'application/json' } })
       if (!response.ok) throw new Error('connection_unavailable')
+      verificationStage = 'response'
       const result: unknown = await response.json()
+      verificationStage = 'validation'
       if (!isVerifiedTestAccount(result)) throw new Error('unsafe_account')
 
+      verificationStage = 'render'
       document.getElementById('ads-account-name')!.textContent = result.descriptiveName
       adsAccount.hidden = false
       adsConnectionState.className = 'connection-state connection-state--connected'
@@ -225,16 +238,46 @@ export function renderPipeline(root: HTMLElement) {
     } catch {
       adsConnectionState.className = 'connection-state connection-state--error'
       adsConnectionState.innerHTML = '<span class="connection-dot"></span>Setup required'
-      adsFeedback.textContent = 'The server connection is not ready yet. No credentials were sent from this browser.'
+      const failureMessages = {
+        request: 'The browser could not reach the server connection endpoint.',
+        response: 'The server returned a response the browser could not read.',
+        validation: 'The server response was rejected by the test-account safety check.',
+        render: 'The connection passed, but the account card could not be updated.',
+      }
+      adsFeedback.textContent = `${failureMessages[verificationStage]} No credentials were sent from this browser.`
       verifyAdsButton.textContent = 'Try verification again'
       verifyAdsButton.disabled = false
+    } finally {
+      verificationInFlight = false
     }
-  })
+  }
 
-  launchAdsButton.addEventListener('click', () => {
+  verifyAdsButton.addEventListener('click', verifyAdsConnection)
+  void verifyAdsConnection()
+
+  launchAdsButton.addEventListener('click', async () => {
     launchAdsButton.disabled = true
-    launchAdsButton.textContent = 'Waiting for secure backend...'
-    adsFeedback.textContent = 'Launch is locked until the campaign endpoint is connected. No Google Ads change was made.'
+    launchAdsButton.textContent = 'Creating paused campaign...'
+    adsFeedback.textContent = 'Re-verifying the test account before the write.'
+    try {
+      const response = await fetch('/api/integrations/acquisition/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ runId: 'pipeline-demo' }),
+      })
+      if (!response.ok) throw new Error('campaign_create_failed')
+      const result: unknown = await response.json()
+      if (!isPausedTestCampaign(result)) throw new Error('unsafe_campaign_response')
+
+      document.getElementById('campaign-result-id')!.textContent = `ID ${result.campaignId}`
+      campaignResult.hidden = false
+      launchAdsButton.textContent = result.created ? 'Paused test campaign created' : 'Existing paused campaign found'
+      adsFeedback.textContent = 'Real campaign shell confirmed. Performance remains deterministic and simulated.'
+    } catch {
+      launchAdsButton.textContent = 'Try campaign creation again'
+      launchAdsButton.disabled = false
+      adsFeedback.textContent = 'Campaign creation failed safely. No production fallback is available.'
+    }
   })
 
   // ── Tab switching ──
@@ -396,6 +439,13 @@ interface VerifiedAdsAccount {
   manager: false
 }
 
+interface PausedTestCampaign {
+  campaignId: string
+  status: 'PAUSED'
+  testAccount: true
+  created: boolean
+}
+
 function isVerifiedTestAccount(value: unknown): value is VerifiedAdsAccount {
   if (typeof value !== 'object' || value === null) return false
   const account = value as Record<string, unknown>
@@ -405,4 +455,14 @@ function isVerifiedTestAccount(value: unknown): value is VerifiedAdsAccount {
     && account.descriptiveName.length > 0
     && account.testAccount === true
     && account.manager === false
+}
+
+function isPausedTestCampaign(value: unknown): value is PausedTestCampaign {
+  if (typeof value !== 'object' || value === null) return false
+  const campaign = value as Record<string, unknown>
+  return typeof campaign.campaignId === 'string'
+    && campaign.campaignId.length > 0
+    && campaign.status === 'PAUSED'
+    && campaign.testAccount === true
+    && typeof campaign.created === 'boolean'
 }

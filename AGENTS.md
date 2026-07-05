@@ -30,7 +30,7 @@ Input: HTML game (Mob Control clone in game/) + market/trend context
   └── Memory: knowledge base compounds across projects; agent runs continuously
 ```
 
-**Honesty line (never blur it):** playtest, variants, and video generation are real. Ads deploy is a stub and metrics are seeded — a live campaign needs ~48h to exit the learning phase. Exactly one thing is simulated, deliberately; everything upstream is genuine. Say this plainly in the demo and the README.
+**Honesty line (never blur it):** playtest, variants, video generation, and creation of a paused campaign shell in a verified Google Ads test account are real. Creatives are not uploaded to Google Ads, and all performance metrics are deterministically seeded — a live campaign needs ~48h to exit the learning phase. Say this plainly in the demo and the README.
 
 **Demo (~1 min):** problem (15s) → agent playing + report, pre-recorded & sped up (25s, the wow) → variants + videos (15s) → live dashboard, metrics, keep/kill (15s). Keep one live element so it doesn't feel canned.
 
@@ -182,8 +182,9 @@ Hackathon rule: the demo path is the test surface.
 - **D003** — 2026-07-04 — Supabase as single source of truth + realtime dashboard feed. Rejected: SQLite+polling (no shared state across machines), in-memory (dies on restart).
 - **D004** — 2026-07-04 — Hand-rolled state machine (status union + transition map + worker loop). Rejected: LangGraph/Trigger.dev — nothing to learn on the clock.
 - **D005** — 2026-07-04 — Long-running work (orchestrator + playtest) runs in `npm run worker` on a laptop; Vercel hosts dashboard + API. Why: Playwright/CU can't run in serverless routes. Both sides talk only to Supabase.
-- **D006** — 2026-07-04 — Ads deploy stubbed + metrics seeded, everything upstream real (the honesty line). Why: campaigns need ~48h to produce signal.
+- **D006** — 2026-07-04 — Ads deploy stubbed + metrics seeded, everything upstream real (the honesty line). Superseded by D009 for campaign-shell creation.
 - **D007** — 2026-07-04 — Contracts locked in `src/contracts/types.ts`; directory ownership per stream. Why: four parallel builders, zero integration hours to spare.
+- **D009** — 2026-07-05 — Mantra may create only a PAUSED campaign shell in a runtime-verified Google Ads test child; creative deployment and every performance metric remain simulated. Why: demonstrate a real API integration without enabling serving, billing, or accidental production writes.
 
 
 
