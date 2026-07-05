@@ -17,6 +17,7 @@ import {
   waveSizeForLevel,
   redSpeedForLevel,
 } from '../core/constants.js';
+import { variantBoolean, variantNumber } from '../core/variant.js';
 import { layoutKeyForLevel, layoutForLevel } from './layouts.js';
 
 /**
@@ -43,10 +44,11 @@ export function createLevels(ctx) {
 
   /** Formules pures dérivées du niveau (constants.js). */
   function configFor(level) {
-    const bossLevel = level % BOSS_LEVEL_INTERVAL === 0;
+    const bossLevel = level % BOSS_LEVEL_INTERVAL === 0 || variantBoolean(ctx, 'forceBoss', false);
+    const bossHp = variantNumber(ctx, 'bossHp', BOSS_HP, { min: 8, max: 80, integer: true });
     return {
-      enemyHpMax: enemyHpForLevel(level) + (bossLevel ? BOSS_HP : 0),
-      coinGain: coinsForLevel(level),
+      enemyHpMax: enemyHpForLevel(level) + (bossLevel ? bossHp : 0),
+      coinGain: Math.round(coinsForLevel(level) * variantNumber(ctx, 'coinMultiplier', 1, { min: 1, max: 5 })),
       wavePeriod: wavePeriodForLevel(level),
       waveSize: waveSizeForLevel(level),
       redSpeed: redSpeedForLevel(level),
@@ -74,12 +76,13 @@ export function createLevels(ctx) {
     setGameFilter(''); // retire la désaturation de défaite
 
     state.playerHp = PLAYER_HP_START;
-    state.bossLevel = state.level % BOSS_LEVEL_INTERVAL === 0;
+    state.bossLevel = state.level % BOSS_LEVEL_INTERVAL === 0 || variantBoolean(ctx, 'forceBoss', false);
     // layout du niveau (classic / slalom / maze / horde) : murs via obstacles, marée via waves
     state.layoutKey = layoutKeyForLevel(state.level);
     state.hordeMult = layoutForLevel(state.level).hordeMult;
     state.lanesX = layoutForLevel(state.level).lanesX || null; // couloirs : spawn ennemi par couloir
-    state.enemyHpMax = state.enemyHp = enemyHpForLevel(state.level) + (state.bossLevel ? BOSS_HP : 0);
+    const bossHp = variantNumber(ctx, 'bossHp', BOSS_HP, { min: 8, max: 80, integer: true });
+    state.enemyHpMax = state.enemyHp = enemyHpForLevel(state.level) + (state.bossLevel ? bossHp : 0);
     state.waveTimer = WAVE_FIRST_DELAY;
 
     ctx.sys.skins.build(state.level); // AVANT obstacles : les mottes se teintent au skin courant
@@ -116,7 +119,7 @@ export function createLevels(ctx) {
 
   /** Appelé par base APRÈS la séquence de destruction (base a déjà mis state.playing=false). */
   function win() {
-    const gain = coinsForLevel(state.level);
+    const gain = Math.round(coinsForLevel(state.level) * variantNumber(ctx, 'coinMultiplier', 1, { min: 1, max: 5 }));
     state.coins += gain;
     // MÉCANIQUE-REWARD DU CANON : vaincre le BOSS du niveau fait monter le loadout d'un cran
     // (1x → 2x → 3x). C'est LA carotte des niveaux de boss — cadence et tirs multiples durables.

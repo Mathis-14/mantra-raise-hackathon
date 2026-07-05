@@ -52,6 +52,7 @@ const CHUNK_TARGET_BLOCK = 1.7;// taille cible (u) d'un bloc de tour éjecté
 export function createBase(ctx) {
   /** @type {THREE.Group|null} */
   let group = null;
+  const baseColor = ctx.theme?.teams?.base || COLORS.red;
 
   // Sous-parties (références conservées pour états & chunks).
   const bodyBlocks = [];   // holders des 4 blockTall du corps
@@ -176,7 +177,7 @@ export function createBase(ctx) {
   function addRubble() {
     const bits = [ctx.assets.gltf.stones, ctx.assets.gltf.rocks, ctx.assets.gltf.stones, ctx.assets.gltf.brick];
     for (let i = 0; i < bits.length; i++) {
-      const part = makePart(bits[i], COLORS.red);
+      const part = makePart(bits[i], baseColor);
       const maxDim = Math.max(part.size.x, part.size.y, part.size.z) || 1;
       const s = 0.9 / maxDim;
       part.holder.scale.set(s, s, s);
@@ -238,7 +239,7 @@ export function createBase(ctx) {
       const isDebris = k < debris.length;
       const src = isDebris ? debris[k] : (k % 2 ? ctx.assets.gltf.blockLow : ctx.assets.gltf.blockTall);
       const target = isDebris ? CHUNK_TARGET : CHUNK_TARGET_BLOCK;
-      const part = makePart(src, COLORS.red);
+      const part = makePart(src, baseColor);
       const maxDim = Math.max(part.size.x, part.size.y, part.size.z) || 1;
       const s = target / maxDim;
       part.holder.scale.set(s, s, s);
@@ -315,7 +316,7 @@ export function createBase(ctx) {
     const bodyOff = BODY_BLOCK_W / 2;
     const grid = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
     for (let i = 0; i < grid.length; i++) {
-      const part = makePart(ctx.assets.gltf.blockTall, COLORS.red);
+      const part = makePart(ctx.assets.gltf.blockTall, baseColor);
       if (i === 0) {
         sBody = BODY_BLOCK_W / (part.size.x || 1);
         bodyHeight = (part.size.y || 2) * sBody;
@@ -329,7 +330,7 @@ export function createBase(ctx) {
 
     // Couronne : blockLow aux 4 coins du sommet (battlements).
     for (let i = 0; i < grid.length; i++) {
-      const part = makePart(ctx.assets.gltf.blockLow, COLORS.red);
+      const part = makePart(ctx.assets.gltf.blockLow, baseColor);
       const s = CROWN_W / (part.size.x || 1);
       if (i === 0) crownHeight = (part.size.y || 1) * s;
       part.holder.scale.set(s, s, s);
@@ -340,7 +341,7 @@ export function createBase(ctx) {
     towerHeight = bodyHeight + crownHeight;
 
     // Drapeau au sommet (posé à plat, ondule dans update).
-    const fpart = makePart(ctx.assets.gltf.flag, COLORS.red);
+    const fpart = makePart(ctx.assets.gltf.flag, baseColor);
     const fs = FLAG_HEIGHT / (fpart.size.y || 1);
     fpart.holder.scale.set(fs, fs, fs);
     flag = fpart.holder;

@@ -7,6 +7,7 @@ import { z } from "zod";
 const serverSchema = z.object({
   GEMINI_API_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  VARIANT_GAME_URL: z.url().default("http://localhost:5174/"),
 });
 
 // Gemini-only consumers (tag-generation) validate just their own key so they
@@ -40,6 +41,7 @@ export function serverEnv() {
   cachedServer ??= serverSchema.parse({
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    VARIANT_GAME_URL: process.env.VARIANT_GAME_URL,
   });
   return cachedServer;
 }

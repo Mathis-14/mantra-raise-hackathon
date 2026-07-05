@@ -43,6 +43,10 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
   const nextBtn = $('nextBtn');
   const loseOverlay = $('loseOverlay');
   const retryBtn = $('retryBtn');
+  const variantBrand = $('variantBrand');
+  const variantHook = $('variantHook');
+  const variantSubhook = $('variantSubhook');
+  const variantBadges = $('variantBadges');
   const loadoutBtns = Array.from(document.querySelectorAll('[data-loadout]'));
 
   // Séquence de victoire.
@@ -90,6 +94,27 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
     ctx.sys.hud?.refresh();
   }
 
+  function applyVariantCopy() {
+    const texts = Array.isArray(ctx.variant?.overlayText)
+      ? ctx.variant.overlayText.filter((item) => typeof item === 'string' && item.trim().length > 0)
+      : [];
+    if (texts.length === 0) return;
+
+    if (variantBrand) variantBrand.classList.remove('hidden');
+    if (variantHook) variantHook.textContent = texts[0];
+    if (variantSubhook && texts[1]) variantSubhook.textContent = texts[1];
+    if (!variantBadges) return;
+
+    variantBadges.innerHTML = '';
+    for (const text of texts.slice(2, 5)) {
+      const badge = document.createElement('span');
+      badge.className = 'variantBadge';
+      badge.textContent = text;
+      variantBadges.appendChild(badge);
+    }
+    variantBadges.classList.toggle('hidden', variantBadges.childElementCount === 0);
+  }
+
   function ensureStars() {
     if (starsRow || !winOverlay) return;
     starsRow = document.createElement('div');
@@ -135,6 +160,7 @@ export function createOverlays(ctx, { onStart, onNext, onRetry } = {}) {
 
   function bind() {
     injectStyle();
+    applyVariantCopy();
     wireButton(startBtn, onStart);
     wireButton(nextBtn, onNext);
     wireButton(retryBtn, onRetry);

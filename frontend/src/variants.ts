@@ -1,15 +1,8 @@
-import { fetchRunState, type FlowVariant, type RunState, type RunStatus } from './api'
+import { fetchRunState, type FlowVariant, type RunState } from './api'
 import { getErrorMessage, renderStepper, setRoute, type FlowRoute } from './flow'
 
 const VARIANT_COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#059669', '#d97706']
 const VARIANT_LABELS = ['Variant 1', 'Variant 2', 'Variant 3', 'Variant 4', 'Variant 5']
-const DASHBOARD_STATUSES: RunStatus[] = [
-  'generating_creatives',
-  'deploying',
-  'measuring',
-  'deciding',
-  'done',
-]
 
 function renderVariantPhones() {
   return VARIANT_LABELS.map((title, id) => `
@@ -164,9 +157,9 @@ export function renderVariants(root: HTMLElement, route: FlowRoute) {
       return
     }
 
-    if (DASHBOARD_STATUSES.includes(state.run.status)) {
-      addLog('Backend moved past variants; opening dashboard')
-      openDashboard(false)
+    if (state.run.status === 'generating_creatives' && state.variants.length > 0) {
+      setBadge(`${state.variants.length}/5 variants ready`)
+      if (logStatus) logStatus.textContent = `${state.variants.length}/5 ready`
     }
   }
 
@@ -190,12 +183,6 @@ export function renderVariants(root: HTMLElement, route: FlowRoute) {
 
   addLog('Variant generation stage opened')
   addLog('Real generated game_html will replace these pending phones when available')
-
-  const pendingTimer = window.setTimeout(() => {
-    if (disposed || routed || loadedVariantIds.size > 0) return
-    addLog('Variant backend pending; opening dashboard shell')
-    openDashboard(true)
-  }, 7000)
 
   const poll = window.setInterval(() => {
     void refreshState()
@@ -234,6 +221,5 @@ export function renderVariants(root: HTMLElement, route: FlowRoute) {
   window.addEventListener('hashchange', () => {
     disposed = true
     window.clearInterval(poll)
-    window.clearTimeout(pendingTimer)
   }, { once: true })
 }

@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { nextId } from '../core/ids.js';
 import { teamMaterial } from '../assets/recolor.js';
+import { variantNumber } from '../core/variant.js';
 import { clamp01 } from '../juice/springs.js';
 import {
   LANE_HALF, BASE_Z, RED_WIN_Z, MAX_RED,
@@ -24,9 +25,11 @@ import {
  */
 export function createWaves(ctx) {
   const dummy = new THREE.Object3D();
+  const enemyColor = ctx.theme?.teams?.enemy || COLORS.red;
+  const bossColor = ctx.theme?.teams?.boss || COLORS.gold;
 
   // InstancedMesh de la masse rouge (non-géants). frustumCulled=false (foule).
-  const redMesh = new THREE.InstancedMesh(ctx.assets.bakedUnit.geometry, teamMaterial(COLORS.red), MAX_RED);
+  const redMesh = new THREE.InstancedMesh(ctx.assets.bakedUnit.geometry, teamMaterial(enemyColor), MAX_RED);
   redMesh.frustumCulled = false;
   redMesh.count = 0;
   ctx.scene.add(redMesh);
@@ -44,7 +47,7 @@ export function createWaves(ctx) {
     const reds = ctx.state.reds;
     const level = ctx.state.level;
     // pression de horde : layout (state.hordeMult) × variant d'ad éventuel (ctx.variant.wavePressure)
-    const mult = (ctx.state.hordeMult || 1) * ((ctx.variant && ctx.variant.wavePressure) || 1);
+    const mult = (ctx.state.hordeMult || 1) * variantNumber(ctx, 'wavePressure', 1, { min: 0.4, max: 2.5 });
     const count = Math.round(waveSizeForLevel(level) * mult);
     const carpet = mult >= 2; // marée « tapis rouge » : rangées denses réparties sur la largeur
     const lanes = ctx.state.lanesX; // layout « couloirs » : ennemis séparés par les murs
@@ -73,7 +76,8 @@ export function createWaves(ctx) {
         flashT: 0,
       });
     }
-    if (level >= GIANT_MIN_LEVEL && Math.random() < GIANT_PROBA && reds.length < MAX_RED) {
+    const giantProba = variantNumber(ctx, 'giantProba', GIANT_PROBA, { min: 0, max: 1 });
+    if (level >= GIANT_MIN_LEVEL && Math.random() < giantProba && reds.length < MAX_RED) {
       const gz = BASE_Z + 2;
       reds.push({
         id: nextId(),
@@ -95,24 +99,27 @@ export function createWaves(ctx) {
     if (ctx.state.bossSpawned || ctx.state.reds.length >= MAX_RED) return;
     ctx.state.bossSpawned = true;
     ctx.state.bossDefeated = false;
+    const bossHp = variantNumber(ctx, 'bossHp', BOSS_HP, { min: 8, max: 80, integer: true });
+    const bossScale = variantNumber(ctx, 'bossScale', BOSS_SCALE, { min: 1, max: 4 });
+    const radiusScale = bossScale / BOSS_SCALE;
     ctx.state.reds.push({
       id: nextId(),
       x: 0,
       z: BOSS_SPAWN_Z,
       pz: BOSS_SPAWN_Z,
-      hp: BOSS_HP,
-      hpMax: BOSS_HP,
+      hp: bossHp,
+      hpMax: bossHp,
       giant: true,
       boss: true,
-      scale: BOSS_SCALE,
-      radius: BOSS_RADIUS,
+      scale: bossScale,
+      radius: BOSS_RADIUS * radiusScale,
       speed: BOSS_SPEED,
       lineDamage: BOSS_LINE_DAMAGE,
       wob: 0,
       spawnT: 0,
       flashT: 0,
     });
-    ctx.particles.ring(0, BOSS_SPAWN_Z, COLORS.gold);
+    ctx.particles.ring(0, BOSS_SPAWN_Z, bossColor);
     ctx.floatingText.spawn('BOSS', 0, 3.2, BOSS_SPAWN_Z, { color: '#ffe66d', size: 1.4, life: 1.1 });
     ctx.cameraRig.addTrauma(0.25); // l'arrivée du boss ébranle l'écran
     ctx.audio.play('baseHit', { volume: 0.9, rateJitter: 0 }); // thud d'entrée en scène

@@ -7,6 +7,7 @@ import { preload, getCached, dumpInfo } from '../assets/loader.js';
 import { bakeRunPose } from '../assets/bake-pose.js';
 import { createTime } from './time.js';
 import { createCameraRig } from './camera-rig.js';
+import { applyThemeCss, resolveVariantTheme } from './theme.js';
 import { createAudio } from '../audio/audio-manager.js';
 import { createParticles } from '../juice/particles.js';
 import { createConfetti } from '../juice/confetti.js';
@@ -31,6 +32,7 @@ const GLB = '/models';
 const MC = `${GLB}/mini-characters/Models/GLB%20format`;
 const BK = `${GLB}/blaster-kit/Models/GLB%20format`;
 const PK = `${GLB}/platformer-kit/Models/GLB%20format`;
+const AD_OVERLAY_STEP_S = 5;
 
 // clé ctx.assets.gltf → URL (CONTRACT §8.1, pré-encodées %20)
 const ASSET_URLS = {
@@ -141,12 +143,12 @@ function addInstancedProp(scene, gltf, placements) {
 }
 
 /** Décor procédural + props (CONTRACT §6.11 étape 2). Retourne les nuages (drift en boucle). */
-function buildDecor(scene, gltf) {
+function buildDecor(scene, gltf, theme) {
   // sol continu (sable chaud, réf. canyon Mob Control) : supprime le vide violet sous le décor,
   // tout repose dessus. Les falaises enfoncées sous ce plan semblent sortir du terrain.
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(260, 260),
-    new THREE.MeshLambertMaterial({ color: C.COLORS.ground }),
+    new THREE.MeshLambertMaterial({ color: theme.colors.ground || C.COLORS.ground }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, -0.12, C.TRACK.z);
@@ -156,14 +158,14 @@ function buildDecor(scene, gltf) {
   const ROAD_THICKNESS = 2.2;
   const road = new THREE.Mesh(
     new THREE.BoxGeometry(C.TRACK.w, ROAD_THICKNESS, C.TRACK.len),
-    new THREE.MeshLambertMaterial({ color: C.COLORS.road }),
+    new THREE.MeshLambertMaterial({ color: theme.colors.road }),
   );
   road.position.set(0, -ROAD_THICKNESS / 2, C.TRACK.z);
   scene.add(road);
   const zStart = C.TRACK.z + C.TRACK.len / 2;
 
   // pointillés centraux (repère de vitesse), juste au-dessus des dalles
-  const dashMat = new THREE.MeshLambertMaterial({ color: C.COLORS.dash });
+  const dashMat = new THREE.MeshLambertMaterial({ color: theme.colors.dash });
   for (let z = C.DASH.zStart; z > C.DASH.zEnd; z += C.DASH.step) {
     const d = new THREE.Mesh(new THREE.BoxGeometry(C.DASH.w, C.DASH.h, C.DASH.len), dashMat);
     d.position.set(0, C.DASH.y, z);
@@ -307,7 +309,7 @@ function buildDecor(scene, gltf) {
 
   // nuages procéduraux (3 sphères fusionnées, flat), drift en boucle
   const clouds = [];
-  const cloudMat = new THREE.MeshLambertMaterial({ color: 0xf3f0ff });
+  const cloudMat = new THREE.MeshLambertMaterial({ color: theme.colors.cloud });
   for (let i = 0; i < 4; i++) {
     const g = new THREE.Group();
     for (const [dx, dy, r] of [[0, 0, 1.4], [1.3, -0.2, 1.0], [-1.2, -0.15, 1.1]]) {
@@ -323,9 +325,70 @@ function buildDecor(scene, gltf) {
   return { clouds, ground, road, envs: { canyon: envCanyon, snow: envSnow } };
 }
 
+function readVariantConfig(params) {
+  try {
+    if (window.__MOB_VARIANT__ && typeof window.__MOB_VARIANT__ === 'object') {
+      return window.__MOB_VARIANT__;
+    }
+    const raw = params.get('variant');
+    if (!raw) return null;
+    const normalized = raw.trim().replace(/\s/g, '+').replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch (e) {
+    console.warn('[MOB RUSH] config variant illisible', e);
+    return null;
+  }
+}
+
+function showAdOverlay(texts) {
+  if (!Array.isArray(texts) || !texts.length) return null;
+  let el = document.getElementById('adOverlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'adOverlay';
+    el.style.cssText =
+      'position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:30;max-width:min(86vw,440px);' +
+      'padding:12px 16px;border-radius:18px;background:rgba(0,0,0,.42);color:#fff;font:900 28px/1.08 Arial Rounded MT Bold,Arial,sans-serif;' +
+      'text-align:center;pointer-events:none;text-shadow:0 3px 0 rgba(0,0,0,.5),0 0 18px var(--variant-glow);letter-spacing:.5px;';
+    document.body.appendChild(el);
+  }
+  let shown = -1;
+  let startT = null;
+  return {
+    reset(realT = 0) {
+      shown = -1;
+      startT = realT;
+    },
+    update(realT) {
+      if (startT === null) startT = realT;
+      const idx = Math.min(texts.length - 1, Math.floor((realT - startT) / AD_OVERLAY_STEP_S));
+      if (idx === shown) return;
+      shown = idx;
+      el.textContent = texts[idx];
+    },
+  };
+}
+
+function configuredLoadout(variantConfig) {
+  const loadout = variantConfig && variantConfig.loadout;
+  return loadout === 'single' || loadout === 'double' || loadout === 'triple'
+    ? loadout
+    : C.LOADOUT_DEFAULT;
+}
+
+function configuredStartLevel(variantConfig) {
+  const level = variantConfig && variantConfig.startLevel;
+  return Number.isFinite(level) ? Math.max(1, Math.min(50, Math.round(level))) : null;
+}
+
 export async function createApp({ container = document.getElementById('game') } = {}) {
   const params = new URLSearchParams(location.search);
   const isDebug = params.has('debug');
+  const variantConfig = readVariantConfig(params);
+  const theme = resolveVariantTheme(variantConfig);
+  applyThemeCss(theme);
+  const adOverlay = showAdOverlay(variantConfig && variantConfig.overlayText);
 
   // 1. renderer + scène + lumières (CONTRACT §1.1 : NoToneMapping, hex inchangés, lumières ×π)
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -335,8 +398,8 @@ export async function createApp({ container = document.getElementById('game') } 
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(C.COLORS.bg);
-  scene.fog = new THREE.Fog(C.FOG.color, C.FOG.near, C.FOG.far);
+  scene.background = new THREE.Color(theme.colors.bg);
+  scene.fog = new THREE.Fog(theme.fog.color, theme.fog.near, theme.fog.far);
 
   // ciel dégradé (bleu zénith → crème à l'horizon) : remplace le fond indigo, s'accorde au
   // vert menthe de la piste, au sable du sol et aux falaises. Non affecté par le brouillard ;
@@ -382,7 +445,7 @@ export async function createApp({ container = document.getElementById('game') } 
   let colormap = null;
   gltf.maleA.scene.traverse((o) => { if (!colormap && o.material && o.material.map) colormap = o.material.map; });
 
-  const { clouds, ground, road, envs } = buildDecor(scene, gltf); // refs retenues pour les skins de map
+  const { clouds, ground, road, envs } = buildDecor(scene, gltf, theme); // refs retenues pour les skins de map
 
   // 4. librairies
   const time = createTime();
@@ -396,14 +459,16 @@ export async function createApp({ container = document.getElementById('game') } 
   const state = {
     level: 1, coins: 0, gems: 0, playerHp: C.PLAYER_HP_START,
     enemyHp: 50, enemyHpMax: 50, playing: false, bossLevel: false, bossSpawned: false, bossDefeated: false,
-    loadout: C.LOADOUT_DEFAULT,
+    loadout: configuredLoadout(variantConfig),
     championCharge: 0, championReady: false, championActive: false,
     fireTimer: 0, waveTimer: 0, holding: false, cannonX: 0, targetX: 0,
     blues: [], reds: [], champions: [], gates: [], obstacles: [], boosts: [], pops: particles.pops, // alias (A4)
   };
   // debug/test : ?level=N démarre directement au niveau N (layouts slalom/maze/horde testables)
   const forcedLevel = parseInt(params.get('level'), 10);
+  const variantStartLevel = configuredStartLevel(variantConfig);
   if (Number.isFinite(forcedLevel) && forcedLevel > 0) state.level = Math.min(50, forcedLevel);
+  else if (variantStartLevel !== null) state.level = variantStartLevel;
 
   // 6. contexte partagé (CONTRACT §4)
   const ctx = {
@@ -411,6 +476,8 @@ export async function createApp({ container = document.getElementById('game') } 
     time, cameraRig, audio, particles, confetti, floatingText, vignette,
     flyingCoins: null, // rempli juste après (closure sur ctx.sys.overlays)
     state,
+    variant: variantConfig || {},
+    theme,
     assets: { gltf, bakedUnit, colormap },
     decor: { ground, road, envs, hemi, sun }, // refs du décor persistant, pilotées par levels/skins.js
     sys: {},
@@ -428,7 +495,7 @@ export async function createApp({ container = document.getElementById('game') } 
   // Alliés : troupes = bleu plein animé (le champion garde son skin via champion.js).
   ctx.sys.heroes = createHeroes(ctx, {
     count: C.HERO_COUNT_BLUE,
-    solidColor: C.COLORS.blue,
+    solidColor: theme.teams.player,
   });
   // Ennemis : troupes = rouge plein animé (le boss/les géants gardent leur skin via giants.js).
   ctx.sys.redHeroes = createHeroes(ctx, {
@@ -436,7 +503,7 @@ export async function createApp({ container = document.getElementById('game') } 
     getUnits: (c) => c.state.reds.filter((r) => !r.giant),
     bob: C.RED_BOB,
     faceBack: true,
-    solidColor: C.COLORS.red,
+    solidColor: theme.teams.enemy,
   });
   ctx.sys.gates = createGates(ctx);
   ctx.sys.skins = createSkins(ctx);
@@ -513,6 +580,7 @@ export async function createApp({ container = document.getElementById('game') } 
     ctx.flyingCoins.update(rawDt);
     ctx.sys.hud.update(rawDt);
     ctx.sys.overlays.update(rawDt);
+    if (state.playing) adOverlay?.update(realT);
     audio.update(rawDt);
 
     // ambiance : drift des nuages (temps réel)
@@ -538,6 +606,7 @@ export async function createApp({ container = document.getElementById('game') } 
   return {
     start() {
       ctx.sys.hud.refresh();
+      adOverlay?.reset(0);
       if (params.has('autostart') || isBot || isSim) {
         ctx.sys.overlays.hideAll();
         ctx.sys.hud.showGameHud();

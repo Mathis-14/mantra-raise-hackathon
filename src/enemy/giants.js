@@ -30,6 +30,8 @@ export function createGiants(ctx) {
   const _white = new THREE.Color(0xffffff);
   const _live = new Set();  // ids vivants ce frame — réutilisé (évite un new Set() par frame)
   const FACING = UNIT_FACING_FIX + Math.PI; // face +Z (sens de progression du géant)
+  const enemyColor = ctx.theme?.teams?.enemy || COLORS.red;
+  const bossColor = ctx.theme?.teams?.boss || COLORS.gold;
 
   function clipByName(gltf, name) {
     const anims = gltf && gltf.animations ? gltf.animations : [];
@@ -38,7 +40,7 @@ export function createGiants(ctx) {
 
   function makeClone(red) {
     const sourceGltf = red.boss && ctx.assets.gltf.bossChar ? ctx.assets.gltf.bossChar : ctx.assets.gltf.maleA;
-    const tint = red.boss ? COLORS.gold : COLORS.red;
+    const tint = red.boss ? bossColor : enemyColor;
     const root = skeletonClone(sourceGltf.scene);
     // Full colored : matériau plat unique par clone (skinning auto), pas de texture.
     const mat = new THREE.MeshLambertMaterial({ color: tint });
@@ -144,7 +146,7 @@ export function createGiants(ctx) {
     }
     ctx.time.pulse(HITSTOP_GIANT.scale, HITSTOP_GIANT.dur); // SEUL hit-stop du jeu
     ctx.cameraRig.addTrauma(TRAUMA.giantDeath);
-    ctx.particles.burst(red.x, 1.2, red.z, { color: red.boss ? COLORS.gold : COLORS.red, shape: 'star', count: red.boss ? 8 : 4 });
+    ctx.particles.burst(red.x, 1.2, red.z, { color: red.boss ? bossColor : enemyColor, shape: 'star', count: red.boss ? 8 : 4 });
   }
 
   function reset() {

@@ -28,7 +28,7 @@ export function createCrowd(ctx) {
   // InstancedMesh unique : géométrie bakée + matériau flat d'équipe (partagé, lecture seule).
   const mesh = new THREE.InstancedMesh(
     ctx.assets.bakedUnit.geometry,
-    teamMaterial(COLORS.blue),
+    teamMaterial(ctx.theme?.teams?.player || COLORS.blue),
     MAX_BLUE,
   );
   mesh.frustumCulled = false;

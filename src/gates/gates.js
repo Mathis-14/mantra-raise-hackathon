@@ -18,6 +18,7 @@ import {
   GATE_PUNCH_DUR,
   COLORS,
 } from '../core/constants.js';
+import { variantString } from '../core/variant.js';
 import { easeOutBack } from '../juice/springs.js';
 
 // --- Dimensions visuelles des portes (parité proto ; non gameplay → pas dans constants.js) ---
@@ -81,6 +82,8 @@ function disposeGateGroup(group) {
  */
 export function createGates(ctx) {
   const halfW = GATE_WIDTH / 2; // = (LANE_HALF - 0.3) / 2 (CONTRACT §3)
+  const gateGoodColor = ctx.theme?.colors?.gateGood || COLORS.gateGood;
+  const gateBadColor = ctx.theme?.colors?.gateBad || COLORS.gateBad;
 
   /**
    * Fabrique une porte : Group (panneau + 2 poteaux) et push dans state.gates.
@@ -99,7 +102,7 @@ export function createGates(ctx) {
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(GATE_WIDTH, PANEL_HEIGHT), panelMat);
     panel.position.set(x, PANEL_Y, z);
 
-    const postColor = good ? COLORS.gateGood : COLORS.gateBad;
+    const postColor = good ? gateGoodColor : gateBadColor;
     const postMat = new THREE.MeshLambertMaterial({
       color: postColor,
       emissive: postColor,
@@ -148,8 +151,46 @@ export function createGates(ctx) {
     return ops[Math.floor(Math.random() * ops.length)];
   }
 
+  function gatePreset() {
+    return variantString(ctx, 'gatePreset', 'default', ['default', 'fail_bait', 'chain_multiply', 'advanced_mix']);
+  }
+
+  function buildPresetGates(preset) {
+    if (preset === 'fail_bait') {
+      for (const [index, z] of GATE_ROWS_Z.entries()) {
+        const trapLeft = index % 2 === 0;
+        makeGate(-GATE_OFFSET_X, z, trapLeft ? 'X' : 'x3');
+        makeGate(+GATE_OFFSET_X, z, trapLeft ? 'x3' : 'X');
+      }
+      return true;
+    }
+
+    if (preset === 'chain_multiply') {
+      for (const z of GATE_ROWS_Z) {
+        makeGate(-GATE_OFFSET_X, z, 'x3');
+        makeGate(+GATE_OFFSET_X, z, 'x2');
+      }
+      makeGate(0, 13, '+2');
+      makeGate(0, -15, '+2');
+      return true;
+    }
+
+    if (preset === 'advanced_mix') {
+      for (const [index, z] of GATE_ROWS_Z.entries()) {
+        makeGate(-GATE_OFFSET_X, z, index % 2 === 0 ? 'x4' : '+2');
+        makeGate(+GATE_OFFSET_X, z, index % 2 === 0 ? 'x2' : 'x5');
+      }
+      makeGate(0, 13, '+2');
+      return true;
+    }
+
+    return false;
+  }
+
   function build(level) {
     clear();
+    if (buildPresetGates(gatePreset())) return;
+
     for (const z of GATE_ROWS_Z) {
       const ops = [pickOp(level), pickOp(level)];
       if (level >= GATE_X_MIN_LEVEL && Math.random() < GATE_X_PROBA) {
@@ -200,7 +241,7 @@ export function createGates(ctx) {
           // juice 5.3 (une fois par franchissement de cette porte)
           g.flashT = GATE_FLASH_DUR;
           g.punchT = GATE_PUNCH_DUR;
-          ctx.particles.ring(g.x, g.z, COLORS.gateGood);
+          ctx.particles.ring(g.x, g.z, gateGoodColor);
           ctx.floatingText.spawn('+' + clones, u.x, FLOAT_TEXT_Y, g.z);
           ctx.audio.synth?.ding();
           // pas de break : parité proto (une unité peut théoriquement recouper une 2e porte)

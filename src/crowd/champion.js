@@ -24,6 +24,7 @@ import {
   BOSS_RADIUS,
   COLORS,
 } from '../core/constants.js';
+import { variantNumber } from '../core/variant.js';
 import { clamp01 } from '../juice/springs.js';
 import { nextId } from '../core/ids.js';
 
@@ -54,6 +55,10 @@ export function createChampion(ctx) {
   const _box = new THREE.Box3();
   const _size = new THREE.Vector3();
   const _white = new THREE.Color(0xffffff);
+
+  function chargeMultiplier() {
+    return variantNumber(ctx, 'championChargeMult', 1, { min: 1, max: 4 });
+  }
 
   // --- jauge 3D + bouton RELEASE (game objects attachés au groupe du canon) ---
   let gauge = null; // { rig, bg, fill, fillMat, btn }
@@ -240,7 +245,10 @@ export function createChampion(ctx) {
 
   function addCharge(amount) {
     const state = ctx.state;
-    state.championCharge = Math.min(CHAMPION_MAX, state.championCharge + Math.max(0, amount || 0));
+    state.championCharge = Math.min(
+      CHAMPION_MAX,
+      state.championCharge + Math.max(0, amount || 0) * chargeMultiplier(),
+    );
   }
 
   function killRed(reds, index, red) {
@@ -290,7 +298,10 @@ export function createChampion(ctx) {
     if (!state.playing) return;
 
     if (state.championCharge < CHAMPION_MAX) {
-      state.championCharge = Math.min(CHAMPION_MAX, state.championCharge + CHAMPION_PASSIVE_RATE * dt);
+      state.championCharge = Math.min(
+        CHAMPION_MAX,
+        state.championCharge + CHAMPION_PASSIVE_RATE * chargeMultiplier() * dt,
+      );
     }
 
     const champions = state.champions;

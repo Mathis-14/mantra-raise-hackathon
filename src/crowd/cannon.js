@@ -47,6 +47,8 @@ const SIDE_BARREL_X = 0.52;      // écart visuel des canons latéraux (présent
 
 export function createCannon(ctx) {
   const { scene } = ctx;
+  const playerColor = ctx.theme?.teams?.player || COLORS.blue;
+  const playerDarkColor = ctx.theme?.teams?.playerDark || COLORS.blueDark;
 
   // --- Construction du groupe (assets seulement — aucune interaction système) ---
   const group = new THREE.Group();
@@ -60,7 +62,7 @@ export function createCannon(ctx) {
 
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(BASE_W, BASE_H, BASE_D),
-    new THREE.MeshLambertMaterial({ color: COLORS.blueDark }),
+    new THREE.MeshLambertMaterial({ color: playerDarkColor }),
   );
   base.position.set(0, BASE_Y, 0);
   rig.add(base);
@@ -75,7 +77,7 @@ export function createCannon(ctx) {
   const blasterGltf = ctx.assets && ctx.assets.gltf && ctx.assets.gltf.blaster;
   if (blasterGltf && blasterGltf.scene) {
     barrelModel = blasterGltf.scene.clone(true);
-    retintClone(barrelModel, COLORS.blue);
+    retintClone(barrelModel, playerColor);
     // Normalisation AVANT orientation : plus grande dim native = longueur du fût.
     barrelModel.updateMatrixWorld(true);
     const b0 = new THREE.Box3().setFromObject(barrelModel);
@@ -87,7 +89,7 @@ export function createCannon(ctx) {
     // Repli parité proto : CylinderGeometry(0.45, 0.6, 2.4, 16), bouche vers -Z.
     barrelModel = new THREE.Mesh(
       new THREE.CylinderGeometry(0.45, 0.6, BARREL_TARGET_LEN, 16),
-      new THREE.MeshLambertMaterial({ color: COLORS.blue }),
+      new THREE.MeshLambertMaterial({ color: playerColor }),
     );
     barrelModel.rotation.set(-Math.PI / 2 + 0.25, 0, 0);
   }
