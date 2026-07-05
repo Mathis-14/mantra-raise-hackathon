@@ -56,7 +56,7 @@ export function renderVariants(root: HTMLElement, route: FlowRoute) {
         <div class="carousel-scene">
           <div class="carousel-track" id="variant-carousel-track">${renderVariantPhones()}</div>
           <button class="btn-generate btn-generate--corner" id="open-dashboard-btn">
-            <span class="btn-generate-title">Open dashboard</span>
+            <span class="btn-generate-title">Generate ads</span>
             <span class="btn-generate-arrow">→</span>
           </button>
         </div>
@@ -112,10 +112,11 @@ export function renderVariants(root: HTMLElement, route: FlowRoute) {
       : `<span class="live-dot"></span><span>${text}</span>`
   }
 
+  // Advance to the Ads screen (step 3). Dashboard is now step 4, reached from Ads.
   function openDashboard(variantsPending: boolean) {
     if (routed) return
     routed = true
-    setRoute('pipeline', {
+    setRoute('ads', {
       runId: route.runId,
       gameUrl: route.gameUrl,
       variantsPending,

@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# pub-generator secrets + generated artifacts
+pub-generator/.env
+pub-generator/output/*
+!pub-generator/output/.gitkeep
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

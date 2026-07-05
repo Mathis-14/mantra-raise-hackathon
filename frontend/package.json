@@ -6,13 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pubgen": "node pub-generator/server.mjs"
   },
   "devDependencies": {
+    "playwright": "^1.61.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
   },
   "dependencies": {
-    "cobe": "^2.0.1"
+    "@napi-rs/canvas": "^1.0.2",
+    "cobe": "^2.0.1",
+    "dotenv": "^17.4.2",
+    "ffmpeg-static": "^5.3.0",
+    "openai": "^6.45.0"
   }
 }

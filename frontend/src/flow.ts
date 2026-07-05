@@ -1,5 +1,5 @@
-export type FlowScreen = 'landing' | 'playtest' | 'variants' | 'pipeline'
-export type FlowStep = 'playtest' | 'variants' | 'dashboard'
+export type FlowScreen = 'landing' | 'playtest' | 'variants' | 'ads' | 'pipeline'
+export type FlowStep = 'playtest' | 'variants' | 'ads' | 'dashboard'
 
 export interface FlowRoute {
   screen: FlowScreen
@@ -19,7 +19,8 @@ export interface RouteTarget {
 const STEP_LABELS: Array<{ id: FlowStep; index: string; label: string }> = [
   { id: 'playtest', index: '1', label: 'Gameplay' },
   { id: 'variants', index: '2', label: 'Variants' },
-  { id: 'dashboard', index: '3', label: 'Dashboard' },
+  { id: 'ads', index: '3', label: 'Ads' },
+  { id: 'dashboard', index: '4', label: 'Dashboard' },
 ]
 
 export function parseRoute(): FlowRoute {
@@ -27,9 +28,11 @@ export function parseRoute(): FlowRoute {
   const [screenPart = '', query = ''] = hash.split('?')
   const params = new URLSearchParams(query)
 
-  const screen = screenPart === 'playtest' || screenPart === 'variants' || screenPart === 'pipeline'
-    ? screenPart
-    : 'landing'
+  const screen =
+    screenPart === 'playtest' || screenPart === 'variants' ||
+    screenPart === 'ads' || screenPart === 'pipeline'
+      ? screenPart
+      : 'landing'
 
   return {
     screen,
