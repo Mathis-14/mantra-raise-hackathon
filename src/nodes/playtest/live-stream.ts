@@ -3,50 +3,17 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { Page } from "playwright";
 
 import { JPEG_QUALITY, VIEWPORT } from "./config";
+import type { LiveActionPayload, LiveEventName, LiveFramePayload, LiveStatusPayload } from "./live-stream/types";
 
 const LIVE_STREAM_PORT = 4317;
 const LIVE_STREAM_HOST = "127.0.0.1";
 const HEARTBEAT_MS = 15_000;
 const SCREENCAST_FRAME_INTERVAL_MS = 180;
 
-type LiveEventName = "frame" | "action" | "status";
-
 interface LiveClient {
   runId: string;
   response: ServerResponse;
   heartbeat: NodeJS.Timeout;
-}
-
-interface LiveFramePayload {
-  runId: string;
-  turn: number | null;
-  mimeType: "image/jpeg";
-  data: string;
-  width: number;
-  height: number;
-  source: "capture" | "screencast";
-  ts: number;
-}
-
-interface LiveActionPayload {
-  runId: string;
-  turn: number;
-  name: string;
-  message: string;
-  x: number | null;
-  y: number | null;
-  endX: number | null;
-  endY: number | null;
-  click: boolean;
-  isError: boolean;
-  skipped: boolean;
-  ts: number;
-}
-
-interface LiveStatusPayload {
-  runId: string;
-  message: string;
-  ts: number;
 }
 
 export interface LiveScreencast {
