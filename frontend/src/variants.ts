@@ -91,6 +91,7 @@ export function renderVariants(root: HTMLElement, route: FlowRoute) {
 
   let disposed = false
   let routed = false
+  let backendAdvancedLogged = false
   const startedAt = performance.now()
   const radius = 390
   const speed = 0.00028
@@ -164,9 +165,15 @@ export function renderVariants(root: HTMLElement, route: FlowRoute) {
       return
     }
 
-    if (DASHBOARD_STATUSES.includes(state.run.status)) {
+    if (DASHBOARD_STATUSES.includes(state.run.status) && state.variants.length === 0) {
       addLog('Backend moved past variants; opening dashboard')
       openDashboard(false)
+      return
+    }
+
+    if (DASHBOARD_STATUSES.includes(state.run.status) && !backendAdvancedLogged) {
+      backendAdvancedLogged = true
+      addLog('Backend moved past variants; carousel remains available')
     }
   }
 

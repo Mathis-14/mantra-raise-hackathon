@@ -14,6 +14,7 @@ import { canTransition, RUN_STATUSES, type PlaytestReport, type RunStatus } from
 import { emitEvent } from "@/lib/events";
 import { supabaseAdmin } from "@/lib/supabase";
 import { runPlaytest } from "@/nodes/playtest";
+import { runVariantStep } from "@/orchestrator/variant-step";
 
 const POLL_MS = 2_000;
 const PLAYTEST_BUDGET_S = 120;
@@ -37,12 +38,16 @@ function readString(record: Record<string, unknown>, key: string): string | null
 }
 
 function parseRunCandidate(value: unknown): RunCandidate | null {
+  return parseRunCandidateForStatus(value, "created");
+}
+
+function parseRunCandidateForStatus(value: unknown, expectedStatus: RunStatus): RunCandidate | null {
   if (!isRecord(value)) return null;
 
   const id = readString(value, "id");
   const projectId = readString(value, "project_id");
   const status = readString(value, "status");
-  if (!id || !projectId || status !== "created") return null;
+  if (!id || !projectId || status !== expectedStatus) return null;
 
   return { id, projectId };
 }
@@ -101,6 +106,21 @@ async function claimNextCreatedRun(): Promise<RunCandidate | null> {
 
   if (claimError) throw new Error(claimError.message);
   return parseClaimedRun(claimed);
+}
+
+async function readNextVariantRun(): Promise<RunCandidate | null> {
+  const { data, error } = await supabaseAdmin()
+    .from("runs")
+    .select("id, project_id, status")
+    .eq("status", "generating_variants")
+    .order("updated_at", { ascending: true })
+    .limit(1);
+
+  if (error) throw new Error(error.message);
+
+  return (Array.isArray(data) ? data : [])
+    .map((row) => parseRunCandidateForStatus(row, "generating_variants"))
+    .find((run) => run !== null) ?? null;
 }
 
 async function readProjectGameUrl(projectId: string): Promise<string> {
@@ -171,6 +191,23 @@ async function failRun(runId: string, failedStep: RunStatus, error: unknown): Pr
   });
 }
 
+async function processVariantRun(run: RunCandidate): Promise<void> {
+  try {
+    const variantCount = await runVariantStep(run);
+    await advanceRun(run.id, "generating_variants", "generating_creatives");
+    await emitEvent({
+      run_id: run.id,
+      node: "variants",
+      type: "status",
+      message: "variants_persisted",
+      screenshot_url: null,
+      data: { count: variantCount },
+    });
+  } catch (error) {
+    await failRun(run.id, "generating_variants", error);
+  }
+}
+
 async function processPlaytest(run: RunCandidate): Promise<void> {
   const gameUrl = await readProjectGameUrl(run.projectId);
 
@@ -214,6 +251,12 @@ export async function runOrchestrator(): Promise<void> {
       const run = await claimNextCreatedRun();
       if (run) {
         await processPlaytest(run);
+        continue;
+      }
+
+      const variantRun = await readNextVariantRun();
+      if (variantRun) {
+        await processVariantRun(variantRun);
         continue;
       }
     } catch (error) {
