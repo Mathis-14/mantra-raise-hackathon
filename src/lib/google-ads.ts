@@ -1,4 +1,7 @@
 import { GoogleAuth } from "google-auth-library";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 
 import { googleAdsEnv } from "@/lib/env";
@@ -8,6 +11,8 @@ const GOOGLE_ADS_API_ORIGIN = "https://googleads.googleapis.com";
 const GOOGLE_ADS_SCOPE = "https://www.googleapis.com/auth/adwords";
 const REQUEST_TIMEOUT_MS = 10_000;
 const TEST_BUDGET_MICROS = "1000000";
+const DEMO_IMAGE_PATH = path.join(process.cwd(), "frontend", "public", "google-ads-demo-gameplay1-square.png");
+const MAX_DEMO_IMAGE_BYTES = 2_000_000;
 
 const customerIdSchema = z.string().regex(/^\d{10}$/);
 const resourceNameSchema = z.string().min(1);
@@ -57,6 +62,24 @@ const mutateSchema = z.object({
   results: z.array(z.object({ resourceName: resourceNameSchema })).min(1),
 });
 
+const assetSearchSchema = z.array(z.object({
+  results: z.array(z.object({
+    asset: z.object({
+      id: z.string().min(1),
+      resourceName: resourceNameSchema,
+      name: z.string().optional().default("Mantra demo image"),
+      type: z.literal("IMAGE"),
+      source: z.string().min(1),
+    }),
+  })).default([]),
+}));
+
+const campaignAssetSearchSchema = z.array(z.object({
+  results: z.array(z.object({
+    campaignAsset: z.object({ resourceName: resourceNameSchema }),
+  })).default([]),
+}));
+
 export const launchTestCampaignSchema = z.object({
   runId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
 });
@@ -90,6 +113,25 @@ export interface ExistingTestCampaign {
   attempt: number;
 }
 
+export interface UploadedDemoAsset {
+  assetId: string;
+  resourceName: string;
+  name: string;
+  type: "IMAGE";
+  source: string;
+  testAccount: true;
+  created: boolean;
+  requestId: string | null;
+  timestamp: string;
+}
+
+export interface LinkedDemoAsset extends UploadedDemoAsset {
+  campaignId: string;
+  campaignAttempt: number;
+  linked: boolean;
+  campaignStatus: "PAUSED";
+}
+
 export class GoogleAdsConfigurationError extends Error {
   constructor(message: string) {
     super(message);
@@ -111,6 +153,18 @@ export class GoogleAdsApiError extends Error {
 
 const auth = new GoogleAuth({ scopes: [GOOGLE_ADS_SCOPE] });
 
+function googleAdsErrorDetails(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(googleAdsErrorDetails);
+  if (typeof value !== "object" || value === null) return [];
+  return Object.entries(value).flatMap(([key, entry]) => {
+    if (typeof entry === "string"
+      && (key === "message" || key === "fieldName" || key.endsWith("Error"))) {
+      return [entry.replaceAll(/\d{10}/g, "[customer]")];
+    }
+    return googleAdsErrorDetails(entry);
+  });
+}
+
 async function accessToken(): Promise<string> {
   const client = await auth.getClient();
   const response = await client.getAccessToken();
@@ -120,7 +174,10 @@ async function accessToken(): Promise<string> {
   return response.token;
 }
 
-async function googleAdsRequest(path: string, init?: RequestInit): Promise<unknown> {
+async function googleAdsRequestWithMetadata(
+  path: string,
+  init?: RequestInit,
+): Promise<{ body: unknown; requestId: string | null }> {
   const env = googleAdsEnv();
   const token = await accessToken();
   const response = await fetch(`${GOOGLE_ADS_API_ORIGIN}/${GOOGLE_ADS_API_VERSION}${path}`, {
@@ -151,6 +208,10 @@ async function googleAdsRequest(path: string, init?: RequestInit): Promise<unkno
         .join(": ")
         .replaceAll(/\d{10}/g, "[customer]")
       : "request rejected";
+    const nestedReason = [...new Set<string>(googleAdsErrorDetails(body))]
+      .filter((value) => value !== reason)
+      .slice(0, 6)
+      .join(" | ");
     const errorPayload = JSON.stringify(body);
     const policyCode = reason.includes("EU_POLITICAL_ADVERTISING_DECLARATION_REQUIRED")
       || errorPayload.includes("EU_POLITICAL_ADVERTISING_DECLARATION_REQUIRED")
@@ -161,9 +222,18 @@ async function googleAdsRequest(path: string, init?: RequestInit): Promise<unkno
         || errorPayload.includes("contains_eu_political_advertising")
         ? "MISSING_EU_POLITICAL_ADVERTISING_SELF_DECLARATION"
         : null;
-    throw new GoogleAdsApiError(reason, response.status, policyCode, requestId);
+    throw new GoogleAdsApiError(
+      nestedReason ? `${reason} | ${nestedReason}` : reason,
+      response.status,
+      policyCode,
+      requestId,
+    );
   }
-  return response.json();
+  return { body: await response.json(), requestId: response.headers.get("request-id") };
+}
+
+async function googleAdsRequest(path: string, init?: RequestInit): Promise<unknown> {
+  return (await googleAdsRequestWithMetadata(path, init)).body;
 }
 
 async function search(customerId: string, query: string): Promise<unknown> {
@@ -235,6 +305,142 @@ export async function findUndeclaredEuPoliticalCampaignIds(): Promise<string[]> 
     "SELECT campaign.id FROM campaign WHERE campaign.missing_eu_political_advertising_declaration = true",
   ));
   return pages.flatMap((page) => page.results.map((result) => result.campaign.id));
+}
+
+export async function readDemoImage(): Promise<Buffer> {
+  const data = await readFile(DEMO_IMAGE_PATH);
+  if (data.length === 0 || data.length > MAX_DEMO_IMAGE_BYTES) {
+    throw new GoogleAdsConfigurationError("Demo image has an invalid size");
+  }
+  return data;
+}
+
+function assetIdFromResourceName(resourceName: string): string {
+  const id = resourceName.split("/").at(-1);
+  if (!id) throw new Error("Google Ads returned an invalid asset resource name");
+  return id;
+}
+
+async function findAssetByResourceName(resourceName: string) {
+  const env = googleAdsEnv();
+  const pages = assetSearchSchema.parse(await search(
+    env.GOOGLE_ADS_CUSTOMER_ID,
+    `SELECT asset.id, asset.resource_name, asset.name, asset.type, asset.source FROM asset WHERE asset.resource_name = '${resourceName}' LIMIT 1`,
+  ));
+  return firstResult(pages)?.asset ?? null;
+}
+
+export async function uploadDemoImageAsset(): Promise<UploadedDemoAsset> {
+  await verifyGoogleAdsConnection();
+  const env = googleAdsEnv();
+  const image = await readDemoImage();
+  const digest = createHash("sha256").update(image).digest("hex").slice(0, 10).toUpperCase();
+  const name = `MANTRA_DEMO_GAMEPLAY1_${digest}`;
+
+  const existingPages = assetSearchSchema.parse(await search(
+    env.GOOGLE_ADS_CUSTOMER_ID,
+    `SELECT asset.id, asset.resource_name, asset.name, asset.type, asset.source FROM asset WHERE asset.name = '${name}' LIMIT 1`,
+  ));
+  const existing = firstResult(existingPages)?.asset;
+  if (existing) {
+    return {
+      assetId: existing.id,
+      resourceName: existing.resourceName,
+      name: existing.name,
+      type: existing.type,
+      source: existing.source,
+      testAccount: true,
+      created: false,
+      requestId: null,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  const mutation = await googleAdsRequestWithMetadata(
+    `/customers/${env.GOOGLE_ADS_CUSTOMER_ID}/assets:mutate`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        operations: [{
+          create: {
+            name,
+            type: "IMAGE",
+            imageAsset: { data: image.toString("base64") },
+          },
+        }],
+      }),
+    },
+  );
+  const response = mutateSchema.parse(mutation.body);
+  const resourceName = response.results[0]?.resourceName;
+  if (!resourceName) throw new Error("Google Ads did not return an image asset");
+  const verified = await findAssetByResourceName(resourceName);
+  if (!verified) throw new Error("Google Ads image asset could not be verified after upload");
+
+  return {
+    assetId: assetIdFromResourceName(resourceName),
+    resourceName,
+    name: verified.name,
+    type: verified.type,
+    source: verified.source,
+    testAccount: true,
+    created: true,
+    requestId: mutation.requestId,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export async function uploadAndLinkDemoImageAsset(value: unknown): Promise<LinkedDemoAsset> {
+  const input = launchTestCampaignSchema.parse(value);
+  await verifyGoogleAdsConnection();
+  const history = await campaignHistory(input.runId);
+  const campaign = history
+    .filter((entry) => entry.status === "PAUSED")
+    .sort((left, right) => right.attempt - left.attempt)[0];
+  if (!campaign) {
+    throw new GoogleAdsConfigurationError("A paused Mantra test campaign is required before linking an image");
+  }
+
+  const asset = await uploadDemoImageAsset();
+  const env = googleAdsEnv();
+  const existingPages = campaignAssetSearchSchema.parse(await search(
+    env.GOOGLE_ADS_CUSTOMER_ID,
+    `SELECT campaign_asset.resource_name, campaign.id, asset.id FROM campaign_asset WHERE campaign.id = ${campaign.campaignId} AND asset.id = ${asset.assetId} AND campaign_asset.field_type = 'AD_IMAGE'`,
+  ));
+  const existing = firstResult(existingPages)?.campaignAsset;
+  if (existing) {
+    return {
+      ...asset,
+      campaignId: campaign.campaignId,
+      campaignAttempt: campaign.attempt,
+      linked: false,
+      campaignStatus: "PAUSED",
+    };
+  }
+
+  await googleAdsRequest(
+    `/customers/${env.GOOGLE_ADS_CUSTOMER_ID}/campaignAssets:mutate`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        operations: [{
+          create: {
+            campaign: campaign.resourceName,
+            asset: asset.resourceName,
+            fieldType: "AD_IMAGE",
+          },
+        }],
+      }),
+    },
+  );
+
+  return {
+    ...asset,
+    campaignId: campaign.campaignId,
+    campaignAttempt: campaign.attempt,
+    linked: true,
+    campaignStatus: "PAUSED",
+  };
 }
 
 function campaignName(runId: string): string {

@@ -30,7 +30,7 @@ Input: HTML game (Mob Control clone in game/) + market/trend context
   └── Memory: knowledge base compounds across projects; agent runs continuously
 ```
 
-**Honesty line (never blur it):** playtest, variants, video generation, and creation of a paused campaign shell in a verified Google Ads test account are real. Creatives are not uploaded to Google Ads, and all performance metrics are deterministically seeded — a live campaign needs ~48h to exit the learning phase. Say this plainly in the demo and the README.
+**Honesty line (never blur it):** playtest, variants, video generation, creation of a paused campaign shell, and the optional demo image upload into a verified Google Ads test account are real. Assets are not attached to serving ads, and all performance metrics are deterministically seeded — a live campaign needs ~48h to exit the learning phase. Say this plainly in the demo and the README.
 
 **Demo (~1 min):** problem (15s) → agent playing + report, pre-recorded & sped up (25s, the wow) → variants + videos (15s) → live dashboard, metrics, keep/kill (15s). Keep one live element so it doesn't feel canned.
 
@@ -184,7 +184,7 @@ Hackathon rule: the demo path is the test surface.
 - **D005** — 2026-07-04 — Long-running work (orchestrator + playtest) runs in `npm run worker` on a laptop; Vercel hosts dashboard + API. Why: Playwright/CU can't run in serverless routes. Both sides talk only to Supabase.
 - **D006** — 2026-07-04 — Ads deploy stubbed + metrics seeded, everything upstream real (the honesty line). Superseded by D009 for campaign-shell creation.
 - **D007** — 2026-07-04 — Contracts locked in `src/contracts/types.ts`; directory ownership per stream. Why: four parallel builders, zero integration hours to spare.
-- **D009** — 2026-07-05 — Mantra may create only a PAUSED campaign shell in a runtime-verified Google Ads test child; creative deployment and every performance metric remain simulated. Why: demonstrate a real API integration without enabling serving, billing, or accidental production writes.
+- **D009** — 2026-07-05 — Mantra may create only a PAUSED campaign shell and link a demo image asset to that PAUSED campaign in a runtime-verified Google Ads test child; no ad is created, and ad serving plus every performance metric remain simulated. Why: demonstrate real API writes without enabling serving, billing, or accidental production writes.
 
 
 

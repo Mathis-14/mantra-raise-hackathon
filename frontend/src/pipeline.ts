@@ -179,6 +179,7 @@ export function renderPipeline(root: HTMLElement) {
               <p class="ads-feedback" id="ads-feedback">Verify the server connection before launching.</p>
               <button class="ads-button ads-button--secondary" id="verify-ads-btn">Verify connection</button>
               <button class="ads-button ads-button--primary" id="launch-ads-btn" disabled><span>Create paused test campaign</span><span aria-hidden="true">&rarr;</span></button>
+              <button class="ads-button ads-button--asset" id="upload-asset-btn" disabled><span>Upload & link demo image</span><span aria-hidden="true">&uarr;</span></button>
               <div class="campaign-result" id="campaign-result" hidden>
                 <span class="campaign-result-label">Campaign created</span>
                 <strong id="campaign-result-id"></strong>
@@ -194,6 +195,11 @@ export function renderPipeline(root: HTMLElement) {
                   <span>Time</span><strong id="policy-proof-time"></strong>
                 </div>
                 <div class="policy-proof-safe"><span>✓ No campaign</span><span>✓ No serving</span><span>✓ No spend</span></div>
+              </div>
+              <div class="asset-result" id="asset-result" hidden>
+                <img src="/api/integrations/acquisition/assets/preview" alt="Mob Control gameplay uploaded to Google Ads">
+                <div><span>Stored in Google Ads</span><strong id="asset-result-name"></strong><small id="asset-result-meta"></small></div>
+                <span class="test-badge">IMAGE</span>
               </div>
               <a class="ads-dashboard-link" href="https://ads.google.com/" target="_blank" rel="noreferrer">Open Google Ads dashboard <span aria-hidden="true">&nearr;</span></a>
               <div class="honesty-note"><strong>Real:</strong> connection + paused campaign ID <span></span> <strong>Simulated:</strong> every performance metric</div>
@@ -217,11 +223,13 @@ export function renderPipeline(root: HTMLElement) {
   const marketBench  = document.getElementById('market-bench')!
   const verifyAdsButton = document.getElementById('verify-ads-btn') as HTMLButtonElement
   const launchAdsButton = document.getElementById('launch-ads-btn') as HTMLButtonElement
+  const uploadAssetButton = document.getElementById('upload-asset-btn') as HTMLButtonElement
   const adsFeedback = document.getElementById('ads-feedback')!
   const adsConnectionState = document.getElementById('ads-connection-state')!
   const adsAccount = document.getElementById('ads-account')!
   const campaignResult = document.getElementById('campaign-result')!
   const policyProof = document.getElementById('policy-proof')!
+  const assetResult = document.getElementById('asset-result')!
 
   let verificationInFlight = false
   async function verifyAdsConnection() {
@@ -247,6 +255,7 @@ export function renderPipeline(root: HTMLElement) {
       adsFeedback.textContent = 'Safe to create a real paused campaign shell.'
       verifyAdsButton.textContent = 'Connection verified'
       launchAdsButton.disabled = false
+      uploadAssetButton.disabled = false
     } catch {
       adsConnectionState.className = 'connection-state connection-state--error'
       adsConnectionState.innerHTML = '<span class="connection-dot"></span>Setup required'
@@ -300,6 +309,32 @@ export function renderPipeline(root: HTMLElement) {
       launchAdsButton.textContent = 'Try campaign creation again'
       launchAdsButton.disabled = false
       adsFeedback.textContent = 'Campaign creation failed safely. No production fallback is available.'
+    }
+  })
+
+  uploadAssetButton.addEventListener('click', async () => {
+    uploadAssetButton.disabled = true
+    uploadAssetButton.textContent = 'Uploading image to Google Ads...'
+    adsFeedback.textContent = 'Sending the protected demo image to the verified test child.'
+    try {
+      const response = await fetch('/api/integrations/acquisition/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ runId: 'pipeline-demo' }),
+      })
+      if (!response.ok) throw new Error('asset_upload_failed')
+      const result: unknown = await response.json()
+      if (!isUploadedDemoAsset(result)) throw new Error('unsafe_asset_response')
+
+      document.getElementById('asset-result-name')!.textContent = result.name
+      document.getElementById('asset-result-meta')!.textContent = `Asset ID ${result.assetId} · Campaign attempt ${result.campaignAttempt} · PAUSED`
+      assetResult.hidden = false
+      uploadAssetButton.textContent = result.linked ? 'Image linked to paused campaign' : 'Existing campaign image found'
+      adsFeedback.textContent = 'Real image asset verified and linked to the PAUSED test campaign. No ad can serve.'
+    } catch {
+      uploadAssetButton.textContent = 'Try image upload again'
+      uploadAssetButton.disabled = false
+      adsFeedback.textContent = 'Image upload failed safely. No ad or campaign association was created.'
     }
   })
 
@@ -481,6 +516,20 @@ interface GoogleAdsPolicyResponse {
   spend: false
 }
 
+interface UploadedDemoAsset {
+  assetId: string
+  name: string
+  type: 'IMAGE'
+  source: string
+  testAccount: true
+  created: boolean
+  timestamp: string
+  campaignId: string
+  campaignAttempt: number
+  linked: boolean
+  campaignStatus: 'PAUSED'
+}
+
 function isVerifiedTestAccount(value: unknown): value is VerifiedAdsAccount {
   if (typeof value !== 'object' || value === null) return false
   const account = value as Record<string, unknown>
@@ -519,4 +568,24 @@ function isGoogleAdsPolicyResponse(value: unknown): value is GoogleAdsPolicyResp
     && response.campaignCreated === false
     && response.adsServed === false
     && response.spend === false
+}
+
+function isUploadedDemoAsset(value: unknown): value is UploadedDemoAsset {
+  if (typeof value !== 'object' || value === null) return false
+  const asset = value as Record<string, unknown>
+  return typeof asset.assetId === 'string'
+    && asset.assetId.length > 0
+    && typeof asset.name === 'string'
+    && asset.name.length > 0
+    && asset.type === 'IMAGE'
+    && typeof asset.source === 'string'
+    && asset.testAccount === true
+    && typeof asset.created === 'boolean'
+    && typeof asset.timestamp === 'string'
+    && typeof asset.campaignId === 'string'
+    && asset.campaignId.length > 0
+    && typeof asset.campaignAttempt === 'number'
+    && Number.isInteger(asset.campaignAttempt)
+    && typeof asset.linked === 'boolean'
+    && asset.campaignStatus === 'PAUSED'
 }

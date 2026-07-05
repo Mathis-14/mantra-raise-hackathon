@@ -1229,6 +1229,8 @@ a.logo {
 .ads-button--secondary:hover { background: rgba(255,255,255,.1); }
 .ads-button--primary { display: flex; align-items: center; justify-content: space-between; padding: 0 13px; color: #fff; background: #2563eb; border: 1px solid #3b82f6; box-shadow: 0 7px 20px rgba(37,99,235,.28); }
 .ads-button--primary:not(:disabled):hover { transform: translateY(-1px); background: #3b82f6; }
+.ads-button--asset { display: flex; align-items: center; justify-content: space-between; padding: 0 13px; color: #d1fae5; background: rgba(16,185,129,.12); border: 1px solid rgba(52,211,153,.3); }
+.ads-button--asset:not(:disabled):hover { background: rgba(16,185,129,.2); }
 .ads-button:disabled { opacity: .42; cursor: not-allowed; }
 .ads-dashboard-link { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 12px 0 0; color: #93c5fd; text-decoration: none; font-size: 10.5px; }
 .ads-dashboard-link:hover { color: #dbeafe; }
@@ -1247,6 +1249,13 @@ a.logo {
 .policy-proof-meta span { color: #94a3b8; }
 .policy-proof-meta strong { color: #e2e8f0; font-weight: 600; overflow-wrap: anywhere; }
 .policy-proof-safe { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 9px; color: #86efac; font-size: 9px; font-weight: 700; }
+.asset-result { display: grid; grid-template-columns: 62px 1fr auto; gap: 10px; align-items: center; margin-top: 10px; padding: 9px; border: 1px solid rgba(52,211,153,.3); border-radius: 10px; background: rgba(16,185,129,.09); }
+.asset-result[hidden] { display: none; }
+.asset-result img { width: 62px; height: 62px; object-fit: cover; border-radius: 7px; border: 1px solid rgba(255,255,255,.14); }
+.asset-result > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.asset-result > div span { color: #86efac; font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+.asset-result > div strong { color: #f0fdf4; font-size: 10px; overflow-wrap: anywhere; }
+.asset-result > div small { color: #94a3b8; font-size: 8.5px; overflow-wrap: anywhere; }
 .honesty-note { margin-top: 13px; padding-top: 11px; border-top: 1px solid rgba(255,255,255,.09); color: #94a3b8; font-size: 9px; text-align: center; line-height: 1.5; }
 .honesty-note strong { color: #e2e8f0; }
 .honesty-note > span { display: inline-block; width: 3px; height: 3px; margin: 0 5px 2px; border-radius: 50%; background: #64748b; }
