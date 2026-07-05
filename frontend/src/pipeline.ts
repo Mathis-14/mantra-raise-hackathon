@@ -134,36 +134,22 @@ export function renderPipeline(root: HTMLElement, route: FlowRoute) {
           <section class="tab-panel" data-panel="decision">
             <div class="decision-heading">
               <div>
-                <div class="col-title">Agent recommendation</div>
-                <p class="decision-subtitle">Choose the winning direction, then create a safe test campaign shell.</p>
+                <div class="col-title">Growth deployment</div>
+                <p class="decision-subtitle">Turn the selected creative into a verified Google Ads test campaign.</p>
               </div>
-              <span class="simulation-pill">Performance simulated</span>
+              <span class="simulation-pill">Test account · no spend</span>
             </div>
             <div class="decision-grid">
-            <div class="rec-card" id="rec-card" style="opacity:0;transition:opacity 0.5s">
-              <div class="rec-icon">🧠</div>
-              <div class="rec-title">Build next: <span class="accent">Sky Hop × Speed Dash</span></div>
-              <p class="rec-body">
-                Sky Hop beat the market on both CPI ($0.37 vs $0.58 median) and D1
-                retention (44%), pacing with Homa's Sky Jumper. Speed Dash undercut
-                Voodoo's Lane Rush on CPI. Neon Snake fell below market — kill it.
-              </p>
-              <div class="rec-divider"></div>
-              <div class="rec-row"><span>Kill</span><span class="tag tag--kill">Neon Snake</span></div>
-              <div class="rec-row"><span>A/B test</span><span class="tag tag--keep">Sky Hop vs Speed Dash</span></div>
-              <div class="rec-row"><span>Next build</span><span class="tag tag--next">Vertical Dash v2</span></div>
-            </div>
-
             <aside class="ads-connect-card" aria-labelledby="ads-connect-title">
               <div class="ads-card-head">
                 <div class="google-mark" aria-hidden="true"><span>G</span></div>
                 <div><div class="ads-eyebrow">Google Ads</div><h2 id="ads-connect-title">Launch safely</h2></div>
                 <span class="connection-state connection-state--idle" id="ads-connection-state"><span class="connection-dot"></span>Not verified</span>
               </div>
-              <div class="ads-safety-banner">
-                <span class="shield-icon" aria-hidden="true">&#10003;</span>
-                <div><strong>Test accounts only</strong><span>Production accounts are refused and campaigns are always created paused.</span></div>
-              </div>
+<!--              <div class="ads-safety-banner">-->
+<!--                <span class="shield-icon" aria-hidden="true">&#10003;</span>-->
+<!--                <div><strong>Test accounts only</strong><span>Production accounts are refused and campaigns are always created paused.</span></div>-->
+<!--              </div>-->
               <div class="ads-account" id="ads-account" hidden>
                 <div><span class="ads-account-label">Connected account</span><strong id="ads-account-name">Google Ads test client</strong></div>
                 <span class="test-badge">TEST</span>
@@ -174,9 +160,11 @@ export function renderPipeline(root: HTMLElement, route: FlowRoute) {
                 <div class="ads-check"><span>3</span><div><strong>Paused campaign shell</strong><small>No ads, delivery, billing, or real performance</small></div></div>
               </div>
               <p class="ads-feedback" id="ads-feedback">Verify the server connection before launching.</p>
-              <button class="ads-button ads-button--secondary" id="verify-ads-btn">Verify connection</button>
-              <button class="ads-button ads-button--primary" id="launch-ads-btn" disabled><span>Create paused test campaign</span><span aria-hidden="true">&rarr;</span></button>
-              <button class="ads-button ads-button--asset" id="upload-asset-btn" disabled><span>Upload & link demo image</span><span aria-hidden="true">&uarr;</span></button>
+              <div class="ads-actions">
+                <button class="ads-button ads-button--secondary" id="verify-ads-btn">Verify connection</button>
+                <button class="ads-button ads-button--primary" id="launch-ads-btn" disabled><span>Create paused test campaign</span><span aria-hidden="true">&rarr;</span></button>
+                <button class="ads-button ads-button--asset" id="upload-asset-btn" disabled><span>Upload & link demo image</span><span aria-hidden="true">&uarr;</span></button>
+              </div>
               <div class="campaign-result" id="campaign-result" hidden>
                 <span class="campaign-result-label">Campaign created</span>
                 <strong id="campaign-result-id"></strong>
@@ -198,7 +186,7 @@ export function renderPipeline(root: HTMLElement, route: FlowRoute) {
                 <div><span>Stored in Google Ads</span><strong id="asset-result-name"></strong><small id="asset-result-meta"></small></div>
                 <span class="test-badge">IMAGE</span>
               </div>
-              <a class="ads-dashboard-link" href="https://ads.google.com/" target="_blank" rel="noreferrer">Open Google Ads dashboard <span aria-hidden="true">&nearr;</span></a>
+              <a class="ads-dashboard-link" href="https://ads.google.com/aw/overview?ocid=8380763447&workspaceId=0&ascid=8380763447&euid=864436001&__u=9448469849&uscid=8380763447&__c=6333501503&authuser=0&workflowSessionId=a77B8CC11-509D-4EDF-9542-B82F0FF2DAFD--0" target="_blank" rel="noreferrer">Open Google Ads dashboard <span aria-hidden="true">&nearr;</span></a>
               <div class="honesty-note"><strong>Real:</strong> connection + paused campaign ID <span></span> <strong>Simulated:</strong> every performance metric</div>
             </aside>
             </div>
@@ -478,11 +466,9 @@ export function renderPipeline(root: HTMLElement, route: FlowRoute) {
     marketBench.appendChild(row)
   })
 
-  // ── Reveal recommendation + finish badge ──
+  // ── Finish badge ──
   const totalDelay = PIPELINE_NODES.length * 900 + 400
   setTimeout(() => {
-    const rec = document.getElementById('rec-card') as HTMLElement
-    rec.style.opacity = '1'
     badge.innerHTML = route.variantsPending
       ? '<span style="color:var(--accent);font-weight:600;font-size:13px">Dashboard ready · variants pending</span>'
       : '<span style="color:var(--accent);font-weight:600;font-size:13px">✓ Pipeline complete</span>'
