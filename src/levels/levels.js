@@ -17,6 +17,7 @@ import {
   waveSizeForLevel,
   redSpeedForLevel,
 } from '../core/constants.js';
+import { layoutKeyForLevel, layoutForLevel } from './layouts.js';
 
 /**
  * @param {import('../core/app.js').Ctx} ctx
@@ -74,6 +75,9 @@ export function createLevels(ctx) {
 
     state.playerHp = PLAYER_HP_START;
     state.bossLevel = state.level % BOSS_LEVEL_INTERVAL === 0;
+    // layout du niveau (classic / slalom / maze / horde) : murs via obstacles, marée via waves
+    state.layoutKey = layoutKeyForLevel(state.level);
+    state.hordeMult = layoutForLevel(state.level).hordeMult;
     state.enemyHpMax = state.enemyHp = enemyHpForLevel(state.level) + (state.bossLevel ? BOSS_HP : 0);
     state.waveTimer = WAVE_FIRST_DELAY;
 
