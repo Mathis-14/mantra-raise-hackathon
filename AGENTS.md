@@ -30,7 +30,7 @@ Input: HTML game (Mob Control clone in game/) + market/trend context
   └── Memory: knowledge base compounds across projects; agent runs continuously
 ```
 
-**Honesty line (never blur it):** playtest, variants, and video generation are real. Ads deploy is a stub and metrics are seeded — a live campaign needs ~48h to exit the learning phase. Exactly one thing is simulated, deliberately; everything upstream is genuine. Say this plainly in the demo and the README.
+**Honesty line (never blur it):** playtest, variants, video generation, creation of a paused campaign shell, and the optional demo image upload into a verified Google Ads test account are real. Assets are not attached to serving ads, and all performance metrics are deterministically seeded — a live campaign needs ~48h to exit the learning phase. Say this plainly in the demo and the README.
 
 **Demo (~1 min):** problem (15s) → agent playing + report, pre-recorded & sped up (25s, the wow) → variants + videos (15s) → live dashboard, metrics, keep/kill (15s). Keep one live element so it doesn't feel canned.
 
@@ -57,15 +57,12 @@ Input: HTML game (Mob Control clone in game/) + market/trend context
 ```bash
 npm install
 npx playwright install chromium   # once, for the playtest node
-<<<<<<< HEAD
 npm run dev            # dashboard on :3000
 npm run worker         # orchestrator + nodes (needs .env)
 npm run nvidia:compare -- input.json  # compare 2-6 public gameplay recordings
-=======
 npm run dev            # dashboard + API on :3000
 npm run worker         # orchestrator + nodes (needs .env) — EXACTLY ONE per machine
 npm run game           # game dev server on :5173 — needed for index.html uploads
->>>>>>> origin/main
 npm run typecheck
 npm run lint
 npm run build
@@ -199,18 +196,16 @@ Hackathon rule: the demo path is the test surface.
 - **D003** — 2026-07-04 — Supabase as single source of truth + realtime dashboard feed. Rejected: SQLite+polling (no shared state across machines), in-memory (dies on restart).
 - **D004** — 2026-07-04 — Hand-rolled state machine (status union + transition map + worker loop). Rejected: LangGraph/Trigger.dev — nothing to learn on the clock.
 - **D005** — 2026-07-04 — Long-running work (orchestrator + playtest) runs in `npm run worker` on a laptop; Vercel hosts dashboard + API. Why: Playwright/CU can't run in serverless routes. Both sides talk only to Supabase.
-- **D006** — 2026-07-04 — Ads deploy stubbed + metrics seeded, everything upstream real (the honesty line). Why: campaigns need ~48h to produce signal.
+- **D006** — 2026-07-04 — Ads deploy stubbed + metrics seeded, everything upstream real (the honesty line). Superseded by D009 for campaign-shell creation.
 - **D007** — 2026-07-04 — Contracts locked in `src/contracts/types.ts`; directory ownership per stream. Why: four parallel builders, zero integration hours to spare.
-<<<<<<< HEAD
 - **D008** — 2026-07-05 — NVIDIA Nemotron 3 Nano Omni evaluates complete gameplay recordings with embedded audio; deterministic code ranks versions using visible weights (45% video, 30% color, 25% audio). Why: the model is specialized for joint video/audio understanding, while an auditable ranking prevents an opaque AI winner decision.
-=======
-- **D008 — UNRESOLVED** — 2026-07-05 — Production browser runner after the local demo. Default direction: keep Vercel for dashboard/API and move Playwright/CU to Vercel Sandbox if it proves stable; Cloudflare Browser Run remains the fallback candidate. Keep the hackathon demo local until this is tested.
-- **D009 — UNRESOLVED** — 2026-07-05 — Vercel-hosted dashboard reading a laptop worker stream. Why: public HTTPS pages talking to `127.0.0.1` need browser CORS/Private Network Access validation. The local worker stream must answer CORS preflights with `Access-Control-Allow-Private-Network: true`; do not assume this path is production-ready until tested from the deployed Vercel URL.
-- **D010** — 2026-07-05 — The live phone view is a local visual mirror, not source-of-truth state. Why: an OS/Playwright browser window cannot be embedded into an existing browser DOM phone. The worker streams frames/actions to the carousel for the demo; durable liveness still goes through `events` rows.
-- **D011** — 2026-07-05 — Exactly one worker per machine; the live-stream port (4317) bind is the mutex. Why: a stale duplicate worker races run claims and replays old in-memory code (headed browser pointed at the carousel, no stream frames) — this burned a debugging hour. A second `npm run worker` now fails fast with a clear message. Related: uploads must be self-contained HTML (local `src=`/`href=` references 404 after upload), enforced with a 400 at `/api/uploads/game`; if the uploaded HTML references `/src/...`, the API auto-detects the local game dev server (ports 5173–5180) and plays it directly.
-- **D012** — 2026-07-05 — Headless playtest Chromium must launch with GPU flags (`--enable-gpu --use-angle=metal` on macOS). Why: headless defaults to SwiftShader software WebGL — the demo game ran at 7 fps (looked like the game itself lagged); with Metal it runs at 120 fps (measured on Apple M3). Set in `src/nodes/playtest/browser.ts`.
-- **D013** — 2026-07-05 — One playtest run = 5 parallel CU sessions, one per Situation card, each playing the game at `?level=N` (a hook the game already exposes). The fan-out lives inside `src/nodes/playtest/` so `runPlaytest`'s locked signature, contracts, and schema are untouched; sessions merge into ONE report whose transcript entries are labeled `[level N]`. Live-stream payloads carry `situation`; the frontend demuxes one SSE connection into five cards. Verified: 44 turns across 5 levels in ~95s wall clock (~4× evidence for the same demo time).
->>>>>>> origin/main
+- **D009 — UNRESOLVED** — 2026-07-05 — Production browser runner after the local demo. Default direction: keep Vercel for dashboard/API and move Playwright/CU to Vercel Sandbox if it proves stable; Cloudflare Browser Run remains the fallback candidate. Keep the hackathon demo local until this is tested.
+- **D0010 — UNRESOLVED** — 2026-07-05 — Vercel-hosted dashboard reading a laptop worker stream. Why: public HTTPS pages talking to `127.0.0.1` need browser CORS/Private Network Access validation. The local worker stream must answer CORS preflights with `Access-Control-Allow-Private-Network: true`; do not assume this path is production-ready until tested from the deployed Vercel URL.
+- **D011** — 2026-07-05 — The live phone view is a local visual mirror, not source-of-truth state. Why: an OS/Playwright browser window cannot be embedded into an existing browser DOM phone. The worker streams frames/actions to the carousel for the demo; durable liveness still goes through `events` rows.
+- **D012** — 2026-07-05 — Exactly one worker per machine; the live-stream port (4317) bind is the mutex. Why: a stale duplicate worker races run claims and replays old in-memory code (headed browser pointed at the carousel, no stream frames) — this burned a debugging hour. A second `npm run worker` now fails fast with a clear message. Related: uploads must be self-contained HTML (local `src=`/`href=` references 404 after upload), enforced with a 400 at `/api/uploads/game`; if the uploaded HTML references `/src/...`, the API auto-detects the local game dev server (ports 5173–5180) and plays it directly.
+- **D013** — 2026-07-05 — Headless playtest Chromium must launch with GPU flags (`--enable-gpu --use-angle=metal` on macOS). Why: headless defaults to SwiftShader software WebGL — the demo game ran at 7 fps (looked like the game itself lagged); with Metal it runs at 120 fps (measured on Apple M3). Set in `src/nodes/playtest/browser.ts`.
+- **D014** — 2026-07-05 — One playtest run = 5 parallel CU sessions, one per Situation card, each playing the game at `?level=N` (a hook the game already exposes). The fan-out lives inside `src/nodes/playtest/` so `runPlaytest`'s locked signature, contracts, and schema are untouched; sessions merge into ONE report whose transcript entries are labeled `[level N]`. Live-stream payloads carry `situation`; the frontend demuxes one SSE connection into five cards. Verified: 44 turns across 5 levels in ~95s wall clock (~4× evidence for the same demo time).
+- **D015** — 2026-07-05 — Mantra may create only a PAUSED campaign shell and link a demo image asset to that PAUSED campaign in a runtime-verified Google Ads test child; no ad is created, and ad serving plus every performance metric remain simulated. Why: demonstrate real API writes without enabling serving, billing, or accidental production writes.
 
 
 

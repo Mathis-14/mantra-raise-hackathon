@@ -15,6 +15,13 @@ const geminiSchema = z.object({
   GEMINI_API_KEY: z.string().min(1),
 });
 
+const googleAdsSchema = z.object({
+  GOOGLE_APPLICATION_CREDENTIALS: z.string().min(1),
+  GOOGLE_ADS_DEVELOPER_TOKEN: z.string().min(1),
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string().regex(/^\d{10}$/),
+  GOOGLE_ADS_CUSTOMER_ID: z.string().regex(/^\d{10}$/),
+});
+
 const nvidiaSchema = z.object({
   NVIDIA_API_KEY: z.string().min(1),
   NVIDIA_API_BASE_URL: z.url().default("https://integrate.api.nvidia.com/v1"),
@@ -60,6 +67,19 @@ export function geminiEnv() {
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   });
   return cachedGemini;
+}
+
+let cachedGoogleAds: z.infer<typeof googleAdsSchema> | null = null;
+
+/** Server/worker only — Google Ads test-account credentials and fixed targets. */
+export function googleAdsEnv() {
+  cachedGoogleAds ??= googleAdsSchema.parse({
+    GOOGLE_APPLICATION_CREDENTIALS: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    GOOGLE_ADS_DEVELOPER_TOKEN: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
+    GOOGLE_ADS_LOGIN_CUSTOMER_ID: process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID,
+    GOOGLE_ADS_CUSTOMER_ID: process.env.GOOGLE_ADS_CUSTOMER_ID,
+  });
+  return cachedGoogleAds;
 }
 
 let cachedNvidia: z.infer<typeof nvidiaSchema> | null = null;

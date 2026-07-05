@@ -143,7 +143,7 @@ async function main(): Promise<void> {
 
   if (!jsonOnly) {
     console.log("Growth Intelligence — standalone MVP");
-    console.log("Google Ads deployment is stubbed; campaign metrics are deterministic simulations.");
+    console.log("Google Ads creative deployment and campaign metrics are deterministic simulations.");
     console.log(`\n[1/4] Preparing ${creatives.length} creatives`);
     console.log("[2/4] Deploying creatives to simulated campaign");
   }
