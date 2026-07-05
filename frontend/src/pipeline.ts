@@ -1,6 +1,7 @@
 // ── Page 3 : Creative pipeline ──
 import { SESSIONS, GAME_FNS } from './games'
 import { createGlobe, type GlobePoint, type GlobeArc } from './globe'
+import { renderStepper, setRoute, type FlowRoute } from './flow'
 import {
   getNvidiaVersionSummaries,
   renderNvidiaComparison,
@@ -142,21 +143,17 @@ const TABS = [
   { id: 'decision',    icon: '🧠', label: 'Decision' },
 ]
 
-export function renderPipeline(root: HTMLElement) {
+export function renderPipeline(root: HTMLElement, route: FlowRoute) {
   const medCpi = parseFloat(MARKET.medianCpi.replace('$', ''))
 
   root.innerHTML = `
     <div class="shell">
       <nav class="shell-nav">
         <a href="#" class="logo">mantra<span class="dot">.</span></a>
-        <div class="breadcrumb">
-          <span class="bc-done" id="crumb-playtest">01 Playtest</span>
-          <span class="bc-sep">›</span>
-          <span class="bc-done active">02 Pipeline</span>
-        </div>
+        ${renderStepper('dashboard')}
         <div class="session-badge" id="pipe-badge">
           <span class="live-dot"></span>
-          <span>Generating creatives…</span>
+          <span>${route.variantsPending ? 'Dashboard shell · variants pending' : 'Generating creatives…'}</span>
         </div>
       </nav>
 
@@ -295,8 +292,9 @@ export function renderPipeline(root: HTMLElement) {
     </div>
   `
 
-  document.getElementById('back-btn')!.addEventListener('click', () => { location.hash = '#playtest' })
-  document.getElementById('crumb-playtest')!.addEventListener('click', () => { location.hash = '#playtest' })
+  document.getElementById('back-btn')!.addEventListener('click', () => {
+    setRoute('variants', { runId: route.runId, gameUrl: route.gameUrl })
+  })
 
   const badge        = document.getElementById('pipe-badge') as HTMLElement
   const variantsGrid = document.getElementById('variants-grid')!
@@ -584,7 +582,9 @@ export function renderPipeline(root: HTMLElement) {
   setTimeout(() => {
     const rec = document.getElementById('rec-card') as HTMLElement
     rec.style.opacity = '1'
-    badge.innerHTML = '<span style="color:var(--accent);font-weight:600;font-size:13px">✓ Pipeline complete</span>'
+    badge.innerHTML = route.variantsPending
+      ? '<span style="color:var(--accent);font-weight:600;font-size:13px">Dashboard ready · variants pending</span>'
+      : '<span style="color:var(--accent);font-weight:600;font-size:13px">✓ Pipeline complete</span>'
   }, totalDelay)
 }
 

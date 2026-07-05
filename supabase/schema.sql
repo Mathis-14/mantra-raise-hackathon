@@ -137,3 +137,9 @@ alter publication supabase_realtime add table events;
 insert into storage.buckets (id, name, public)
 values ('playtest-media', 'playtest-media', true)
 on conflict (id) do nothing;
+
+-- Public uploaded HTML prototypes. Writes stay server-side through the service
+-- role; projects store public URLs so the local worker can open them.
+insert into storage.buckets (id, name, public)
+values ('game-uploads', 'game-uploads', true)
+on conflict (id) do nothing;

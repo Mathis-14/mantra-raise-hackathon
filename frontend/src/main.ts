@@ -1,15 +1,21 @@
 import './style.css'
+import { createProject, startRun, uploadGame } from './api'
+import { getErrorMessage, parseRoute, setRoute } from './flow'
 import { startGame } from './game'
 import { renderPlaytest } from './playtest'
 import { renderPipeline } from './pipeline'
+import { renderVariants } from './variants'
 
-const app = document.querySelector<HTMLDivElement>('#app')!
+const app = document.querySelector<HTMLDivElement>('#app')
 
 // ── Simple hash router ──
 function route() {
-  const hash = location.hash
-  if (hash === '#playtest') { renderPlaytest(app); return }
-  if (hash === '#pipeline') { renderPipeline(app); return }
+  if (!app) return
+
+  const currentRoute = parseRoute()
+  if (currentRoute.screen === 'playtest') { renderPlaytest(app, currentRoute); return }
+  if (currentRoute.screen === 'variants') { renderVariants(app, currentRoute); return }
+  if (currentRoute.screen === 'pipeline') { renderPipeline(app, currentRoute); return }
   renderLanding(app)
 }
 
@@ -43,8 +49,8 @@ function renderLanding(root: HTMLElement) {
             </button>
             <button class="btn-run" id="run-btn" type="button">Run agent →</button>
           </div>
-          <input type="file" id="file-input" accept=".html,.zip" style="display:none" />
-          <p class="hint">Accepts an HTML file, a .zip prototype, or a hosted URL</p>
+          <input type="file" id="file-input" accept=".html" style="display:none" />
+          <p class="hint" id="upload-status">Accepts a single HTML prototype</p>
         </div>
       </div>
 
@@ -61,11 +67,25 @@ function renderLanding(root: HTMLElement) {
   const browseBtn = document.getElementById('browse-btn')  as HTMLButtonElement
   const fileInput = document.getElementById('file-input')  as HTMLInputElement
   const dropZone  = document.getElementById('drop-zone')   as HTMLDivElement
+  const uploadStatus = document.getElementById('upload-status') as HTMLElement
+  let selectedFile: File | null = null
+
+  function setSelectedFile(file: File) {
+    selectedFile = file
+    urlInput.value = file.name
+    uploadStatus.className = 'hint'
+    uploadStatus.textContent = 'Ready to upload and start the agent'
+  }
+
+  function showUploadError(message: string) {
+    uploadStatus.className = 'hint hint-error'
+    uploadStatus.textContent = message
+  }
 
   browseBtn.addEventListener('click', () => fileInput.click())
   fileInput.addEventListener('change', () => {
     const f = fileInput.files?.[0]
-    if (f) urlInput.value = f.name
+    if (f) setSelectedFile(f)
   })
 
   dropZone.addEventListener('dragover',  (e) => { e.preventDefault(); dropZone.classList.add('drag-over') })
@@ -74,20 +94,43 @@ function renderLanding(root: HTMLElement) {
     e.preventDefault()
     dropZone.classList.remove('drag-over')
     const f = e.dataTransfer?.files?.[0]
-    if (f) urlInput.value = f.name
+    if (f) setSelectedFile(f)
   })
 
-  runBtn.addEventListener('click', () => {
-    const val = urlInput.value.trim()
-    if (!val) {
+  runBtn.addEventListener('click', async () => {
+    if (!selectedFile) {
       urlInput.focus()
       urlInput.classList.add('shake')
       setTimeout(() => urlInput.classList.remove('shake'), 400)
+      showUploadError('Choose an .html prototype first')
       return
     }
-    runBtn.textContent = 'Starting…'
+
+    if (!selectedFile.name.toLowerCase().endsWith('.html')) {
+      showUploadError('Only .html prototypes are supported in this flow')
+      return
+    }
+
     runBtn.disabled = true
-    setTimeout(() => { location.hash = '#playtest' }, 900)
+    runBtn.textContent = 'Uploading...'
+    uploadStatus.className = 'hint'
+    uploadStatus.textContent = 'Uploading HTML to the worker-accessible storage'
+
+    try {
+      const upload = await uploadGame(selectedFile)
+      uploadStatus.textContent = 'Creating project and run'
+      const project = await createProject({
+        name: selectedFile.name.replace(/\.html$/i, '') || 'Uploaded prototype',
+        gameUrl: upload.gameUrl,
+        marketContext: 'Uploaded prototype from the Vite demo UI.',
+      })
+      const run = await startRun(project.id)
+      setRoute('playtest', { runId: run.id, gameUrl: upload.gameUrl })
+    } catch (error) {
+      runBtn.disabled = false
+      runBtn.textContent = 'Run agent →'
+      showUploadError(getErrorMessage(error))
+    }
   })
 
   urlInput.addEventListener('keydown', (e: KeyboardEvent) => {

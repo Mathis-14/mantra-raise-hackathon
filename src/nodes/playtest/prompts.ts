@@ -1,5 +1,16 @@
 import type { TranscriptEntry, TerminationReason } from "./types";
 
+export function situationPreamble(situation: number): string {
+  return `
+You are one of five parallel evaluators. Your assignment: LEVEL ${situation} specifically —
+the game has been started directly at that level. Play THIS level fully and judge its design:
+pacing, gate layout fairness, difficulty, and fun. Hard limit: play at most 2 games in total —
+your assigned level plus exactly one continuation (the next level after a win, or one replay
+after a defeat). When your second game ends, stop and return the report. Keep your focus and
+your final judgement on level ${situation}.
+`.trim();
+}
+
 export const PLAYER_PROMPT = `
 You are a real mobile-game player evaluating whether this HTML prototype is fun.
 You only know what is visible on the screen. Do not infer hidden game state.
@@ -19,20 +30,22 @@ Mission:
      champion clears enemies or damages the base.
   5. Check progression over multiple levels when possible; Level 3 introduces harder layouts/boss
      pressure and is more informative than stopping after Level 1.
-  6. Keep the test bounded: after one Level 3 boss/champion attempt, or after one retry in the
-     entire session, stop and return the report. Do not loop retries.
-- If you reach VICTORY/VICTOIRE, do not stop immediately. Quickly check reward/coins/stars, click
-  NEXT LEVEL/SUIVANT/NIVEAU SUIVANT if visible, confirm the next level starts, and play 5-10 seconds.
-- If you reach DEFEAT/DEFAITE/DÉFAITE, game over, RETRY/REJOUER/RÉESSAYER, restart once at most
-  to check the replay path, then report.
-- When you have enough evidence after those continuation checks, stop asking for tool calls and
-  return only strict JSON with keys: playable, fun_score, fun_rationale, friction_points, bugs,
-  session_summary, headline.
+  6. Play at most 2 games in total this session: your starting level plus one continuation.
+     After your second game ends, stop and return the report.
+- If you reach VICTORY/VICTOIRE on your first game, do not stop yet. Quickly check
+  reward/coins/stars, click NEXT LEVEL/SUIVANT/NIVEAU SUIVANT, confirm the next level starts,
+  and play it fully — that is your second and final game.
+- If you reach DEFEAT/DEFAITE/DÉFAITE, game over, RETRY/REJOUER/RÉESSAYER, restart once —
+  that replay counts as your second and final game; note the defeat in your report.
+- When your second game ends (or the game is broken, frozen, or truly repetitive), stop and
+  return only strict JSON with keys: playable, fun_score, fun_rationale, friction_points,
+  bugs, session_summary, headline.
 
 Prefer reliable actions:
 - Use click for menus and obvious buttons.
 - Use hold_and_steer for active hold-to-fire lane gameplay. Use one hold_and_steer call per
-  gameplay turn; keep release false unless you intentionally stop firing.
+  gameplay turn; keep release false unless you intentionally stop firing. Keep duration_ms
+  around 1000-1500 so you react to fresh screenshots quickly.
 - For hold_and_steer x_path, use deliberate 2-4 point paths that test lanes, for example
   center-left-center or center-right-left. Avoid repeating the exact same x_path unless the latest
   screen proves that path is best.

@@ -8,18 +8,24 @@ import { ARTIFACT_ROOT, PLAYTEST_MEDIA_BUCKET, STORAGE_UPLOAD_TIMEOUT_MS } from 
 
 export async function writeFrame(args: {
   runId: string;
+  situation?: number;
   turn: number;
   jpeg: Buffer;
 }): Promise<string> {
-  const dir = path.join(ARTIFACT_ROOT, args.runId);
+  const dir = path.join(ARTIFACT_ROOT, args.runId, situationSegment(args.situation));
   await mkdir(dir, { recursive: true });
   const filePath = path.join(dir, `turn-${String(args.turn).padStart(3, "0")}.jpg`);
   await writeFile(filePath, args.jpeg);
   return filePath;
 }
 
+function situationSegment(situation: number | undefined): string {
+  return `s${situation ?? 1}`;
+}
+
 export function sinkFrame(args: {
   runId: string;
+  situation?: number;
   turn: number;
   jpeg: Buffer;
   captureMs: number;
@@ -47,10 +53,12 @@ export function sinkFrame(args: {
 
 export async function uploadPlaytestVideo(args: {
   runId: string;
+  situation?: number;
   filePath: string;
 }): Promise<string> {
   const video = await readFile(args.filePath);
-  const storagePath = `${args.runId}/gameplay.webm`;
+  // Situation-scoped path: each of the 5 parallel sessions records its own video.
+  const storagePath = `${args.runId}/${situationSegment(args.situation)}/gameplay.webm`;
   const { error } = await withTimeout(
     supabaseAdmin()
       .storage
@@ -75,6 +83,7 @@ export async function uploadPlaytestVideo(args: {
     message: "playtest_video_ready",
     screenshot_url: null,
     data: {
+      situation: args.situation ?? 1,
       video_url: data.publicUrl,
       video_bytes: video.byteLength,
       content_type: "video/webm",
@@ -87,12 +96,13 @@ export async function uploadPlaytestVideo(args: {
 
 async function uploadFrame(args: {
   runId: string;
+  situation?: number;
   turn: number;
   jpeg: Buffer;
   captureMs: number;
 }): Promise<number> {
   const startedAt = Date.now();
-  const storagePath = `${args.runId}/${String(args.turn).padStart(3, "0")}.jpg`;
+  const storagePath = `${args.runId}/${situationSegment(args.situation)}/${String(args.turn).padStart(3, "0")}.jpg`;
   return withTimeout(
     supabaseAdmin()
       .storage
@@ -116,10 +126,11 @@ async function uploadFrame(args: {
       run_id: args.runId,
       node: "playtest",
       type: "screenshot",
-      message: `Frame ${args.turn}`,
+      message: `Frame ${args.turn} (situation ${args.situation ?? 1})`,
       screenshot_url: data.publicUrl,
       data: {
         turn: args.turn,
+        situation: args.situation ?? 1,
         capture_ms: args.captureMs,
         upload_ms: uploadMs,
         jpeg_bytes: args.jpeg.byteLength,
