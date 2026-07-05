@@ -24,6 +24,9 @@ dist/
 playtest-artifacts/
 local-games/
 
+# ad-scenarios toolkit output (rejouable variant JSON + recorded .webm clips)
+generated-variants/
+
 # throwaway verification scripts — means-to-verify, never committed (AGENTS.md)
 .scratch/
 

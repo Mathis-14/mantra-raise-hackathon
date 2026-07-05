@@ -24,6 +24,36 @@ import { createBase } from '../enemy/base.js';
 import { createLevels } from '../levels/levels.js';
 import { createObstacles } from '../levels/obstacles.js';
 import { createSkins } from '../levels/skins.js';
+import { setLayoutOverride } from '../levels/layouts.js';
+
+/**
+ * Hook variant (toolkit agent) : lit window.__MOB_VARIANT__ (injecté dans une COPIE du HTML par
+ * src/lib/ad-scenarios) ou ?variant=<base64 JSON>. Absent ⇒ jeu strictement inchangé.
+ * Clés consommées : startLevel, loadout, skin, layout{walls,hazards,lanesX,hordeMult},
+ * overlayText[], autoplay, simSeconds (+ wavePressure lu par waves via ctx.variant).
+ */
+function readVariantConfig(params) {
+  try {
+    if (typeof window !== 'undefined' && window.__MOB_VARIANT__ && typeof window.__MOB_VARIANT__ === 'object') {
+      return window.__MOB_VARIANT__;
+    }
+    const raw = params.get('variant');
+    if (raw) return JSON.parse(atob(raw));
+  } catch (e) { console.warn('[MOB RUSH] config variant illisible', e); }
+  return null;
+}
+
+/** Bannière du hook d'ad (1er texte du recording plan), lisible en 9:16. */
+function showAdOverlay(texts) {
+  if (!Array.isArray(texts) || !texts.length) return;
+  const el = document.createElement('div');
+  el.id = 'adOverlay';
+  el.style.cssText = 'position:fixed;top:96px;left:50%;transform:translateX(-50%);z-index:14;' +
+    'pointer-events:none;color:#fff;font-size:27px;font-weight:900;text-align:center;max-width:88vw;' +
+    'line-height:1.12;text-shadow:0 3px 0 rgba(0,0,0,.5),0 0 18px rgba(56,182,255,.5);';
+  el.textContent = String(texts[0]);
+  document.body.appendChild(el);
+}
 import { createHud } from '../ui/hud.js';
 import { createOverlays } from '../ui/overlays.js';
 
@@ -326,6 +356,7 @@ function buildDecor(scene, gltf) {
 export async function createApp({ container = document.getElementById('game') } = {}) {
   const params = new URLSearchParams(location.search);
   const isDebug = params.has('debug');
+  const variantConfig = readVariantConfig(params); // toolkit agent (null = jeu de base inchangé)
 
   // 1. renderer + scène + lumières (CONTRACT §1.1 : NoToneMapping, hex inchangés, lumières ×π)
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -405,6 +436,17 @@ export async function createApp({ container = document.getElementById('game') } 
   const forcedLevel = parseInt(params.get('level'), 10);
   if (Number.isFinite(forcedLevel) && forcedLevel > 0) state.level = Math.min(50, forcedLevel);
 
+  // VARIANT (toolkit agent) : applique les mutations validées côté jeu — niveau de départ,
+  // loadout, layout custom (assaini par setLayoutOverride), bannière d'ad. Le skin est lu par
+  // levels/skins.js et wavePressure par enemy/waves.js via ctx.variant.
+  if (variantConfig) {
+    const vl = parseInt(variantConfig.startLevel, 10);
+    if (Number.isFinite(vl) && vl > 0) state.level = Math.min(50, vl);
+    if (C.LOADOUTS[variantConfig.loadout]) state.loadout = variantConfig.loadout;
+    if (variantConfig.layout) setLayoutOverride(variantConfig.layout);
+    showAdOverlay(variantConfig.overlayText);
+  }
+
   // 6. contexte partagé (CONTRACT §4)
   const ctx = {
     scene, renderer, camera,
@@ -413,6 +455,7 @@ export async function createApp({ container = document.getElementById('game') } 
     state,
     assets: { gltf, bakedUnit, colormap },
     decor: { ground, road, envs, hemi, sun }, // refs du décor persistant, pilotées par levels/skins.js
+    variant: variantConfig, // config d'ad (skin → skins.js, wavePressure → waves.js)
     sys: {},
   };
 
@@ -475,7 +518,8 @@ export async function createApp({ container = document.getElementById('game') } 
     ? bakedUnit.geometry.attributes.position.count : -1;
 
   // modes de test headless : bot = tir continu ; sim=SECONDES = pré-avance synchrone déterministe
-  const isBot = params.has('bot');
+  // autoplay du variant (recording d'ad) : équivaut à ?bot (tir continu + visée oscillante)
+  const isBot = params.has('bot') || !!(variantConfig && variantConfig.autoplay);
   const isSim = params.has('sim');
   const simSeconds = isSim ? Math.min(60, Math.max(0, parseFloat(params.get('sim')) || 6)) : 0;
 

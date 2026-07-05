@@ -85,11 +85,44 @@ export const LAYOUTS = Object.freeze({
 // (le boss a besoin d'espace et EST le gimmick).
 const CYCLE = ['classic', 'lanes', 'slalom', 'maze', 'horde']; // lanes en 2e (L3 = boss, sinon il n'apparaîtrait qu'au L8)
 
+// ── OVERRIDE DE VARIANT (toolkit agent) ─────────────────────────────────────
+// Un agent peut imposer un layout custom (murs/hazards/couloirs/horde) via
+// window.__MOB_VARIANT__.layout — posé au boot par app.js. Assaini ici : seules
+// les clés connues passent, bornées pour rester jouable (anti-softlock : halfW ≤ 2.6).
+let _override = null;
+
+export function setLayoutOverride(raw) {
+  if (!raw || typeof raw !== 'object') { _override = null; return; }
+  const walls = Array.isArray(raw.walls) ? raw.walls.slice(0, 10).map((w) => ({
+    x: Math.max(-4, Math.min(4, Number(w.x) || 0)),
+    z: Math.max(-18, Math.min(14, Number(w.z) || 0)),
+    halfW: Math.max(0.4, Math.min(2.6, Number(w.halfW) || 1)),
+    halfD: Math.max(0.4, Math.min(5, Number(w.halfD) || 0.75)),
+    kind: w.kind === 'mound' ? 'mound' : 'crates',
+    axis: w.axis === 'z' ? 'z' : 'x',
+  })) : [];
+  const hazards = Array.isArray(raw.hazards) ? raw.hazards.slice(0, 6).map((h) => ({
+    type: ['saw', 'spikes', 'spikesLarge'].includes(h.type) ? h.type : 'spikes',
+    x: Math.max(-4, Math.min(4, Number(h.x) || 3)),
+    z: Math.max(-18, Math.min(14, Number(h.z) || 0)),
+    minLevel: 1,
+  })) : [];
+  const lanesX = Array.isArray(raw.lanesX) && raw.lanesX.length >= 2
+    ? raw.lanesX.slice(0, 4).map((x) => Math.max(-3.6, Math.min(3.6, Number(x) || 0)))
+    : null;
+  _override = {
+    walls, hazards, lanesX,
+    hordeMult: Math.max(0.5, Math.min(4, Number(raw.hordeMult) || 1)),
+  };
+}
+
 export function layoutKeyForLevel(level) {
+  if (_override) return 'variant';
   if (level % BOSS_LEVEL_INTERVAL === 0) return 'classic';
   return CYCLE[(level - 1) % CYCLE.length];
 }
 
 export function layoutForLevel(level) {
+  if (_override) return _override;
   return LAYOUTS[layoutKeyForLevel(level)];
 }

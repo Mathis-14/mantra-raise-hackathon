@@ -96,7 +96,9 @@ export function createSkins(ctx) {
   /** Applique le skin du niveau : retinte le décor persistant + pose les props du skin. */
   function build(level) {
     clear();
-    currentKey = skinKeyForLevel(level);
+    // skin imposé par le variant d'ad (toolkit agent) sinon rotation par niveau
+    const forced = ctx.variant && ctx.variant.skin;
+    currentKey = forced && SKINS[forced] ? forced : skinKeyForLevel(level);
     current = SKINS[currentKey];
 
     // retinte (mutation .set — jamais de réassignation de matériaux partagés d'assets)

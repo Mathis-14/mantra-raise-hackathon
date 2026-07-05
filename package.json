@@ -14,7 +14,8 @@
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "worker": "node --env-file=.env --import tsx src/worker/index.ts"
+    "worker": "node --env-file=.env --import tsx src/worker/index.ts",
+    "variant": "tsx src/lib/ad-scenarios/cli.ts"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",
