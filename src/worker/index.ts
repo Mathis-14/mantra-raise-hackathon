@@ -4,8 +4,14 @@
 // Start with: npm run worker
 
 import { runOrchestrator } from "@/orchestrator/loop";
+import { startPlaytestLiveStreamServer } from "@/nodes/playtest/live-stream";
 
-runOrchestrator().catch((error: unknown) => {
+async function main(): Promise<void> {
+  await startPlaytestLiveStreamServer();
+  await runOrchestrator();
+}
+
+main().catch((error: unknown) => {
   console.error("worker_crashed", error);
   process.exit(1);
 });

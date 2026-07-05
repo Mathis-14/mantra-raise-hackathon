@@ -1,0 +1,40 @@
+# Mantra local demo stack — consumed by scripts/stack.ts (npm run stack).
+# Order matters: services start top to bottom; the worker must come last
+# (it needs the API and the game server to already be up).
+#
+# Schema per service (all fields required):
+#   name              display name
+#   port              TCP port the service must own; anything holding it gets killed first
+#   command           shell command launched from the repo root
+#   log               file that receives stdout+stderr
+#   health            URL that must answer 2xx-4xx before the service counts as up
+#   startup_timeout_s how long to wait for health before declaring failure
+
+services:
+  - name: api
+    port: 3000
+    command: npm run dev
+    log: /tmp/mantra-api.log
+    health: http://localhost:3000/
+    startup_timeout_s: 60
+
+  - name: game
+    port: 5173
+    command: npm run game -- --host 127.0.0.1 --port 5173 --strictPort
+    log: /tmp/mantra-game.log
+    health: http://127.0.0.1:5173/
+    startup_timeout_s: 30
+
+  - name: ui
+    port: 5175
+    command: npm --prefix frontend run dev -- --host 127.0.0.1 --port 5175 --strictPort
+    log: /tmp/mantra-ui.log
+    health: http://127.0.0.1:5175/
+    startup_timeout_s: 30
+
+  - name: worker
+    port: 4317
+    command: npm run worker
+    log: /tmp/mantra-worker.log
+    health: http://127.0.0.1:4317/health
+    startup_timeout_s: 30

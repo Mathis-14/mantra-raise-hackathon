@@ -3,8 +3,16 @@ export const CU_MODEL_FALLBACK = "gemini-2.5-computer-use-preview-10-2025";
 export const REPORT_MODEL = "gemini-2.5-flash";
 export const PLAYTEST_GEMINI_SERVICE_TIER = "priority";
 
-export const VIEWPORT = { width: 1280, height: 1100 } as const;
+// Exact 160/284 carousel-phone aspect: the streamed frame fills the demo phone without
+// letterboxing, and CU screenshots/cursor overlay share one portrait coordinate system.
+export const VIEWPORT = { width: 720, height: 1278 } as const;
 export const HEADED_WINDOW_CHROME_HEIGHT_PX = 120;
+
+// One parallel CU session per situation card; each plays the game at ?level=N.
+export const SITUATION_COUNT = 5;
+export const SESSION_START_STAGGER_MS = 1_500;
+// Each session agent plays at most its assigned level plus one continuation.
+export const MAX_GAMES_PER_SESSION = 2;
 
 export const MAX_TURNS = 40;
 export const MAX_CALLS_PER_TURN = 4;
@@ -17,7 +25,10 @@ export const PAGE_GOTO_TIMEOUT_MS = 15_000;
 export const PLAYWRIGHT_ACTION_TIMEOUT_MS = 5_000;
 export const SLOW_DRAG_MS = 1_500;
 export const HOLD_AND_STEER_DEFAULT_Y = 760;
-export const HOLD_AND_STEER_DEFAULT_MS = 2_500;
+// 2500ms holds dominated per-turn latency; shorter holds keep CU reacting to fresh screens.
+export const HOLD_AND_STEER_DEFAULT_MS = 1_200;
+export const HOLD_AND_STEER_MIN_MS = 500;
+export const HOLD_AND_STEER_MAX_MS = 2_500;
 export const HOLD_AND_STEER_STEP_MS = 60;
 export const NUDGE_AFTER_REPEATS = 5;
 export const POST_WIN_MAX_TURNS = 5;

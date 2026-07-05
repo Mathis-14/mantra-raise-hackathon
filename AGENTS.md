@@ -57,14 +57,24 @@ Input: HTML game (Mob Control clone in game/) + market/trend context
 ```bash
 npm install
 npx playwright install chromium   # once, for the playtest node
-npm run dev            # dashboard on :3000
-npm run worker         # orchestrator + nodes (needs .env)
+npm run dev            # dashboard + API on :3000
+npm run worker         # orchestrator + nodes (needs .env) — EXACTLY ONE per machine
+npm run game           # game dev server on :5173 — needed for index.html uploads
 npm run typecheck
 npm run lint
 npm run build
 ```
 
 Setup: copy `.env.example` → `.env`, fill keys (ask Mathis). Apply `supabase/schema.sql` in the Supabase SQL editor of the shared project.
+
+## Live playtest runbook (follow exactly — each miss burned real debugging time)
+
+1. **Start everything with one command:** `npm run stack` — reads `scripts/stack.yaml`, kills whatever holds ports 3000/5173/5175/4317, then launches api → game → ui → worker in order with health checks (logs in `/tmp/mantra-*.log`). `npm run stack -- --down` stops the stack. Manual fallback, each in its own terminal: `npm run dev` (:3000) · `npm run game` (:5173) · `npm --prefix frontend run dev -- --host 127.0.0.1 --port 5175` · `npm run worker`.
+2. **Exactly one worker across the WHOLE TEAM, not just per machine.** Supabase is shared: any teammate's running worker claims runs for everyone — the game then plays on THEIR laptop and your card shows "Live stream unavailable" with zero local Chromium. Announce in team chat who runs the worker; everyone else stops theirs. The `playtesting_started on <hostname>` event in the activity log tells you which machine actually claimed a run. Per machine, port 4317 is the mutex: if `npm run worker` fails with `live_stream_port_in_use`, kill the old worker first (`lsof -nP -iTCP:4317`).
+3. **Restart the worker after any change under `src/nodes/`, `src/orchestrator/`, or `src/worker/`** — tsx loads code at startup, there is no hot reload. A worker started before your change silently runs the old code.
+4. **Upload rules:** a self-contained HTML (inline JS/CSS; absolute `https:` CDN refs OK) uploads to storage — `game/mob-control-clone.html` works as-is. The multi-file game's `index.html` (references `/src/main.js`) requires `npm run game` running: the upload API auto-detects the dev server on ports 5173–5180 and plays it directly. Anything else is rejected with a 400 that says why.
+5. **Expected result:** in the Vite UI, upload → "Run agent" → within ~5s of the worker claim, the `Situation 1` phone shows live gameplay (LIVE pill, action captions, cursor overlay); the agent continues past victory (post-win sweep), and the run auto-advances to variants when the report lands.
+6. **If `Situation 1` says "Live stream unavailable":** the run was almost certainly claimed by a wrong/stale worker or no worker — check `lsof -nP -iTCP:4317`, check the run's events for `playtesting_started`, and re-check step 2.
 
 ## Architecture
 
@@ -184,7 +194,13 @@ Hackathon rule: the demo path is the test surface.
 - **D005** — 2026-07-04 — Long-running work (orchestrator + playtest) runs in `npm run worker` on a laptop; Vercel hosts dashboard + API. Why: Playwright/CU can't run in serverless routes. Both sides talk only to Supabase.
 - **D006** — 2026-07-04 — Ads deploy stubbed + metrics seeded, everything upstream real (the honesty line). Superseded by D009 for campaign-shell creation.
 - **D007** — 2026-07-04 — Contracts locked in `src/contracts/types.ts`; directory ownership per stream. Why: four parallel builders, zero integration hours to spare.
-- **D009** — 2026-07-05 — Mantra may create only a PAUSED campaign shell and link a demo image asset to that PAUSED campaign in a runtime-verified Google Ads test child; no ad is created, and ad serving plus every performance metric remain simulated. Why: demonstrate real API writes without enabling serving, billing, or accidental production writes.
+- **D008 — UNRESOLVED** — 2026-07-05 — Production browser runner after the local demo. Default direction: keep Vercel for dashboard/API and move Playwright/CU to Vercel Sandbox if it proves stable; Cloudflare Browser Run remains the fallback candidate. Keep the hackathon demo local until this is tested.
+- **D009 — UNRESOLVED** — 2026-07-05 — Vercel-hosted dashboard reading a laptop worker stream. Why: public HTTPS pages talking to `127.0.0.1` need browser CORS/Private Network Access validation. The local worker stream must answer CORS preflights with `Access-Control-Allow-Private-Network: true`; do not assume this path is production-ready until tested from the deployed Vercel URL.
+- **D010** — 2026-07-05 — The live phone view is a local visual mirror, not source-of-truth state. Why: an OS/Playwright browser window cannot be embedded into an existing browser DOM phone. The worker streams frames/actions to the carousel for the demo; durable liveness still goes through `events` rows.
+- **D011** — 2026-07-05 — Exactly one worker per machine; the live-stream port (4317) bind is the mutex. Why: a stale duplicate worker races run claims and replays old in-memory code (headed browser pointed at the carousel, no stream frames) — this burned a debugging hour. A second `npm run worker` now fails fast with a clear message. Related: uploads must be self-contained HTML (local `src=`/`href=` references 404 after upload), enforced with a 400 at `/api/uploads/game`; if the uploaded HTML references `/src/...`, the API auto-detects the local game dev server (ports 5173–5180) and plays it directly.
+- **D012** — 2026-07-05 — Headless playtest Chromium must launch with GPU flags (`--enable-gpu --use-angle=metal` on macOS). Why: headless defaults to SwiftShader software WebGL — the demo game ran at 7 fps (looked like the game itself lagged); with Metal it runs at 120 fps (measured on Apple M3). Set in `src/nodes/playtest/browser.ts`.
+- **D013** — 2026-07-05 — One playtest run = 5 parallel CU sessions, one per Situation card, each playing the game at `?level=N` (a hook the game already exposes). The fan-out lives inside `src/nodes/playtest/` so `runPlaytest`'s locked signature, contracts, and schema are untouched; sessions merge into ONE report whose transcript entries are labeled `[level N]`. Live-stream payloads carry `situation`; the frontend demuxes one SSE connection into five cards. Verified: 44 turns across 5 levels in ~95s wall clock (~4× evidence for the same demo time).
+- **D014** — 2026-07-05 — Mantra may create only a PAUSED campaign shell and link a demo image asset to that PAUSED campaign in a runtime-verified Google Ads test child; no ad is created, and ad serving plus every performance metric remain simulated. Why: demonstrate real API writes without enabling serving, billing, or accidental production writes.
 
 
 

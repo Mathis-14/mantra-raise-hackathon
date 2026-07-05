@@ -207,6 +207,7 @@ a.logo {
   color: var(--text-faint);
   margin: 0;
 }
+.hint-error { color: #dc2626; }
 
 /* shake on empty submit */
 @keyframes shake {
@@ -287,6 +288,71 @@ a.logo {
 .bc-done.active { color: var(--text); }
 .bc-next { color: var(--text-faint); }
 .bc-sep  { color: var(--border-strong); }
+
+.flow-stepper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 360px;
+}
+
+.flow-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 112px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  position: relative;
+}
+
+.flow-step:not(:last-child)::after {
+  content: '';
+  width: 42px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border);
+  margin-left: 4px;
+}
+
+.flow-step--complete,
+.flow-step--active {
+  color: var(--accent);
+}
+
+.flow-step--complete:not(:last-child)::after,
+.flow-step--active:not(:last-child)::after {
+  background: var(--accent);
+}
+
+.flow-step-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.flow-step--complete .flow-step-circle,
+.flow-step--active .flow-step-circle {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.flow-step-label {
+  white-space: nowrap;
+}
 
 .back-fab {
   position: fixed;
@@ -559,6 +625,12 @@ a.logo {
   overflow: hidden;
   background: #0d1117;
 }
+.phone-screen--live {
+  background: #1a1240;
+}
+.phone-screen--pending {
+  background: #0d1117;
+}
 .iphone-screen canvas { display: block; width: 100%; height: auto; }
 .phone-game-frame {
   display: block;
@@ -568,6 +640,86 @@ a.logo {
   background: #1a1240;
   transform: scale(0.5);
   transform-origin: top left;
+}
+.phone-live-feed {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #080b12;
+}
+.phone-live-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Streamed frame shares the 160/284 screen aspect, so cover fills edge-to-edge without clipping. */
+  object-fit: cover;
+  background: #080b12;
+}
+.phone-live-pill {
+  position: absolute;
+  top: 14px; left: 8px;
+  z-index: 12;
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(8,11,18,0.72);
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+}
+.phone-live-pill--visible { display: inline-flex; }
+.phone-live-pill--thinking .live-dot { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+.phone-live-pill--reconnecting .live-dot { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+.phone-live-action {
+  position: absolute;
+  left: 8px; right: 8px; bottom: 10px;
+  z-index: 12;
+  display: none;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(8,11,18,0.72);
+  color: rgba(255,255,255,0.9);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.phone-live-action--visible { display: block; }
+.phone-live-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px;
+  color: rgba(255,255,255,0.76);
+  background:
+    radial-gradient(circle at 50% 25%, rgba(37,99,235,0.2), transparent 48%),
+    rgba(8,11,18,0.92);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.phone-live-state--hidden {
+  display: none;
+}
+.phone-live-state--failed {
+  color: rgba(255,255,255,0.86);
+  background:
+    radial-gradient(circle at 50% 25%, rgba(239,68,68,0.22), transparent 48%),
+    rgba(8,11,18,0.94);
+}
+.phone-live-cursor {
+  opacity: 0;
+}
+.phone-live-cursor--visible {
+  opacity: 1;
 }
 .phone-pending {
   width: 100%;
@@ -661,6 +813,13 @@ a.logo {
   box-shadow: 0 0 6px #22c55e;
   animation: pulse-dot 1.2s ease-in-out infinite;
 }
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--text-faint);
+}
+.status-dot--failed { background: #dc2626; }
 @keyframes pulse-dot {
   0%,100% { opacity: 1; } 50% { opacity: 0.4; }
 }
