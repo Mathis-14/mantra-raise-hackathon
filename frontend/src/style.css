@@ -394,7 +394,8 @@ a.logo {
 .playtest-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 300px;
+  /* Wide enough for the 13.5px agent-action log lines to stay readable. */
+  grid-template-columns: 1fr 340px;
   min-height: 0;
   overflow: hidden;
 }
@@ -850,11 +851,11 @@ a.logo {
   gap: 14px;
 }
 .logs-title {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .log-group {
   border: 1px solid var(--border);
@@ -870,19 +871,21 @@ a.logo {
   border-bottom: 1px solid var(--border);
 }
 .log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.log-group-name { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; }
-.log-group-pct  { font-size: 11px; font-weight: 700; }
+.log-group-name { font-size: 14px; font-weight: 650; color: var(--text); flex: 1; }
+.log-group-pct  { font-size: 12.5px; font-weight: 700; }
 .log-lines {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 10px 12px;
   min-height: 24px;
 }
 .log-line {
-  font-size: 11.5px;
-  color: var(--text-muted);
-  padding-left: 12px;
+  font-size: 13.5px;
+  font-weight: 450;
+  line-height: 1.45;
+  color: #4b5563;
+  padding-left: 14px;
   position: relative;
   animation: fade-in 0.25s ease;
 }
@@ -1274,15 +1277,15 @@ a.logo {
 .atab {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  padding: 11px 14px;
   border: 1px solid transparent;
   border-radius: 9px;
   background: none;
   cursor: pointer;
   font-family: var(--font);
-  font-size: 13.5px;
-  font-weight: 500;
+  font-size: 14.5px;
+  font-weight: 550;
+  letter-spacing: -0.1px;
   color: var(--text-muted);
   text-align: left;
   transition: background 0.13s, color 0.13s, border-color 0.13s;
@@ -1292,9 +1295,8 @@ a.logo {
   background: var(--accent-subtle);
   border-color: var(--accent-border);
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 650;
 }
-.atab-icon { font-size: 15px; }
 
 /* main panel area */
 .analytics-main {
@@ -1691,6 +1693,22 @@ a.logo {
   width: 100%;
   height: auto;
 }
+/* Real playable ad rendered at 2x then scaled down so game UI stays legible.
+   The preview keeps the 9:16-ish card ratio; the iframe tracks its size. */
+.variant-preview:has(.variant-live-frame) {
+  aspect-ratio: 132 / 234;
+}
+.variant-live-frame {
+  position: absolute;
+  inset: 0;
+  width: 200%;
+  height: 200%;
+  border: 0;
+  background: #0d1117;
+  transform: scale(0.5);
+  transform-origin: top left;
+  pointer-events: none;
+}
 /* faint scan-line film effect over the video */
 .variant-preview::before {
   content: '';
@@ -1779,8 +1797,8 @@ a.logo {
   gap: 1px;
   padding: 8px 9px 4px;
 }
-.variant-id   { font-weight: 700; font-size: 12px; }
-.variant-name { font-size: 10.5px; color: var(--text-muted); }
+.variant-id   { font-weight: 700; font-size: 13px; }
+.variant-name { font-size: 12px; line-height: 1.35; color: #4b5563; }
 
 .variant-stats {
   display: flex;
@@ -1788,8 +1806,8 @@ a.logo {
   padding: 2px 9px 9px;
 }
 .stat { display: flex; flex-direction: column; }
-.stat-label { font-size: 8.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-val   { font-size: 11.5px; font-weight: 600; color: var(--text); }
+.stat-label { font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-val   { font-size: 12.5px; font-weight: 650; color: var(--text); }
 
 /* ── Market benchmark (Sensor Tower) ── */
 .market-title {

@@ -32,6 +32,13 @@ services:
     health: http://127.0.0.1:5175/
     startup_timeout_s: 30
 
+  - name: pubgen
+    port: 4319
+    command: npm --prefix frontend run pubgen
+    log: /tmp/mantra-pubgen.log
+    health: http://127.0.0.1:4319/
+    startup_timeout_s: 30
+
   - name: worker
     port: 4317
     command: npm run worker

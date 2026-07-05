@@ -1,4 +1,5 @@
 // ── Page 3 : Creative pipeline ──
+import { fetchRunState, type FlowVariant } from './api'
 import { SESSIONS, GAME_FNS } from './games'
 import { createGlobe, type GlobePoint, type GlobeArc } from './globe'
 import { renderStepper, setRoute, type FlowRoute } from './flow'
@@ -137,10 +138,10 @@ const VW = 132
 const VH = 234
 
 const TABS = [
-  { id: 'overview',    icon: '📊', label: 'Overview' },
-  { id: 'competitors', icon: '🛰️', label: 'Competitors' },
-  { id: 'metrics',     icon: '📈', label: 'Metrics' },
-  { id: 'decision',    icon: '🧠', label: 'Decision' },
+  { id: 'overview',    label: 'Overview' },
+  { id: 'competitors', label: 'Competitors' },
+  { id: 'metrics',     label: 'Metrics' },
+  { id: 'decision',    label: 'Decision' },
 ]
 
 export function renderPipeline(root: HTMLElement, route: FlowRoute) {
@@ -162,7 +163,6 @@ export function renderPipeline(root: HTMLElement, route: FlowRoute) {
         <div class="analytics-tabs" id="analytics-tabs">
           ${TABS.map((t, i) => `
             <button class="atab ${i === 0 ? 'atab--active' : ''}" data-tab="${t.id}">
-              <span class="atab-icon">${t.icon}</span>
               <span class="atab-label">${t.label}</span>
             </button>
           `).join('')}
@@ -542,41 +542,67 @@ export function renderPipeline(root: HTMLElement, route: FlowRoute) {
   })
 
   // ── Creative previews (Overview tab) ──
+  // Real generated variants (playable ads) fill the cards when the run has them;
+  // the canvas demo games remain only as a no-run fallback.
   const ticks: (() => void)[] = []
-  const rankedVariants = [...VARIANTS].sort((left, right) => {
-    return nvidiaRank(left.id, nvidiaSummaries) - nvidiaRank(right.id, nvidiaSummaries)
-  })
-  rankedVariants.forEach((v, i) => {
-    setTimeout(() => {
-      const session = SESSIONS[v.id]
-      const card = document.createElement('div')
-      card.className = 'variant-card variant-card--in'
-      card.dataset.versionId = String(v.id)
-      card.innerHTML = `
-        <div class="variant-preview">
-          <canvas id="vcanvas-${v.id}" width="${VW}" height="${VH}"></canvas>
-          <div class="variant-nvidia-rank"></div>
-          <div class="variant-nvidia-score"><span>NVIDIA</span><strong></strong></div>
-          <div class="variant-badge variant-badge--${v.status}">${v.status === 'keep' ? 'Keep' : 'Kill'}</div>
-          <div class="variant-duration">0:15</div>
-          <div class="variant-rec">● REC</div>
-        </div>
-        <div class="variant-meta">
-          <span class="variant-id" style="color:${session.color}">${session.title}</span>
-          <span class="variant-name">${v.hook}</span>
-        </div>
-        <div class="variant-stats">
-          <div class="stat"><span class="stat-label">CTR</span><span class="stat-val">${v.ctr}</span></div>
-          <div class="stat"><span class="stat-label">CPI</span><span class="stat-val">${v.cpi}</span></div>
-          <div class="stat"><span class="stat-label">D1</span><span class="stat-val">${v.retention}</span></div>
-        </div>
-      `
-      variantsGrid.appendChild(card)
-      applyNvidiaScores(variantsGrid, nvidiaSummaries)
-      const canvas = document.getElementById('vcanvas-' + v.id) as HTMLCanvasElement
-      ticks.push(GAME_FNS[v.id](canvas))
-    }, 1500 + i * 200)
-  })
+
+  async function loadRealVariants(): Promise<FlowVariant[]> {
+    if (!route.runId) return []
+    try {
+      return (await fetchRunState(route.runId)).variants
+    } catch {
+      return []
+    }
+  }
+
+  function renderVariantCards(realVariants: FlowVariant[]) {
+    const rankedVariants = [...VARIANTS].sort((left, right) => {
+      return nvidiaRank(left.id, nvidiaSummaries) - nvidiaRank(right.id, nvidiaSummaries)
+    })
+    rankedVariants.forEach((v, i) => {
+      setTimeout(() => {
+        const session = SESSIONS[v.id]
+        const real = realVariants[v.id]
+        const title = real ? real.name : session.title
+        const hook = real ? real.hypothesis : v.hook
+        const card = document.createElement('div')
+        card.className = 'variant-card variant-card--in'
+        card.dataset.versionId = String(v.id)
+        card.innerHTML = `
+          <div class="variant-preview">
+            ${real
+              ? `<iframe class="variant-live-frame" title="${escapeHtml(title)}" sandbox="allow-scripts allow-same-origin allow-pointer-lock"></iframe>`
+              : `<canvas id="vcanvas-${v.id}" width="${VW}" height="${VH}"></canvas>`}
+            <div class="variant-nvidia-rank"></div>
+            <div class="variant-nvidia-score"><span>NVIDIA</span><strong></strong></div>
+            <div class="variant-badge variant-badge--${v.status}">${v.status === 'keep' ? 'Keep' : 'Kill'}</div>
+            <div class="variant-duration">0:15</div>
+            <div class="variant-rec">● REC</div>
+          </div>
+          <div class="variant-meta">
+            <span class="variant-id" style="color:${session.color}">${escapeHtml(title)}</span>
+            <span class="variant-name">${escapeHtml(hook)}</span>
+          </div>
+          <div class="variant-stats">
+            <div class="stat"><span class="stat-label">CTR</span><span class="stat-val">${v.ctr}</span></div>
+            <div class="stat"><span class="stat-label">CPI</span><span class="stat-val">${v.cpi}</span></div>
+            <div class="stat"><span class="stat-label">D1</span><span class="stat-val">${v.retention}</span></div>
+          </div>
+        `
+        variantsGrid.appendChild(card)
+        applyNvidiaScores(variantsGrid, nvidiaSummaries)
+        if (real) {
+          const frame = card.querySelector<HTMLIFrameElement>('.variant-live-frame')
+          if (frame) frame.srcdoc = real.gameHtml
+        } else {
+          const canvas = document.getElementById('vcanvas-' + v.id) as HTMLCanvasElement
+          ticks.push(GAME_FNS[v.id](canvas))
+        }
+      }, 1500 + i * 200)
+    })
+  }
+
+  void loadRealVariants().then(renderVariantCards)
 
   let raf = 0
   function loop() { raf = requestAnimationFrame(loop); ticks.forEach(t => t()) }
@@ -845,6 +871,14 @@ function isUploadedDemoAsset(value: unknown): value is UploadedDemoAsset {
     && Number.isInteger(asset.campaignAttempt)
     && typeof asset.linked === 'boolean'
     && asset.campaignStatus === 'PAUSED'
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 function nvidiaRank(versionId: number, summaries: NvidiaVersionSummary[]): number {
