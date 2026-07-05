@@ -654,6 +654,54 @@ a.logo {
 }
 .ads-log-line { white-space: pre-wrap; word-break: break-word; }
 
+/* ── loading animation (replaces the terminal log during generation) ── */
+.ads-progress-count {
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  min-height: 42px;
+}
+.ads-loadbar {
+  width: 100%;
+  max-width: 420px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent-border, #dbeafe);
+  overflow: hidden;
+}
+.ads-loadbar-fill {
+  height: 100%;
+  width: 2%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0%, #7c3aed 50%, var(--accent) 100%);
+  background-size: 200% 100%;
+  animation: loadbar-shimmer 1.4s linear infinite;
+  transition: width 0.6s ease;
+}
+@keyframes loadbar-shimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: -200% 0; }
+}
+.ads-progress-src { font-size: 11px; color: var(--text-faint); }
+
+/* step-4 CTA once ads are generated */
+.ads-next-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent), #1d4ed8);
+  box-shadow: 0 2px 0 #1e40af;
+}
+.ads-next-btn:hover { filter: brightness(1.08); }
+.ads-next-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 #1e40af; }
+
 /* ── fullscreen lightbox ── */
 .ad-lightbox[hidden] { display: none; } /* display:flex écrasait l'attribut hidden → lightbox ouverte au chargement */
 .ad-lightbox {

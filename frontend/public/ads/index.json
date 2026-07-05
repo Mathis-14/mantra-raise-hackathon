@@ -1,12 +1,12 @@
 [
   {
     "clip": "variant-1",
-    "game": "Mob Control clone — classic layout, canyon theme",
+    "game": "Mob Control clone",
     "video": "ads/variant-1/ad.mp4",
     "manifest": "ads/variant-1/manifest.json",
-    "hook": "Ready to crush the canyon?",
-    "cta": "Install now and lead the charge!",
-    "tone": "competitive",
+    "hook": "Ever wondered how a tiny crowd can take over a massive base?",
+    "cta": "Download now and lead the charge!",
+    "tone": "humorous",
     "duration_s": 12,
     "models": {
       "vlm": "meta/llama-3.2-90b-vision-instruct",

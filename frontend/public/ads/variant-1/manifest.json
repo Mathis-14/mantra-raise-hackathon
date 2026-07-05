@@ -1,8 +1,8 @@
 {
-  "game": "Mob Control clone — classic layout, canyon theme",
+  "game": "Mob Control clone",
   "source": "variant-1.mp4",
-  "createdAt": "2026-07-05T07:46:20.833Z",
-  "tookMs": 78844,
+  "createdAt": "2026-07-05T07:57:15.763Z",
+  "tookMs": 21889,
   "models": {
     "vlm": "meta/llama-3.2-90b-vision-instruct",
     "nemotron": "nvidia/nemotron-3-super-120b-a12b"
@@ -15,45 +15,42 @@
     "video": "ad.mp4"
   },
   "plan": {
-    "hook": "Ready to crush the canyon?",
-    "tone": "competitive",
+    "hook": "Ever wondered how a tiny crowd can take over a massive base?",
+    "tone": "humorous",
     "duration_s": 12,
-    "cta": "Install now and lead the charge!",
-    "voiceover": "Gather your squad, multiply your forces, and conquer the canyon—only in Mob Control!",
+    "cta": "Download now and lead the charge!",
+    "voiceover": "Watch your squad grow, smash obstacles, and dominate the battlefield—all in one tap!",
     "assets": [
       "download_button",
-      "gold_popup",
-      "canyon_bg"
+      "crowd_icon",
+      "explosion_effect"
     ],
     "edl": [
       {
         "time": 0,
         "source_time": 0,
         "zoom": 1,
-        "caption": "Ready to crush the canyon?",
-        "overlay": null
+        "caption": "Ever wondered how a tiny crowd can take over a massive base?"
       },
       {
-        "time": 2,
+        "time": 4,
         "source_time": 3,
         "zoom": 1.2,
-        "caption": "Triple your troops!",
-        "overlay": null
+        "caption": "Grow your mob!"
       },
       {
-        "time": 6,
+        "time": 8,
         "source_time": 6,
         "zoom": 1.5,
         "shake": true,
-        "caption": "Double the fun!",
-        "overlay": null
+        "caption": "Crush the enemy!"
       },
       {
         "time": 10,
         "source_time": 6,
-        "zoom": 1.3,
-        "caption": "Install now and lead the charge!",
-        "overlay": "download_button"
+        "zoom": 1.2,
+        "overlay": "download_button",
+        "caption": "Download now and lead the charge!"
       }
     ]
   }
