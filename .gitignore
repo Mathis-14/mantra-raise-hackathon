@@ -12,6 +12,7 @@ next-env.d.ts
 !.env.example
 
 # builds & misc
+dist/
 *.tsbuildinfo
 .DS_Store
 
@@ -23,3 +24,4 @@ playtest-artifacts/
 
 # local-only files (reference videos, private notes) — never pushed
 .private/
+local-games/
