@@ -31,7 +31,12 @@ const PORT_FREE_TIMEOUT_MS = 6_000;
 const HEALTH_POLL_MS = 750;
 
 async function main(): Promise<void> {
-  const downOnly = process.argv.includes("--down");
+  // Accept every spelling: `npm run stack -- --down`, `npm run stack down`, and
+  // `npm run stack --down` (npm swallows the flag but exposes it as npm_config_down).
+  const downOnly =
+    process.argv.includes("--down") ||
+    process.argv.includes("down") ||
+    process.env.npm_config_down === "true";
   const services = parseStackYaml(readFileSync(STACK_FILE, "utf8"));
 
   for (const service of services) {
