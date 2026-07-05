@@ -135,7 +135,14 @@ export function renderPipeline(root: HTMLElement) {
 
           <!-- Decision -->
           <section class="tab-panel" data-panel="decision">
-            <div class="col-title">Agent recommendation</div>
+            <div class="decision-heading">
+              <div>
+                <div class="col-title">Agent recommendation</div>
+                <p class="decision-subtitle">Choose the winning direction, then create a safe test campaign shell.</p>
+              </div>
+              <span class="simulation-pill">Performance simulated</span>
+            </div>
+            <div class="decision-grid">
             <div class="rec-card" id="rec-card" style="opacity:0;transition:opacity 0.5s">
               <div class="rec-icon">🧠</div>
               <div class="rec-title">Build next: <span class="accent">Sky Hop × Speed Dash</span></div>
@@ -148,6 +155,33 @@ export function renderPipeline(root: HTMLElement) {
               <div class="rec-row"><span>Kill</span><span class="tag tag--kill">Neon Snake</span></div>
               <div class="rec-row"><span>A/B test</span><span class="tag tag--keep">Sky Hop vs Speed Dash</span></div>
               <div class="rec-row"><span>Next build</span><span class="tag tag--next">Vertical Dash v2</span></div>
+            </div>
+
+            <aside class="ads-connect-card" aria-labelledby="ads-connect-title">
+              <div class="ads-card-head">
+                <div class="google-mark" aria-hidden="true"><span>G</span></div>
+                <div><div class="ads-eyebrow">Google Ads</div><h2 id="ads-connect-title">Launch safely</h2></div>
+                <span class="connection-state connection-state--idle" id="ads-connection-state"><span class="connection-dot"></span>Not verified</span>
+              </div>
+              <div class="ads-safety-banner">
+                <span class="shield-icon" aria-hidden="true">&#10003;</span>
+                <div><strong>Test accounts only</strong><span>Production accounts are refused and campaigns are always created paused.</span></div>
+              </div>
+              <div class="ads-account" id="ads-account" hidden>
+                <div><span class="ads-account-label">Connected account</span><strong id="ads-account-name">Google Ads test client</strong></div>
+                <span class="test-badge">TEST</span>
+              </div>
+              <div class="ads-checklist">
+                <div class="ads-check"><span>1</span><div><strong>Server credentials</strong><small>Never entered or exposed in this browser</small></div></div>
+                <div class="ads-check"><span>2</span><div><strong>Read-only verification</strong><small>Requires test_account = true and manager = false</small></div></div>
+                <div class="ads-check"><span>3</span><div><strong>Paused campaign shell</strong><small>No ads, delivery, billing, or real performance</small></div></div>
+              </div>
+              <p class="ads-feedback" id="ads-feedback">Verify the server connection before launching.</p>
+              <button class="ads-button ads-button--secondary" id="verify-ads-btn">Verify connection</button>
+              <button class="ads-button ads-button--primary" id="launch-ads-btn" disabled><span>Create paused test campaign</span><span aria-hidden="true">&rarr;</span></button>
+              <a class="ads-dashboard-link" href="https://ads.google.com/" target="_blank" rel="noreferrer">Open Google Ads dashboard <span aria-hidden="true">&nearr;</span></a>
+              <div class="honesty-note"><strong>Real:</strong> connection + paused campaign ID <span></span> <strong>Simulated:</strong> every performance metric</div>
+            </aside>
             </div>
           </section>
 
@@ -165,6 +199,43 @@ export function renderPipeline(root: HTMLElement) {
   const variantsGrid = document.getElementById('variants-grid')!
   const marketList   = document.getElementById('market-list')!
   const marketBench  = document.getElementById('market-bench')!
+  const verifyAdsButton = document.getElementById('verify-ads-btn') as HTMLButtonElement
+  const launchAdsButton = document.getElementById('launch-ads-btn') as HTMLButtonElement
+  const adsFeedback = document.getElementById('ads-feedback')!
+  const adsConnectionState = document.getElementById('ads-connection-state')!
+  const adsAccount = document.getElementById('ads-account')!
+
+  verifyAdsButton.addEventListener('click', async () => {
+    verifyAdsButton.disabled = true
+    verifyAdsButton.textContent = 'Checking server...'
+    adsFeedback.textContent = 'Running a read-only test-account verification.'
+    try {
+      const response = await fetch('/api/google-ads/connection', { headers: { Accept: 'application/json' } })
+      if (!response.ok) throw new Error('connection_unavailable')
+      const result: unknown = await response.json()
+      if (!isVerifiedTestAccount(result)) throw new Error('unsafe_account')
+
+      document.getElementById('ads-account-name')!.textContent = result.descriptiveName
+      adsAccount.hidden = false
+      adsConnectionState.className = 'connection-state connection-state--connected'
+      adsConnectionState.innerHTML = '<span class="connection-dot"></span>Verified test account'
+      adsFeedback.textContent = 'Safe to create a real paused campaign shell.'
+      verifyAdsButton.textContent = 'Connection verified'
+      launchAdsButton.disabled = false
+    } catch {
+      adsConnectionState.className = 'connection-state connection-state--error'
+      adsConnectionState.innerHTML = '<span class="connection-dot"></span>Setup required'
+      adsFeedback.textContent = 'The server connection is not ready yet. No credentials were sent from this browser.'
+      verifyAdsButton.textContent = 'Try verification again'
+      verifyAdsButton.disabled = false
+    }
+  })
+
+  launchAdsButton.addEventListener('click', () => {
+    launchAdsButton.disabled = true
+    launchAdsButton.textContent = 'Waiting for secure backend...'
+    adsFeedback.textContent = 'Launch is locked until the campaign endpoint is connected. No Google Ads change was made.'
+  })
 
   // ── Tab switching ──
   const tabsBar = document.getElementById('analytics-tabs')!
@@ -315,4 +386,23 @@ export function renderPipeline(root: HTMLElement) {
     rec.style.opacity = '1'
     badge.innerHTML = '<span style="color:var(--accent);font-weight:600;font-size:13px">✓ Pipeline complete</span>'
   }, totalDelay)
+}
+
+interface VerifiedAdsAccount {
+  connected: true
+  environment: 'TEST'
+  descriptiveName: string
+  testAccount: true
+  manager: false
+}
+
+function isVerifiedTestAccount(value: unknown): value is VerifiedAdsAccount {
+  if (typeof value !== 'object' || value === null) return false
+  const account = value as Record<string, unknown>
+  return account.connected === true
+    && account.environment === 'TEST'
+    && typeof account.descriptiveName === 'string'
+    && account.descriptiveName.length > 0
+    && account.testAccount === true
+    && account.manager === false
 }
