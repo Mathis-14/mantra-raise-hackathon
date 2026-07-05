@@ -1,279 +1,109 @@
-// MOB RUSH — synthèse WebAudio pure (module-librairie).
-// Reçoit un AudioContext + un noeud de sortie (créés par audio-manager). Aucun effet de bord à l'import.
-// Tout se branche sur outNode. La musique passe par un sous-gain interne à -12 dB (lui-même → outNode).
-// Réf. CONTRACT §5.12 + parité prototype (beep, jingleWin, jingleLose).
+// MOB RUSH — sons "signature" jouons à partir d'ÉCHANTILLONS FOLEY (aucune synthèse).
+// audio-manager injecte des outils { playUrl, foley } ; on rejoue de vrais impacts CC0/CC-BY
+// (Kenney Impact + Little Robot coins). Le ding montant, l'arpège de victoire, etc. utilisent
+// playbackRate sur un vrai échantillon (variation de hauteur = lecture d'échantillon, pas du synthé).
+// Aucun effet de bord à l'import. Réf. CONTRACT §5.12 (implémentation foley, cf. game/assets/sounds/foley/CREDITS.md).
 
 import { DING_WINDOW } from '../core/constants.js';
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-// Fréquences d'une gamme pentatonique majeure de C (marimba de la boucle musicale).
-const PENTA = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.25];
-const MUSIC_BPM = 110;
-const MUSIC_STEP = 60 / MUSIC_BPM / 2; // croches à ~110 BPM
-const MUSIC_DB = Math.pow(10, -12 / 20); // gain linéaire pour -12 dB sous les SFX
-
 /**
- * Synthèse WebAudio pure.
  * @param {AudioContext} audioCtx
  * @param {AudioNode} outNode - noeud de sortie (master gain de l'audio-manager)
+ * @param {{ playUrl?: (url:string, opts?:{volume?:number,rate?:number,delayMs?:number})=>void,
+ *           foley?: (name:string)=>string|undefined }} [tools]
  */
-export function createSynth(audioCtx, outNode) {
-  // --- état interne ---
-  let dingStep = 0;      // demi-tons courants du ding (0..12)
-  let dingLast = -1e9;   // audioCtx.currentTime du dernier ding
+export function createSynth(audioCtx, outNode, tools = {}) {
+  const playUrl = tools.playUrl || (() => {});
+  const foley = tools.foley || (() => undefined);
+  const isGameplayActive = tools.isGameplayActive || (() => true);
+  const play = (name, opts) => {
+    const url = foley(name);
+    if (url) playUrl(url, opts);
+  };
 
-  let noiseBuf = null;   // buffer de bruit blanc 1 s (partagé explosion/patter)
-  let hb = null;         // noeuds du battement cardiaque (lazy)
-  let patter = null;     // noeuds du patter de foule (lazy)
-
-  let musicGain = null;  // sous-gain -12 dB de la musique
-  let musicTimer = null; // setTimeout du séquenceur
-  let musicPlaying = false;
-  let musicNext = 0;     // audio-time de la prochaine note
-  let melodyIdx = 3;     // index courant dans PENTA (marche aléatoire)
-
-  function getNoise() {
-    if (!noiseBuf) {
-      const len = Math.floor(audioCtx.sampleRate * 1);
-      noiseBuf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-      const d = noiseBuf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    }
-    return noiseBuf;
-  }
-
-  // Note générique programmée à `when` (base parité du beep du prototype :
-  // osc + gain expo-ramp vers 0.001 sur `dur`).
-  function tone(freq, dur, type, vol, when) {
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = type;
-    o.frequency.value = freq;
-    const v = Math.max(0.0001, vol);
-    g.gain.setValueAtTime(v, when);
-    g.gain.exponentialRampToValueAtTime(0.001, when + dur);
-    o.connect(g).connect(outNode);
-    o.start(when);
-    o.stop(when + dur);
-  }
-
-  // --- musique : note type marimba (sine + octave, decay court) ---
-  function marimba(freq, when) {
-    const o = audioCtx.createOscillator();
-    const o2 = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    const g2 = audioCtx.createGain();
-    o.type = 'sine';
-    o.frequency.value = freq;
-    o2.type = 'sine';
-    o2.frequency.value = freq * 2.01;
-    g.gain.setValueAtTime(0.0001, when);
-    g.gain.linearRampToValueAtTime(0.5, when + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.001, when + 0.4);
-    g2.gain.setValueAtTime(0.0001, when);
-    g2.gain.linearRampToValueAtTime(0.16, when + 0.005);
-    g2.gain.exponentialRampToValueAtTime(0.001, when + 0.22);
-    o.connect(g).connect(musicGain);
-    o2.connect(g2).connect(musicGain);
-    o.start(when);
-    o.stop(when + 0.45);
-    o2.start(when);
-    o2.stop(when + 0.25);
-  }
-
-  function musicScheduler() {
-    const ahead = 0.12;
-    while (musicNext < audioCtx.currentTime + ahead) {
-      // ~18 % de silences pour aérer le motif
-      if (Math.random() > 0.18) {
-        melodyIdx += Math.floor(Math.random() * 3) - 1; // -1, 0 ou +1
-        if (melodyIdx < 0) melodyIdx = 1;
-        if (melodyIdx >= PENTA.length) melodyIdx = PENTA.length - 2;
-        marimba(PENTA[melodyIdx], musicNext);
-      }
-      musicNext += MUSIC_STEP;
-    }
-    musicTimer = setTimeout(musicScheduler, 25);
-  }
+  // état du ding montant (par combo) + throttles des boucles
+  let dingStep = 0;
+  let dingLast = -1e9;
+  let hbLast = -1e9;
+  let patterLast = -1e9;
+  let patterIdx = 0;
 
   return {
-    // Générique parité proto.
+    // Générique (ex-beep du prototype) → petit toc feutré.
     beep(freq, dur, type, vol) {
-      tone(freq, dur, type, vol, audioCtx.currentTime);
+      play('click', { volume: vol != null ? Math.min(1, vol * 3) : 0.4 });
     },
 
-    // Porte positive — synthétisé (jamais un fichier).
-    // Base 660 Hz ; +1 demi-ton si rappelé < DING_WINDOW, sinon reset ; plafond +12 demi-tons.
-    // Timbre cristallin : triangle fondamental + sine harmonique 2×, decay court.
+    // Porte positive — « toc » cristallin GRAVE et rond, espacé : lecture à 0.55× (≈ −10 demi-tons),
+    // passe-bas 1.4 kHz (plus aucun aigu perçant), montée plafonnée à +4. Throttle dédié : un ding
+    // audible max toutes les DING_GAP secondes — les passages intermédiaires sont muets et ne font
+    // pas grimper le combo.
     ding() {
+      const DING_GAP = 0.25;
       const now = audioCtx.currentTime;
-      if (now - dingLast < DING_WINDOW) dingStep = Math.min(dingStep + 1, 12);
+      if (now - dingLast < DING_GAP) return;
+      if (now - dingLast < DING_WINDOW + DING_GAP) dingStep = Math.min(dingStep + 1, 4);
       else dingStep = 0;
       dingLast = now;
-      const freq = 660 * Math.pow(2, dingStep / 12);
-
-      const o1 = audioCtx.createOscillator();
-      const g1 = audioCtx.createGain();
-      o1.type = 'triangle';
-      o1.frequency.value = freq;
-      g1.gain.setValueAtTime(0.0001, now);
-      g1.gain.linearRampToValueAtTime(0.22, now + 0.005);
-      g1.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-      o1.connect(g1).connect(outNode);
-      o1.start(now);
-      o1.stop(now + 0.2);
-
-      const o2 = audioCtx.createOscillator();
-      const g2 = audioCtx.createGain();
-      o2.type = 'sine';
-      o2.frequency.value = freq * 2;
-      g2.gain.setValueAtTime(0.08, now);
-      g2.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-      o2.connect(g2).connect(outNode);
-      o2.start(now);
-      o2.stop(now + 0.14);
+      play('gateGood', { rate: 0.55 * Math.pow(2, dingStep / 12), volume: 0.4, lowpassHz: 1400 });
     },
 
-    // Franchissement de ligne — sweep DESCENDANT 400 → 150 Hz sur 0.25 s.
+    // Franchissement de ligne — impact grave descendant (plaque lourde, rate < 1).
     alarm() {
-      const now = audioCtx.currentTime;
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = 'sawtooth';
-      o.frequency.setValueAtTime(400, now);
-      o.frequency.exponentialRampToValueAtTime(150, now + 0.25);
-      g.gain.setValueAtTime(0.0001, now);
-      g.gain.linearRampToValueAtTime(0.18, now + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-      o.connect(g).connect(outNode);
-      o.start(now);
-      o.stop(now + 0.26);
+      play('lineCross', { rate: 0.92, volume: 0.7 });
     },
 
-    // Destruction de la base — burst de bruit filtré passe-bas + sub sinus grave.
+    // Destruction de la base — fracas de verre + gravats de pierre en couche.
     explosion() {
-      const now = audioCtx.currentTime;
-      const dur = 0.6;
-
-      const src = audioCtx.createBufferSource();
-      src.buffer = getNoise();
-      const lp = audioCtx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(1400, now);
-      lp.frequency.exponentialRampToValueAtTime(120, now + dur);
-      const ng = audioCtx.createGain();
-      ng.gain.setValueAtTime(0.9, now);
-      ng.gain.exponentialRampToValueAtTime(0.001, now + dur);
-      src.connect(lp).connect(ng).connect(outNode);
-      src.start(now);
-      src.stop(now + dur);
-
-      const sub = audioCtx.createOscillator();
-      const sg = audioCtx.createGain();
-      sub.type = 'sine';
-      sub.frequency.setValueAtTime(90, now);
-      sub.frequency.exponentialRampToValueAtTime(38, now + 0.5);
-      sg.gain.setValueAtTime(0.9, now);
-      sg.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
-      sub.connect(sg).connect(outNode);
-      sub.start(now);
-      sub.stop(now + 0.6);
+      play('destroy', { volume: 0.85, rate: 0.92 });
+      play('rubble', { volume: 0.7, rate: 0.95, delayMs: 40 });
     },
 
-    // Victoire — parité proto : 660/.12, 880/.15 à +130 ms, 1100/.25 à +280 ms (triangle, vol .2).
+    // Victoire — arpège de vraie cloche, montant (fondamentale, +4, +7 demi-tons),
+    // adouci (volume + passe-bas : même cloche que l'ancien ding, brillante par nature).
     jingleWin() {
-      const t0 = audioCtx.currentTime;
-      tone(660, 0.12, 'triangle', 0.2, t0);
-      tone(880, 0.15, 'triangle', 0.2, t0 + 0.13);
-      tone(1100, 0.25, 'triangle', 0.2, t0 + 0.28);
+      play('star', { rate: 1.0, volume: 0.6, bus: 'ui', lowpassHz: 4200 });
+      play('star', { rate: 1.2599, volume: 0.6, delayMs: 140, bus: 'ui', lowpassHz: 4200 });
+      play('star', { rate: 1.4983, volume: 0.65, delayMs: 300, bus: 'ui', lowpassHz: 4200 });
     },
 
-    // Défaite — 2 notes descendantes sawtooth (~200 Hz, .4 s).
+    // Défaite — 2 coups mats descendants.
     jingleLose() {
-      const t0 = audioCtx.currentTime;
-      tone(220, 0.4, 'sawtooth', 0.15, t0);
-      tone(165, 0.4, 'sawtooth', 0.15, t0 + 0.16);
+      play('lineCross', { rate: 1.0, volume: 0.7, bus: 'ui' });
+      play('lineCross', { rate: 0.8, volume: 0.7, delayMs: 160, bus: 'ui' });
     },
 
-    // Battement grave ~2 Hz, gain ∝ level (0 ⇒ coupé). Créé paresseusement.
+    // Battement de danger — vrai impact grave throttlé (~2 Hz), plus rapide/fort à l'approche.
+    // 0 ⇒ silencieux (aucune boucle persistante à couper).
     setHeartbeat(level01) {
+      if (!isGameplayActive()) return; // silencieux hors partie (écran de fin)
       const lvl = clamp01(level01);
-      if (!hb) {
-        if (lvl <= 0) return; // rien à couper
-        const osc = audioCtx.createOscillator();
-        const amp = audioCtx.createGain();
-        const lfo = audioCtx.createOscillator();
-        const lfoGain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 52;
-        amp.gain.value = 0;
-        lfo.type = 'sine';
-        lfo.frequency.value = 2; // ~2 battements/s
-        lfoGain.gain.value = 0;
-        lfo.connect(lfoGain).connect(amp.gain); // module la porte d'amplitude
-        osc.connect(amp).connect(outNode);
-        osc.start();
-        lfo.start();
-        hb = { osc, amp, lfo, lfoGain };
-      }
-      // pic = 2A = lvl*0.4 ; creux = 0 (baseline A + LFO d'amplitude A autour de A)
-      const A = lvl * 0.2;
-      hb.amp.gain.setTargetAtTime(A, audioCtx.currentTime, 0.05);
-      hb.lfoGain.gain.setTargetAtTime(A, audioCtx.currentTime, 0.05);
+      if (lvl <= 0.12) return;
+      const now = audioCtx.currentTime;
+      const interval = 0.42 - 0.16 * lvl;
+      if (now - hbLast < interval) return;
+      hbLast = now;
+      play('danger', { volume: 0.16 + 0.36 * lvl, rate: 0.9 });
     },
 
-    // Patter de pas de foule — boucle de bruit filtré, gain ∝ level (0 ⇒ silencieux). Lazy.
+    // Patter de pas de foule — vrais pas throttlés, plus denses avec la foule (level = min(1, n/100)).
     setPatterLevel(level01) {
+      if (!isGameplayActive()) return; // les pas de foule s'arrêtent à la fin de partie
       const lvl = clamp01(level01);
-      if (!patter) {
-        if (lvl <= 0) return;
-        const src = audioCtx.createBufferSource();
-        src.buffer = getNoise();
-        src.loop = true;
-        const bp = audioCtx.createBiquadFilter();
-        bp.type = 'bandpass';
-        bp.frequency.value = 900;
-        bp.Q.value = 0.7;
-        const g = audioCtx.createGain();
-        g.gain.value = 0;
-        // léger trémolo pour évoquer le martèlement des pas
-        const trem = audioCtx.createOscillator();
-        const tremGain = audioCtx.createGain();
-        trem.type = 'sine';
-        trem.frequency.value = 11;
-        tremGain.gain.value = 0;
-        trem.connect(tremGain).connect(g.gain);
-        src.connect(bp).connect(g).connect(outNode);
-        src.start();
-        trem.start();
-        patter = { src, g, bp, trem, tremGain };
-      }
-      // gain proportionnel au niveau (mise à l'échelle discrète pour rester en dessous des SFX)
-      const base = lvl * 0.12;
-      patter.g.gain.setTargetAtTime(base, audioCtx.currentTime, 0.08);
-      patter.tremGain.gain.setTargetAtTime(base * 0.6, audioCtx.currentTime, 0.08);
+      if (lvl <= 0.05) return;
+      const now = audioCtx.currentTime;
+      const interval = 0.5 - 0.34 * lvl;
+      if (now - patterLast < interval) return;
+      patterLast = now;
+      patterIdx = (patterIdx + 1) % 3;
+      play(`footstep${patterIdx}`, { volume: 0.05 + 0.15 * lvl, rate: 0.9 + Math.random() * 0.2 });
     },
 
-    // Séquenceur pentatonique ~110 BPM (marimba), sur gain séparé -12 dB → outNode.
-    startMusic() {
-      if (musicPlaying) return;
-      if (!musicGain) {
-        musicGain = audioCtx.createGain();
-        musicGain.gain.value = MUSIC_DB;
-        musicGain.connect(outNode);
-      }
-      musicPlaying = true;
-      musicNext = audioCtx.currentTime + 0.06;
-      musicScheduler();
-    },
-
-    stopMusic() {
-      musicPlaying = false;
-      if (musicTimer) {
-        clearTimeout(musicTimer);
-        musicTimer = null;
-      }
-    },
+    // La boucle de fond (« Winter Dust », bus 'music') est gérée par audio-manager
+    // (démarrage à l'unlock, survit aux écrans de fin) → no-ops conservés pour l'API.
+    startMusic() {},
+    stopMusic() {},
   };
 }

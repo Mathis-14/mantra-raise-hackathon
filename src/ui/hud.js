@@ -5,7 +5,7 @@
 //                               enemyHp playerHp hint levelFlash levelFlashTxt.
 // Aucun effet de bord à l'import.
 
-import { LEVEL_FLASH_DUR, GHOST_DELAY, CHAMPION_MAX, LOADOUTS, LOADOUT_DEFAULT } from '../core/constants.js';
+import { LEVEL_FLASH_DUR, GHOST_DELAY, LOADOUTS, LOADOUT_DEFAULT } from '../core/constants.js';
 import { damp, clamp01 } from '../juice/springs.js';
 
 // --- Constantes de présentation locales (timings/échelles d'anim DOM, hors gameplay :
@@ -14,7 +14,8 @@ const COIN_PUNCH_SCALE = 1.25;  // échelle du punch du compteur de pièces (spe
 const COIN_PUNCH_S     = 0.2;   // durée (s) de la transition CSS retour 1.25 → 1
 const GHOST_LAMBDA     = 8;     // λ du damp du ghost fill vers enemyFill (spec §6.9)
 
-const GAME_HUD_IDS = ['enemyHp', 'playerHp', 'championHud'];
+// championHud retiré : la jauge/RELEASE sont des objets 3D collés au canon (crowd/champion.js).
+const GAME_HUD_IDS = ['enemyHp', 'playerHp'];
 const COIN_ICON = '/models/platformer-kit/Previews/coin-gold.png';
 const GEM_ICON = '/models/platformer-kit/Previews/jewel.png';
 
@@ -37,6 +38,7 @@ export function createHud(ctx) {
     coinPill:     $('coinPill'),
     gemPill:      $('gemPill'),
     loadoutPill:  $('loadoutPill'),
+    playerHp:     $('playerHp'),
     playerHpVal:  $('playerHpVal'),
     enemyFill:    $('enemyFill'),
     enemyGhost:   $('enemyGhost'),
@@ -59,7 +61,27 @@ export function createHud(ctx) {
   let prevFill = initFill;     // ratio de la frame précédente (détection de baisse)
   let ghostDelay = 0;          // s restantes de maintien avant que le ghost rejoigne le fill
 
+  // Juice générique : snap à `scale` puis retour animé à 1 (compose avec un transform de base
+  // éventuel, ex. le translateX(-50%) des éléments centrés).
+  function punchEl(elm, scale, baseTransform = '') {
+    if (!elm) return;
+    elm.style.transition = 'none';
+    elm.style.transform = baseTransform + ' scale(' + scale + ')';
+    void elm.offsetWidth;
+    elm.style.transition = 'transform ' + COIN_PUNCH_S + 's ease-out';
+    elm.style.transform = baseTransform + ' scale(1)';
+  }
+
+  let prevPlayerHp = (state && state.playerHp) || 0;
+
   function refresh() {
+    // Dégâts joueur : punch + flash rouge du compteur de PV (chaque perte est ressentie).
+    if (state.playerHp < prevPlayerHp && el.playerHp) {
+      punchEl(el.playerHp, 1.4, 'translateX(-50%)');
+      el.playerHp.style.color = '#ff5d75';
+      setTimeout(() => { el.playerHp.style.color = ''; }, 220);
+    }
+    prevPlayerHp = state.playerHp;
     if (el.levelPill) el.levelPill.textContent = 'LVL ' + state.level;
     if (el.coinPill) el.coinPill.innerHTML = iconValue(COIN_ICON, displayedCoins);
     if (el.gemPill) el.gemPill.innerHTML = iconValue(GEM_ICON, state.gems || 0);
@@ -78,6 +100,8 @@ export function createHud(ctx) {
   }
 
   function flashLevel() {
+    punchEl(el.levelPill, 1.3); // le pill de niveau claque en même temps que le flash
+    prevPlayerHp = state.playerHp; // reset de niveau : pas de faux punch de dégâts
     if (el.levelFlashTxt) el.levelFlashTxt.textContent = 'LEVEL ' + state.level;
     // Parité proto : keyframes d'opacité, durée LEVEL_FLASH_DUR (Web Animations API).
     if (el.levelFlash && typeof el.levelFlash.animate === 'function') {
@@ -110,14 +134,12 @@ export function createHud(ctx) {
     return String(v);
   }
 
-  function bindChampion(onRelease) {
-    if (!el.releaseBtn) return;
-    el.releaseBtn.onclick = () => {
-      if (!state.championReady) return;
-      ctx.audio?.unlock();
-      ctx.audio?.play('click');
-      if (typeof onRelease === 'function') onRelease();
-    };
+  // La jauge de champion + le bouton RELEASE sont désormais des GAME OBJECTS 3D collés au canon
+  // (voir crowd/champion.js : buildGauge/updateGauge, clic par raycast). Le HUD DOM #championHud
+  // est neutralisé (masqué en permanence) ; on garde bindChampion en no-op pour l'API app.js.
+  function bindChampion(_onRelease) {
+    const chud = $('championHud');
+    if (chud) chud.classList.add('hidden');
   }
 
   function showGameHud() {
@@ -149,14 +171,7 @@ export function createHud(ctx) {
     prevFill = fill;
 
     if (el.enemyGhost) el.enemyGhost.style.width = (ghostRatio * 100) + '%';
-
-    const champRatio = clamp01((state.championCharge || 0) / CHAMPION_MAX);
-    if (el.championFill) el.championFill.style.width = (champRatio * 100) + '%';
-    if (el.championLabel) el.championLabel.textContent = state.championReady ? 'CHAMPION READY' : 'CHAMPION';
-    if (el.releaseBtn) {
-      el.releaseBtn.disabled = !state.championReady;
-      el.releaseBtn.classList.toggle('ready', !!state.championReady);
-    }
+    // (jauge champion : objet 3D collé au canon — géré par crowd/champion.js)
   }
 
   return { refresh, flashLevel, punchCoins, setDisplayedCoins, bindChampion, showGameHud, hideGameHud, update };

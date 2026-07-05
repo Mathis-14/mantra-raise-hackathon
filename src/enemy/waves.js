@@ -100,7 +100,9 @@ export function createWaves(ctx) {
       flashT: 0,
     });
     ctx.particles.ring(0, BOSS_SPAWN_Z, COLORS.gold);
-    ctx.floatingText.spawn('BOSS', 0, 3.2, BOSS_SPAWN_Z, { color: '#ffe66d' });
+    ctx.floatingText.spawn('BOSS', 0, 3.2, BOSS_SPAWN_Z, { color: '#ffe66d', size: 1.4, life: 1.1 });
+    ctx.cameraRig.addTrauma(0.25); // l'arrivée du boss ébranle l'écran
+    ctx.audio.play('baseHit', { volume: 0.9, rateJitter: 0 }); // thud d'entrée en scène
   }
 
   function moveStep(dt, t) {

@@ -108,6 +108,7 @@ export function createGates(ctx) {
 
     const group = new THREE.Group();
     group.add(panel);
+    const posts = [];
     for (const px of [-halfW, halfW]) {
       const post = new THREE.Mesh(
         new THREE.CylinderGeometry(POST_RADIUS, POST_RADIUS, POST_HEIGHT, POST_SEGMENTS),
@@ -115,10 +116,11 @@ export function createGates(ctx) {
       );
       post.position.set(x + px, POST_Y, z);
       group.add(post);
+      posts.push(post);
     }
 
     ctx.scene.add(group);
-    ctx.state.gates.push({ x, z, halfW, op, group, panel, panelMat, flashT: 0, punchT: 0 });
+    ctx.state.gates.push({ x, z, halfW, op, group, panel, panelMat, posts, postMat, flashT: 0, punchT: 0 });
   }
 
   /** Retire les groups de la scène ; state.gates.length = 0 (jamais réassigné). */
@@ -228,6 +230,14 @@ export function createGates(ctx) {
         s = 1 + (TEXT_PUNCH_PEAK - 1) * (1 - easeOutBack(u));
       }
       g.panel.scale.set(s, s, s);
+
+      // Juice poteaux : squash & stretch au franchissement (les montants « encaissent » le passage)
+      // + surbrillance émissive pendant le flash.
+      const postStretch = 1 + (s - 1) * 0.6; // suit le punch du panneau, atténué
+      const postFat = 1 + (s - 1) * 0.35;
+      for (const post of g.posts) post.scale.set(postFat, postStretch, postFat);
+      const boost = g.flashT > 0 ? 1 + 2.2 * (g.flashT / GATE_FLASH_DUR) : 1;
+      g.postMat.emissiveIntensity = POST_EMISSIVE_INTENSITY * boost;
     }
   }
 
