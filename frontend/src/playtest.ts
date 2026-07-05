@@ -4,17 +4,23 @@ import currentGameHtml from '../../game/mob-control-clone.html?raw'
 
 const PHONE_COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#059669', '#d97706']
 const SITUATION_LABELS = [
-  'Original',
   'Situation 1',
   'Situation 2',
   'Situation 3',
   'Situation 4',
+  'Situation 5',
 ]
 const ORIGINAL_PHONE_ID = 0
 const LIVE_AGENT_PHONE_ID = 1
 const DEFAULT_LIVE_STREAM_BASE_URL = 'http://127.0.0.1:4317'
 const STREAM_FRAME_TIMEOUT_MS = 8000
 const NORMALIZED_COORD_MAX = 999
+// Worker streams a phone-shaped 160/284 viewport; frame events override this on arrival.
+const DEFAULT_LIVE_FRAME_SIZE = { width: 720, height: 1278 }
+const FRAME_STALE_AFTER_MS = 3000
+const FRAME_WATCHDOG_INTERVAL_MS = 500
+
+type LivePillState = 'live' | 'thinking' | 'reconnecting'
 
 interface LiveFrameEvent {
   mimeType: 'image/jpeg'
@@ -73,6 +79,11 @@ function renderLiveFeed() {
   return `
     <div class="phone-live-feed" id="agent-live-feed">
       <img class="phone-live-frame" id="agent-live-frame" alt="">
+      <div class="phone-live-pill" id="agent-live-pill">
+        <span class="live-dot"></span>
+        <span id="agent-live-pill-text">LIVE</span>
+      </div>
+      <div class="phone-live-action" id="agent-live-action"></div>
       <div class="phone-live-state" id="agent-live-state">
         <span class="live-dot"></span>
         <span>Connecting</span>
@@ -176,6 +187,9 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
   const liveFrame = document.getElementById('agent-live-frame') as HTMLImageElement | null
   const liveState = document.getElementById('agent-live-state') as HTMLElement | null
   const liveCursor = document.getElementById('agent-live-cursor') as HTMLElement | null
+  const livePill = document.getElementById('agent-live-pill') as HTMLElement | null
+  const livePillText = document.getElementById('agent-live-pill-text')
+  const liveAction = document.getElementById('agent-live-action') as HTMLElement | null
   const liveProgress = document.getElementById(`prog-${LIVE_AGENT_PHONE_ID}`) as HTMLElement | null
   const livePct = document.getElementById(`pct-${LIVE_AGENT_PHONE_ID}`)
   const liveLogPct = document.getElementById(`logpct-${LIVE_AGENT_PHONE_ID}`)
@@ -194,7 +208,8 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
   let liveSource: EventSource | null = null
   let liveFrameSeen = false
   let frameTimeout: number | null = null
-  let liveFrameSize = { width: 1280, height: 1100 }
+  let lastFrameAt = 0
+  let liveFrameSize = { ...DEFAULT_LIVE_FRAME_SIZE }
   const seenEventIds = new Set<string>()
   const slots = SITUATION_LABELS.map((_, id) => document.getElementById(`slot-${id}`)).filter(
     (slot): slot is HTMLElement => slot !== null,
@@ -230,6 +245,20 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
 
   function hideLiveState() {
     liveState?.classList.add('phone-live-state--hidden')
+  }
+
+  function setLivePill(state: LivePillState) {
+    if (!livePill || !livePillText) return
+    livePill.classList.add('phone-live-pill--visible')
+    livePill.classList.toggle('phone-live-pill--thinking', state === 'thinking')
+    livePill.classList.toggle('phone-live-pill--reconnecting', state === 'reconnecting')
+    livePillText.textContent = state === 'live' ? 'LIVE' : state === 'thinking' ? 'THINKING' : 'RECONNECTING'
+  }
+
+  function showLiveAction(text: string) {
+    if (!liveAction) return
+    liveAction.textContent = text
+    liveAction.classList.add('phone-live-action--visible')
   }
 
   function applyState(state: RunState) {
@@ -298,9 +327,11 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
       const frameEvent = parseLiveFrameEvent(readEventPayload(event))
       if (!frameEvent || !liveFrame) return
       liveFrameSeen = true
+      lastFrameAt = Date.now()
       liveFrameSize = { width: frameEvent.width, height: frameEvent.height }
       liveFrame.src = `data:${frameEvent.mimeType};base64,${frameEvent.data}`
       hideLiveState()
+      setLivePill('live')
       if (frameTimeout !== null) {
         window.clearTimeout(frameTimeout)
         frameTimeout = null
@@ -310,6 +341,7 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
       const action = parseLiveActionEvent(readEventPayload(event))
       if (!action) return
       addLog(LIVE_AGENT_PHONE_ID, action.message)
+      showLiveAction(action.message)
       renderActionOverlay(action)
     })
     liveSource.addEventListener('status', (event) => {
@@ -317,8 +349,9 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
       if (message) addLog(LIVE_AGENT_PHONE_ID, message)
     })
     liveSource.addEventListener('error', () => {
+      // Keep the last real frame visible while EventSource retries; only hard-fail pre-frame.
       if (!liveFrameSeen) setLiveState('Live stream unavailable', true)
-      else setLiveState('Reconnecting')
+      else setLivePill('reconnecting')
     })
   }
 
@@ -381,6 +414,12 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
   }, 1500)
   void refreshState()
 
+  // Honest liveness: if real frames stall while the stream stays open, say the agent is thinking.
+  const frameWatchdog = window.setInterval(() => {
+    if (!liveFrameSeen || disposed) return
+    if (Date.now() - lastFrameAt > FRAME_STALE_AFTER_MS) setLivePill('thinking')
+  }, FRAME_WATCHDOG_INTERVAL_MS)
+
   function layoutCarousel(now: number) {
     if (disposed) return
     const theta = (now - startedAt) * speed
@@ -402,6 +441,7 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
   window.addEventListener('hashchange', () => {
     disposed = true
     window.clearInterval(poll)
+    window.clearInterval(frameWatchdog)
     if (frameTimeout !== null) window.clearTimeout(frameTimeout)
     liveSource?.close()
   }, { once: true })
