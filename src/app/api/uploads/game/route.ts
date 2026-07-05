@@ -15,6 +15,40 @@ function safeFileName(name: string): string {
   return clean.length > 0 ? clean : fallback;
 }
 
+// The team's multi-file game (index.html + /src/main.js + 40MB assets) can't travel in one
+// uploaded file, but its dev server can serve it — detect that server and play it directly.
+const LOCAL_GAME_PORTS = [5173, 5174, 5175, 5176, 5177, 5178, 5179, 5180] as const;
+const LOCAL_GAME_PROBE_TIMEOUT_MS = 1_000;
+
+async function findLocalGameServerUrl(localReference: string): Promise<string | null> {
+  for (const port of LOCAL_GAME_PORTS) {
+    const url = `http://127.0.0.1:${port}/`;
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(LOCAL_GAME_PROBE_TIMEOUT_MS) });
+      if (!response.ok) continue;
+      const html = await response.text();
+      if (html.includes(localReference)) return url;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+// Local script/style references (e.g. /src/main.js) 404 once the file is served from
+// storage, so the agent would open an empty shell. Absolute http(s)/data URLs are fine.
+function findLocalAssetReference(html: string): string | null {
+  const referencePattern = /<(?:script|link)\b[^>]*\b(?:src|href)\s*=\s*["']([^"']+)["']/gi;
+  for (const match of html.matchAll(referencePattern)) {
+    const reference = match[1]?.trim();
+    if (!reference) continue;
+    if (/^(?:https?:|data:|\/\/)/i.test(reference)) continue;
+    if (reference.startsWith("#")) continue;
+    return reference;
+  }
+  return null;
+}
+
 async function ensureGameUploadBucket(): Promise<void> {
   const supabase = supabaseAdmin();
   const { data: buckets, error: listError } = await supabase.storage.listBuckets();
@@ -48,6 +82,22 @@ export async function POST(request: Request) {
   const html = await file.text();
   if (html.trim().length === 0) {
     return NextResponse.json({ error: "uploaded HTML is empty" }, { status: 400 });
+  }
+
+  const localReference = findLocalAssetReference(html);
+  if (localReference) {
+    const localGameUrl = await findLocalGameServerUrl(localReference);
+    if (localGameUrl) {
+      return NextResponse.json({
+        game_url: localGameUrl,
+        storage_path: "",
+        filename,
+      }, { status: 201 });
+    }
+
+    return NextResponse.json({
+      error: `uploaded HTML references local file '${localReference}' that doesn't travel with the upload, and no local game server was found — start the game dev server (npm run game) and retry, or upload a self-contained HTML`,
+    }, { status: 400 });
   }
 
   bucketReady ??= ensureGameUploadBucket();
