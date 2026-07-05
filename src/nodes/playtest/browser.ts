@@ -27,7 +27,7 @@ export async function openBrowserSession(args: {
   const artifactDir = path.join(ARTIFACT_ROOT, args.runId);
   await mkdir(artifactDir, { recursive: true });
 
-  const headless = args.headless ?? false;
+  const headless = args.headless ?? true;
   const browser = await chromium.launch({
     headless,
     args: headless

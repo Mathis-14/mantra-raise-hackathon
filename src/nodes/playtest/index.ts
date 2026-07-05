@@ -18,6 +18,13 @@ import { buildReport, parseFastPathReport } from "./report";
 import { CuStepError, imageContent, cuStep } from "./gemini";
 import { ACTION_LOOP_NUDGE, PLAYER_PROMPT, POST_WIN_SWEEP_PROMPT } from "./prompts";
 import { sinkFrame } from "./screens";
+import {
+  publishLiveAction,
+  publishLiveFrame,
+  publishLiveStatus,
+  startPlaytestScreencast,
+  type LiveScreencast,
+} from "./live-stream";
 import type {
   CuCallResult,
   FrameCapture,
@@ -78,6 +85,7 @@ export async function runPlaytest(input: PlaytestInput): Promise<PlaytestReport>
   let turn = 0;
   let nudgeSent = false;
 
+  publishLiveStatus(input.runId, "playtest_started");
   await emitEvent({
     run_id: input.runId,
     node: "playtest",
@@ -95,8 +103,10 @@ export async function runPlaytest(input: PlaytestInput): Promise<PlaytestReport>
   });
   timings.setupMs = Date.now() - setupStartedAt;
   const executor = createActionExecutor(session.page);
+  let screencast: LiveScreencast | null = null;
 
   try {
+    screencast = await startPlaytestScreencast(input.runId, session.page);
     const firstFrame = await captureAndSink(input.runId, turn, session.page, frames, timings);
     const firstStep = await cuStep({
       input: [
@@ -165,6 +175,15 @@ export async function runPlaytest(input: PlaytestInput): Promise<PlaytestReport>
         }
         const intent = result.intent ?? readIntent(call);
         const message = intent ?? call.name;
+        publishLiveAction({
+          runId: input.runId,
+          turn,
+          name: call.name,
+          message,
+          rawArgs: call.arguments,
+          isError: result.isError,
+          skipped: shouldSkip,
+        });
         await emitEvent({
           run_id: input.runId,
           node: "playtest",
@@ -260,6 +279,7 @@ export async function runPlaytest(input: PlaytestInput): Promise<PlaytestReport>
   } finally {
     const cleanupStartedAt = Date.now();
     await executor.release();
+    await screencast?.stop();
     await session.browser.close();
     timings.cleanupMs = Date.now() - cleanupStartedAt;
   }
@@ -272,6 +292,7 @@ export async function runPlaytest(input: PlaytestInput): Promise<PlaytestReport>
     screenshot_url: null,
     data: { turns: turn, partial },
   });
+  publishLiveStatus(input.runId, `session_ended: ${terminationReason}`);
 
   if (terminationReason === "cu_error" && transcript.length < MIN_TURNS_FOR_REPORT) {
     throw new Error("playtest_cu_failed_before_minimum_turns");
@@ -333,6 +354,12 @@ async function captureAndSink(
       if (success) timings.screenshotUploadSuccesses += 1;
       else timings.screenshotUploadFailures += 1;
     },
+  });
+  publishLiveFrame({
+    runId,
+    turn,
+    jpeg,
+    source: "capture",
   });
   return jpeg;
 }
