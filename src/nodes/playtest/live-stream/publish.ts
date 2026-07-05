@@ -5,6 +5,7 @@ import type { LiveActionPayload, LiveFramePayload, LiveStatusPayload } from "./t
 
 export function publishLiveFrame(args: {
   runId: string;
+  situation?: number;
   turn: number | null;
   jpeg?: Buffer;
   base64?: string;
@@ -15,6 +16,7 @@ export function publishLiveFrame(args: {
 
   const payload: LiveFramePayload = {
     runId: args.runId,
+    situation: args.situation ?? 1,
     turn: args.turn,
     mimeType: "image/jpeg",
     data,
@@ -28,6 +30,7 @@ export function publishLiveFrame(args: {
 
 export function publishLiveAction(args: {
   runId: string;
+  situation?: number;
   turn: number;
   name: string;
   message: string;
@@ -38,6 +41,7 @@ export function publishLiveAction(args: {
   const point = readActionPoint(args.name, args.rawArgs);
   const payload: LiveActionPayload = {
     runId: args.runId,
+    situation: args.situation ?? 1,
     turn: args.turn,
     name: args.name,
     message: args.message,
@@ -53,9 +57,10 @@ export function publishLiveAction(args: {
   publishToRun(args.runId, "action", payload);
 }
 
-export function publishLiveStatus(runId: string, message: string): void {
+export function publishLiveStatus(runId: string, message: string, situation = 1): void {
   const payload: LiveStatusPayload = {
     runId,
+    situation,
     message,
     ts: Date.now(),
   };

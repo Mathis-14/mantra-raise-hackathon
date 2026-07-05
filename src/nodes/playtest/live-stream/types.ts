@@ -2,6 +2,7 @@ export type LiveEventName = "frame" | "action" | "status";
 
 export interface LiveFramePayload {
   runId: string;
+  situation: number;
   turn: number | null;
   mimeType: "image/jpeg";
   data: string;
@@ -13,6 +14,7 @@ export interface LiveFramePayload {
 
 export interface LiveActionPayload {
   runId: string;
+  situation: number;
   turn: number;
   name: string;
   message: string;
@@ -28,6 +30,7 @@ export interface LiveActionPayload {
 
 export interface LiveStatusPayload {
   runId: string;
+  situation: number;
   message: string;
   ts: number;
 }

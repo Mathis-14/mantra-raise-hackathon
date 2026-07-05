@@ -9,10 +9,9 @@ const SITUATION_LABELS = [
   'Situation 4',
   'Situation 5',
 ]
-// The agent plays on Situation 1 today; Situations 2-5 host future agents.
-const LIVE_AGENT_PHONE_ID = 0
+// One parallel agent per card: Situation N plays the game started at level N.
 const DEFAULT_LIVE_STREAM_BASE_URL = 'http://127.0.0.1:4317'
-const STREAM_FRAME_TIMEOUT_MS = 8000
+const STREAM_FRAME_TIMEOUT_MS = 12000
 const NORMALIZED_COORD_MAX = 999
 // Worker streams a phone-shaped 160/284 viewport; frame events override this on arrival.
 const DEFAULT_LIVE_FRAME_SIZE = { width: 720, height: 1278 }
@@ -22,6 +21,7 @@ const FRAME_WATCHDOG_INTERVAL_MS = 500
 type LivePillState = 'live' | 'thinking' | 'reconnecting'
 
 interface LiveFrameEvent {
+  situation: number
   mimeType: 'image/jpeg'
   data: string
   width: number
@@ -29,6 +29,7 @@ interface LiveFrameEvent {
 }
 
 interface LiveActionEvent {
+  situation: number
   message: string
   x: number | null
   y: number | null
@@ -43,7 +44,7 @@ function statusLabel(status: RunStatus): string {
     case 'created':
       return 'Queued for worker'
     case 'playtesting':
-      return 'Agent playtest live'
+      return 'Agents playtest live'
     case 'awaiting_approval':
       return 'Playtest complete'
     case 'generating_variants':
@@ -74,20 +75,20 @@ function playtestProgress(status: RunStatus): number {
   }
 }
 
-function renderLiveFeed() {
+function renderLiveFeed(id: number) {
   return `
-    <div class="phone-live-feed" id="agent-live-feed">
-      <img class="phone-live-frame" id="agent-live-frame" alt="">
-      <div class="phone-live-pill" id="agent-live-pill">
+    <div class="phone-live-feed" id="agent-live-feed-${id}">
+      <img class="phone-live-frame" id="agent-live-frame-${id}" alt="">
+      <div class="phone-live-pill" id="agent-live-pill-${id}">
         <span class="live-dot"></span>
-        <span id="agent-live-pill-text">LIVE</span>
+        <span id="agent-live-pill-text-${id}">LIVE</span>
       </div>
-      <div class="phone-live-action" id="agent-live-action"></div>
-      <div class="phone-live-state" id="agent-live-state">
+      <div class="phone-live-action" id="agent-live-action-${id}"></div>
+      <div class="phone-live-state" id="agent-live-state-${id}">
         <span class="live-dot"></span>
         <span>Connecting</span>
       </div>
-      <div class="cursor phone-live-cursor" id="agent-live-cursor"></div>
+      <div class="cursor phone-live-cursor" id="agent-live-cursor-${id}"></div>
     </div>
   `
 }
@@ -97,17 +98,14 @@ function renderPendingPhone(title: string) {
     <div class="phone-pending">
       <span class="pending-kicker">Pending</span>
       <span class="pending-title">${title}</span>
-      <span class="pending-copy">Gameplay extraction route reserved</span>
+      <span class="pending-copy">Upload a game to launch this agent</span>
     </div>
   `
 }
 
 function renderPhones(hasRun: boolean) {
   return SITUATION_LABELS.map((title, id) => {
-    const isLiveAgent = id === LIVE_AGENT_PHONE_ID && hasRun
-    const screenClass = isLiveAgent ? 'phone-screen--live' : 'phone-screen--pending'
-    const progress = isLiveAgent ? '12%' : '0%'
-    const status = isLiveAgent ? 'Waiting' : 'Pending'
+    const screenClass = hasRun ? 'phone-screen--live' : 'phone-screen--pending'
 
     return `
       <div class="phone-slot" id="slot-${id}">
@@ -116,7 +114,7 @@ function renderPhones(hasRun: boolean) {
           <div class="iphone-frame">
             <div class="iphone-notch"></div>
             <div class="iphone-screen ${screenClass}" id="screen-${id}">
-              ${isLiveAgent ? renderLiveFeed() : renderPendingPhone(title)}
+              ${hasRun ? renderLiveFeed(id) : renderPendingPhone(title)}
             </div>
             <div class="iphone-home"></div>
           </div>
@@ -124,13 +122,27 @@ function renderPhones(hasRun: boolean) {
         <div class="phone-meta" id="meta-${id}">
           <span class="phone-title" style="color:${PHONE_COLORS[id]}">${title}</span>
           <div class="phone-progress-wrap">
-            <div class="phone-progress-bar" id="prog-${id}" style="background:${PHONE_COLORS[id]};width:${progress}"></div>
+            <div class="phone-progress-bar" id="prog-${id}" style="background:${PHONE_COLORS[id]};width:${hasRun ? '12%' : '0%'}"></div>
           </div>
-          <span class="phone-pct" id="pct-${id}">${status}</span>
+          <span class="phone-pct" id="pct-${id}">${hasRun ? 'Waiting' : 'Pending'}</span>
         </div>
       </div>
     `
   }).join('')
+}
+
+interface CardElements {
+  screen: HTMLElement | null
+  frame: HTMLImageElement | null
+  state: HTMLElement | null
+  cursor: HTMLElement | null
+  pill: HTMLElement | null
+  pillText: HTMLElement | null
+  action: HTMLElement | null
+  progress: HTMLElement | null
+  pct: HTMLElement | null
+  logPct: HTMLElement | null
+  logBox: HTMLElement | null
 }
 
 export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
@@ -151,7 +163,7 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
           <div class="carousel-track" id="carousel-track">${renderPhones(route.runId !== null)}</div>
 
           <button class="btn-generate btn-generate--corner" id="send-agent-btn">
-            <span class="btn-generate-title">${route.runId ? 'Sync agent' : 'Preview only'}</span>
+            <span class="btn-generate-title">${route.runId ? 'Sync agents' : 'Preview only'}</span>
             <span class="btn-generate-arrow">→</span>
           </button>
         </div>
@@ -163,7 +175,7 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
               <div class="log-group-head">
                 <span class="log-dot" style="background:${PHONE_COLORS[id]}"></span>
                 <span class="log-group-name">${title}</span>
-                <span class="log-group-pct" id="logpct-${id}" style="color:${PHONE_COLORS[id]}">${id === LIVE_AGENT_PHONE_ID && route.runId ? 'Waiting' : 'Pending'}</span>
+                <span class="log-group-pct" id="logpct-${id}" style="color:${PHONE_COLORS[id]}">${route.runId ? 'Waiting' : 'Pending'}</span>
               </div>
               <div class="log-lines" id="logs-${id}"></div>
             </div>
@@ -176,17 +188,20 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
   const backBtn = document.getElementById('back-btn')
   const sendAgentBtn = document.getElementById('send-agent-btn') as HTMLButtonElement | null
   const badge = document.getElementById('session-badge')
-  const liveScreen = document.getElementById(`screen-${LIVE_AGENT_PHONE_ID}`) as HTMLElement | null
-  const liveFrame = document.getElementById('agent-live-frame') as HTMLImageElement | null
-  const liveState = document.getElementById('agent-live-state') as HTMLElement | null
-  const liveCursor = document.getElementById('agent-live-cursor') as HTMLElement | null
-  const livePill = document.getElementById('agent-live-pill') as HTMLElement | null
-  const livePillText = document.getElementById('agent-live-pill-text')
-  const liveAction = document.getElementById('agent-live-action') as HTMLElement | null
-  const liveProgress = document.getElementById(`prog-${LIVE_AGENT_PHONE_ID}`) as HTMLElement | null
-  const livePct = document.getElementById(`pct-${LIVE_AGENT_PHONE_ID}`)
-  const liveLogPct = document.getElementById(`logpct-${LIVE_AGENT_PHONE_ID}`)
-  const logBoxes = SITUATION_LABELS.map((_, id) => document.getElementById(`logs-${id}`))
+
+  const cards: CardElements[] = SITUATION_LABELS.map((_, id) => ({
+    screen: document.getElementById(`screen-${id}`),
+    frame: document.getElementById(`agent-live-frame-${id}`) as HTMLImageElement | null,
+    state: document.getElementById(`agent-live-state-${id}`),
+    cursor: document.getElementById(`agent-live-cursor-${id}`),
+    pill: document.getElementById(`agent-live-pill-${id}`),
+    pillText: document.getElementById(`agent-live-pill-text-${id}`),
+    action: document.getElementById(`agent-live-action-${id}`),
+    progress: document.getElementById(`prog-${id}`),
+    pct: document.getElementById(`pct-${id}`),
+    logPct: document.getElementById(`logpct-${id}`),
+    logBox: document.getElementById(`logs-${id}`),
+  }))
 
   backBtn?.addEventListener('click', () => setRoute('landing'))
 
@@ -194,10 +209,11 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
   let approving = false
   let gameUrl = route.gameUrl
   let liveSource: EventSource | null = null
-  let liveFrameSeen = false
+  let anyFrameSeen = false
   let frameTimeout: number | null = null
-  let lastFrameAt = 0
   let liveFrameSize = { ...DEFAULT_LIVE_FRAME_SIZE }
+  const frameSeen = SITUATION_LABELS.map(() => false)
+  const lastFrameAt = SITUATION_LABELS.map(() => 0)
   const seenEventIds = new Set<string>()
   const slots = SITUATION_LABELS.map((_, id) => document.getElementById(`slot-${id}`)).filter(
     (slot): slot is HTMLElement => slot !== null,
@@ -206,8 +222,12 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
   const speed = 0.00028
   const startedAt = performance.now()
 
+  function cardIndex(situation: number): number {
+    return Math.min(SITUATION_LABELS.length - 1, Math.max(0, situation - 1))
+  }
+
   function addLog(phoneId: number, text: string) {
-    const box = logBoxes[phoneId]
+    const box = cards[phoneId]?.logBox
     if (!box) return
     const line = document.createElement('div')
     line.className = 'log-line'
@@ -223,30 +243,35 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
       : `<span class="live-dot"></span><span>${text}</span>`
   }
 
-  function setLiveState(text: string, failed = false) {
-    if (!liveState) return
-    liveState.classList.toggle('phone-live-state--failed', failed)
-    liveState.innerHTML = failed
+  function setLiveState(id: number, text: string, failed = false) {
+    const state = cards[id]?.state
+    if (!state) return
+    state.classList.remove('phone-live-state--hidden')
+    state.classList.toggle('phone-live-state--failed', failed)
+    state.innerHTML = failed
       ? `<span class="status-dot status-dot--failed"></span><span>${text}</span>`
       : `<span class="live-dot"></span><span>${text}</span>`
   }
 
-  function hideLiveState() {
-    liveState?.classList.add('phone-live-state--hidden')
+  function hideLiveState(id: number) {
+    cards[id]?.state?.classList.add('phone-live-state--hidden')
   }
 
-  function setLivePill(state: LivePillState) {
-    if (!livePill || !livePillText) return
-    livePill.classList.add('phone-live-pill--visible')
-    livePill.classList.toggle('phone-live-pill--thinking', state === 'thinking')
-    livePill.classList.toggle('phone-live-pill--reconnecting', state === 'reconnecting')
-    livePillText.textContent = state === 'live' ? 'LIVE' : state === 'thinking' ? 'THINKING' : 'RECONNECTING'
+  function setLivePill(id: number, pillState: LivePillState) {
+    const card = cards[id]
+    if (!card?.pill || !card.pillText) return
+    card.pill.classList.add('phone-live-pill--visible')
+    card.pill.classList.toggle('phone-live-pill--thinking', pillState === 'thinking')
+    card.pill.classList.toggle('phone-live-pill--reconnecting', pillState === 'reconnecting')
+    card.pillText.textContent =
+      pillState === 'live' ? 'LIVE' : pillState === 'thinking' ? 'THINKING' : 'RECONNECTING'
   }
 
-  function showLiveAction(text: string) {
-    if (!liveAction) return
-    liveAction.textContent = text
-    liveAction.classList.add('phone-live-action--visible')
+  function showLiveAction(id: number, text: string) {
+    const action = cards[id]?.action
+    if (!action) return
+    action.textContent = text
+    action.classList.add('phone-live-action--visible')
   }
 
   function applyState(state: RunState) {
@@ -258,33 +283,41 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
       gameUrl = state.project.gameUrl
     }
 
-    if (liveProgress) liveProgress.style.width = `${amount}%`
-    if (livePct) livePct.textContent = amount === 100 ? 'Complete' : label
-    if (liveLogPct) liveLogPct.textContent = amount === 100 ? 'Complete' : label
+    cards.forEach((card, id) => {
+      if (card.progress && amount > widthPercent(card.progress)) card.progress.style.width = `${amount}%`
+      const text = amount === 100 ? 'Complete' : frameSeen[id] ? 'Live' : label
+      if (card.pct) card.pct.textContent = text
+      if (card.logPct) card.logPct.textContent = text
+    })
     setBadge(state.headline ?? label, status === 'failed')
 
     state.events.forEach((event) => {
       if (seenEventIds.has(event.id)) return
       seenEventIds.add(event.id)
-      addLog(LIVE_AGENT_PHONE_ID, `${event.node}: ${event.message}`)
+      addLog(0, `${event.node}: ${event.message}`)
     })
 
     if (status === 'failed') {
-      setLiveState('Run failed', true)
+      cards.forEach((_, id) => setLiveState(id, 'Run failed', true))
     }
 
     if (status === 'awaiting_approval' && !approving) {
       approving = true
-      addLog(LIVE_AGENT_PHONE_ID, 'Playtest complete; approving variants automatically')
+      addLog(0, 'Playtest complete; approving variants automatically')
       void approveRun(state.run.id)
         .then(() => {
           setRoute('variants', { runId: state.run.id, gameUrl })
         })
         .catch((error: unknown) => {
-          addLog(LIVE_AGENT_PHONE_ID, `Approval failed: ${getErrorMessage(error)}`)
+          addLog(0, `Approval failed: ${getErrorMessage(error)}`)
           approving = false
         })
     }
+  }
+
+  function widthPercent(element: HTMLElement): number {
+    const parsed = Number.parseFloat(element.style.width)
+    return Number.isFinite(parsed) ? parsed : 0
   }
 
   let stateSyncFailures = 0
@@ -300,7 +333,7 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
       // sustained streak means the API is really down.
       stateSyncFailures += 1
       if (stateSyncFailures === STATE_SYNC_FAILURE_THRESHOLD) {
-        addLog(LIVE_AGENT_PHONE_ID, `State sync failed: ${getErrorMessage(error)}`)
+        addLog(0, `State sync failed: ${getErrorMessage(error)}`)
         setBadge('State sync failed', true)
       }
     }
@@ -310,24 +343,29 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
     const streamUrl = buildLiveStreamUrl(runId, route.liveStreamBaseUrl)
     liveSource = new EventSource(streamUrl)
     frameTimeout = window.setTimeout(() => {
-      if (liveFrameSeen || disposed) return
-      setLiveState('Live stream unavailable', true)
-      addLog(LIVE_AGENT_PHONE_ID, 'No live stream frame received from local worker')
+      if (anyFrameSeen || disposed) return
+      cards.forEach((_, id) => setLiveState(id, 'Live stream unavailable', true))
+      addLog(0, 'No live stream frame received from local worker')
     }, STREAM_FRAME_TIMEOUT_MS)
 
     liveSource.addEventListener('open', () => {
-      setLiveState('Connected')
-      addLog(LIVE_AGENT_PHONE_ID, 'Connected to local worker stream')
+      addLog(0, 'Connected to local worker stream')
     })
     liveSource.addEventListener('frame', (event) => {
       const frameEvent = parseLiveFrameEvent(readEventPayload(event))
-      if (!frameEvent || !liveFrame) return
-      liveFrameSeen = true
-      lastFrameAt = Date.now()
+      if (!frameEvent) return
+      const id = cardIndex(frameEvent.situation)
+      const card = cards[id]
+      if (!card?.frame) return
+      anyFrameSeen = true
+      frameSeen[id] = true
+      lastFrameAt[id] = Date.now()
       liveFrameSize = { width: frameEvent.width, height: frameEvent.height }
-      liveFrame.src = `data:${frameEvent.mimeType};base64,${frameEvent.data}`
-      hideLiveState()
-      setLivePill('live')
+      card.frame.src = `data:${frameEvent.mimeType};base64,${frameEvent.data}`
+      hideLiveState(id)
+      setLivePill(id, 'live')
+      if (card.pct) card.pct.textContent = 'Live'
+      if (card.logPct) card.logPct.textContent = 'Live'
       if (frameTimeout !== null) {
         window.clearTimeout(frameTimeout)
         frameTimeout = null
@@ -336,44 +374,54 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
     liveSource.addEventListener('action', (event) => {
       const action = parseLiveActionEvent(readEventPayload(event))
       if (!action) return
-      addLog(LIVE_AGENT_PHONE_ID, action.message)
-      showLiveAction(action.message)
-      renderActionOverlay(action)
+      const id = cardIndex(action.situation)
+      addLog(id, action.message)
+      showLiveAction(id, action.message)
+      renderActionOverlay(id, action)
     })
     liveSource.addEventListener('status', (event) => {
-      const message = readStatusMessage(readEventPayload(event))
-      if (message) addLog(LIVE_AGENT_PHONE_ID, message)
+      const payload = readEventPayload(event)
+      const message = readStatusMessage(payload)
+      if (!message) return
+      const situation = isRecord(payload) ? readNumber(payload.situation) ?? 1 : 1
+      addLog(cardIndex(situation), message)
     })
     liveSource.addEventListener('error', () => {
       // Keep the last real frame visible while EventSource retries; only hard-fail pre-frame.
-      if (!liveFrameSeen) setLiveState('Live stream unavailable', true)
-      else setLivePill('reconnecting')
+      if (!anyFrameSeen) {
+        cards.forEach((_, id) => setLiveState(id, 'Live stream unavailable', true))
+        return
+      }
+      cards.forEach((_, id) => {
+        if (frameSeen[id]) setLivePill(id, 'reconnecting')
+      })
     })
   }
 
-  function renderActionOverlay(action: LiveActionEvent) {
+  function renderActionOverlay(id: number, action: LiveActionEvent) {
     const x = action.endX ?? action.x
     const y = action.endY ?? action.y
-    if (x === null || y === null || !liveCursor || !liveScreen) return
+    const card = cards[id]
+    if (x === null || y === null || !card?.cursor || !card.screen) return
 
-    const point = mapNormalizedPoint(x, y)
-    liveCursor.style.left = `${point.left}px`
-    liveCursor.style.top = `${point.top}px`
-    liveCursor.classList.add('phone-live-cursor--visible')
+    const point = mapNormalizedPoint(card.screen, x, y)
+    card.cursor.style.left = `${point.left}px`
+    card.cursor.style.top = `${point.top}px`
+    card.cursor.classList.add('phone-live-cursor--visible')
 
     if (action.click && !action.isError) {
       const ring = document.createElement('div')
       ring.className = 'click-ring'
       ring.style.left = `${point.left}px`
       ring.style.top = `${point.top}px`
-      liveScreen.appendChild(ring)
+      card.screen.appendChild(ring)
       window.setTimeout(() => ring.remove(), 520)
     }
   }
 
-  function mapNormalizedPoint(x: number, y: number) {
-    const screenWidth = liveScreen?.clientWidth ?? 1
-    const screenHeight = liveScreen?.clientHeight ?? 1
+  function mapNormalizedPoint(screen: HTMLElement, x: number, y: number) {
+    const screenWidth = screen.clientWidth || 1
+    const screenHeight = screen.clientHeight || 1
     const frameAspect = liveFrameSize.width / liveFrameSize.height
     const screenAspect = screenWidth / screenHeight
     const renderedWidth = screenAspect > frameAspect ? screenHeight * frameAspect : screenWidth
@@ -389,21 +437,21 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
 
   sendAgentBtn?.addEventListener('click', () => {
     if (!route.runId) {
-      addLog(LIVE_AGENT_PHONE_ID, 'Upload an HTML file to start a backend agent run')
+      addLog(0, 'Upload an HTML file to start a backend agent run')
       return
     }
-    addLog(LIVE_AGENT_PHONE_ID, 'Syncing backend agent state')
+    addLog(0, 'Syncing backend agent state')
     void refreshState()
   })
 
   if (route.runId) {
-    addLog(LIVE_AGENT_PHONE_ID, 'Backend run created; waiting for worker claim')
+    addLog(0, 'Backend run created; waiting for worker claim')
     connectLiveStream(route.runId)
+    for (let id = 1; id < SITUATION_LABELS.length; id++) {
+      addLog(id, `Agent for level ${id + 1} starts with the run`)
+    }
   } else {
-    addLog(LIVE_AGENT_PHONE_ID, 'Upload an HTML game to start the agent playtest')
-  }
-  for (let id = LIVE_AGENT_PHONE_ID + 1; id < SITUATION_LABELS.length; id++) {
-    addLog(id, 'Pending: future agent slot')
+    addLog(0, 'Upload an HTML game to start the agent playtest')
   }
 
   const poll = window.setInterval(() => {
@@ -413,8 +461,11 @@ export function renderPlaytest(root: HTMLElement, route: FlowRoute) {
 
   // Honest liveness: if real frames stall while the stream stays open, say the agent is thinking.
   const frameWatchdog = window.setInterval(() => {
-    if (!liveFrameSeen || disposed) return
-    if (Date.now() - lastFrameAt > FRAME_STALE_AFTER_MS) setLivePill('thinking')
+    if (disposed) return
+    cards.forEach((_, id) => {
+      if (!frameSeen[id]) return
+      if (Date.now() - lastFrameAt[id] > FRAME_STALE_AFTER_MS) setLivePill(id, 'thinking')
+    })
   }, FRAME_WATCHDOG_INTERVAL_MS)
 
   function layoutCarousel(now: number) {
@@ -466,7 +517,13 @@ function parseLiveFrameEvent(value: unknown): LiveFrameEvent | null {
   const width = readNumber(value.width)
   const height = readNumber(value.height)
   if (!mimeType || !data || width === null || height === null) return null
-  return { mimeType, data, width, height }
+  return {
+    situation: readNumber(value.situation) ?? 1,
+    mimeType,
+    data,
+    width,
+    height,
+  }
 }
 
 function parseLiveActionEvent(value: unknown): LiveActionEvent | null {
@@ -474,6 +531,7 @@ function parseLiveActionEvent(value: unknown): LiveActionEvent | null {
   const message = readString(value.message)
   if (!message) return null
   return {
+    situation: readNumber(value.situation) ?? 1,
     message,
     x: readNullableNumber(value.x),
     y: readNullableNumber(value.y),
