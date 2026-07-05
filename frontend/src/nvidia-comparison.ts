@@ -26,6 +26,13 @@ export interface NvidiaVersionSummary {
   verdict: DemoVersionAnalysis['verdict']
 }
 
+interface NvidiaComparisonMount {
+  recommendationContainer: HTMLElement
+  detailsContainer: HTMLElement
+  detailsSection: HTMLElement
+  onLoaded?: (summaries: NvidiaVersionSummary[]) => void
+}
+
 const MODEL = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'
 
 const VERSIONS: DemoVersionAnalysis[] = [
@@ -128,40 +135,36 @@ export function getNvidiaVersionSummaries(): NvidiaVersionSummary[] {
   return summariesFromView(DEMO_VIEW)
 }
 
-export function renderNvidiaComparison(
-  container: HTMLElement,
-  onLoaded?: (summaries: NvidiaVersionSummary[]) => void,
-) {
-  renderComparisonView(container, DEMO_VIEW, onLoaded)
+export function renderNvidiaComparison(mount: NvidiaComparisonMount) {
+  renderComparisonView(mount, DEMO_VIEW)
 }
 
 function renderComparisonView(
-  container: HTMLElement,
+  mount: NvidiaComparisonMount,
   view: ComparisonView,
-  onLoaded?: (summaries: NvidiaVersionSummary[]) => void,
 ) {
   const winner = view.versions.find(version => version.id === view.winnerId)
   if (!winner) return
 
-  container.innerHTML = `
+  mount.recommendationContainer.innerHTML = `
+    <div class="nv-demo-recommendation">
+      <div class="nv-demo-mark"><img src="/nvidia-logo.png" alt="NVIDIA" /></div>
+      <div class="nv-demo-copy">
+        <strong>${winner.name} is the best gameplay version</strong>
+        <span>${view.winnerReason}</span>
+      </div>
+      <div class="nv-demo-score"><strong>${winner.overallScore.toFixed(1)}</strong><span>/ 100</span></div>
+      <button class="nv-details-toggle" type="button">View details</button>
+    </div>
+  `
+
+  mount.detailsContainer.innerHTML = `
     <div class="nv-provenance">
       <span class="nv-provider">NVIDIA NIM</span>
       <span class="nv-model">${view.model}</span>
       <span class="nv-mode">${view.live ? 'Live NVIDIA result' : 'Demo comparison · live result not loaded'}</span>
       <button class="nv-load" id="nv-load-result" type="button">Load result JSON</button>
       <input id="nv-result-file" type="file" accept="application/json,.json" hidden />
-    </div>
-
-    <div class="nv-winner">
-      <div>
-        <div class="nv-kicker">NVIDIA recommendation</div>
-        <h2>${winner.name} is the best gameplay version</h2>
-        <p>${view.winnerReason}</p>
-      </div>
-      <div class="nv-winner-score">
-        <strong>${winner.overallScore.toFixed(1)}</strong>
-        <span>weighted score</span>
-      </div>
     </div>
 
     <div class="nv-weights">
@@ -173,8 +176,15 @@ function renderComparisonView(
     </div>
   `
 
-  const loadButton = container.querySelector<HTMLButtonElement>('#nv-load-result')
-  const fileInput = container.querySelector<HTMLInputElement>('#nv-result-file')
+  const detailsToggle = mount.recommendationContainer.querySelector<HTMLButtonElement>('.nv-details-toggle')
+  detailsToggle?.addEventListener('click', () => {
+    mount.detailsSection.hidden = !mount.detailsSection.hidden
+    detailsToggle.textContent = mount.detailsSection.hidden ? 'View details' : 'Hide details'
+    if (!mount.detailsSection.hidden) mount.detailsSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+
+  const loadButton = mount.detailsContainer.querySelector<HTMLButtonElement>('#nv-load-result')
+  const fileInput = mount.detailsContainer.querySelector<HTMLInputElement>('#nv-result-file')
   loadButton?.addEventListener('click', () => fileInput?.click())
   fileInput?.addEventListener('change', async () => {
     const file = fileInput.files?.[0]
@@ -182,8 +192,8 @@ function renderComparisonView(
     try {
       const parsed: unknown = JSON.parse(await file.text())
       const nextView = parseComparisonView(parsed)
-      onLoaded?.(summariesFromView(nextView))
-      renderComparisonView(container, nextView, onLoaded)
+      mount.onLoaded?.(summariesFromView(nextView))
+      renderComparisonView(mount, nextView)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Invalid comparison file'
       window.alert(`Could not load NVIDIA comparison: ${message}`)

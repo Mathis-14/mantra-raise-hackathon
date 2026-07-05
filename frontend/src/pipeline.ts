@@ -119,7 +119,8 @@ export function renderPipeline(root: HTMLElement) {
               <span class="gameplay-wall-model">NVIDIA Nemotron · multimodal analysis</span>
             </div>
             <div class="variants-grid" id="variants-grid"></div>
-            <div class="creative-analysis-block">
+            <div id="nvidia-recommendation"></div>
+            <div class="creative-analysis-block" id="nvidia-details-section" hidden>
               <div class="col-title">Why NVIDIA ranked them this way</div>
               <div id="nvidia-comparison"></div>
             </div>
@@ -182,9 +183,14 @@ export function renderPipeline(root: HTMLElement) {
   const marketList   = document.getElementById('market-list')!
   const marketBench  = document.getElementById('market-bench')!
   let nvidiaSummaries = getNvidiaVersionSummaries()
-  renderNvidiaComparison(document.getElementById('nvidia-comparison')!, summaries => {
-    nvidiaSummaries = summaries
-    applyNvidiaScores(variantsGrid, nvidiaSummaries)
+  renderNvidiaComparison({
+    recommendationContainer: document.getElementById('nvidia-recommendation')!,
+    detailsContainer: document.getElementById('nvidia-comparison')!,
+    detailsSection: document.getElementById('nvidia-details-section')!,
+    onLoaded: summaries => {
+      nvidiaSummaries = summaries
+      applyNvidiaScores(variantsGrid, nvidiaSummaries)
+    },
   })
 
   // ── Tab switching ──

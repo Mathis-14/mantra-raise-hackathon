@@ -809,11 +809,61 @@ a.logo {
 .tab-panel--active { display: block; }
 
 /* NVIDIA gameplay comparison */
+.nv-demo-recommendation {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 13px 15px;
+  border: 1px solid rgba(118,185,0,0.5);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 82% 50%, rgba(118,185,0,0.18), transparent 26%),
+    linear-gradient(110deg, rgba(236,252,203,0.94), rgba(255,255,255,0.96) 58%);
+  box-shadow: 0 7px 22px rgba(86,136,0,0.11);
+}
+.nv-demo-mark {
+  width: 38px;
+  height: 25px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: transparent;
+}
+.nv-demo-mark img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center 38%;
+  transform: scale(1.12);
+  transform-origin: center;
+}
+.nv-demo-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.nv-demo-copy strong { color: var(--text); font-size: 17px; line-height: 1.15; }
+.nv-demo-copy span { overflow: hidden; color: var(--text-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.nv-demo-score { display: flex; align-items: baseline; color: #568800; }
+.nv-demo-score strong { font-size: 26px; line-height: 1; }
+.nv-demo-score span { margin-left: 2px; color: var(--text-faint); font-size: 9px; }
+.nv-details-toggle {
+  padding: 8px 11px;
+  border: 1px solid rgba(86,136,0,0.35);
+  border-radius: 7px;
+  background: #fff;
+  color: #4d7c0f;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.nv-details-toggle:hover { background: #f7fee7; border-color: #76b900; }
 .creative-analysis-block {
-  margin-top: 34px;
-  padding-top: 26px;
+  margin-top: 12px;
+  padding-top: 18px;
   border-top: 1px solid var(--border);
 }
+.creative-analysis-block[hidden] { display: none; }
 .gameplay-wall-head {
   display: flex;
   align-items: flex-end;
