@@ -19,71 +19,127 @@ interface ComparisonView {
   live: boolean
 }
 
+export interface NvidiaVersionSummary {
+  id: string
+  rank: number
+  score: number
+  verdict: DemoVersionAnalysis['verdict']
+}
+
 const MODEL = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'
 
 const VERSIONS: DemoVersionAnalysis[] = [
   {
-    id: 'high-contrast',
-    name: 'High Contrast',
+    id: '2',
+    name: 'Sky Hop',
     rank: 1,
+    overallScore: 91.2,
+    verdict: 'promising',
+    summary: 'The strongest first-look clarity, pacing, and reward loop of the set.',
+    dimensions: {
+      color: { score: 94, summary: 'Platforms and player remain distinct at every height.' },
+      audio: { score: 84, summary: 'Landing feedback reinforces every successful jump.' },
+      video: { score: 93, summary: 'A meaningful action and payoff arrive immediately.' },
+    },
+    evidence: [
+      { timestamp: '00:02.1', observation: 'The first jump communicates the complete loop instantly.' },
+      { timestamp: '00:09.4', observation: 'Vertical motion creates a clear anticipation-payoff rhythm.' },
+    ],
+  },
+  {
+    id: '0',
+    name: 'Speed Dash',
+    rank: 2,
     overallScore: 84,
     verdict: 'promising',
-    summary: 'Best overall readability and the clearest audiovisual reward feedback.',
+    summary: 'Strong motion and instant threat recognition create an effective hook.',
     dimensions: {
-      color: { score: 88, summary: 'Enemies and gates stay distinct during crowding.' },
-      audio: { score: 79, summary: 'Impacts and rewards are clear and synchronized.' },
-      video: { score: 84, summary: 'An early decision point sustains momentum.' },
+      color: { score: 88, summary: 'Obstacles stay distinct from the road and player.' },
+      audio: { score: 79, summary: 'Dodges have clear but slightly repetitive feedback.' },
+      video: { score: 84, summary: 'Continuous forward motion sustains attention.' },
     },
     evidence: [
-      { timestamp: '00:04.6', observation: 'Enemy silhouettes remain distinct against the track.' },
-      { timestamp: '00:11.2', observation: 'Reward sound lands with the visual crowd expansion.' },
+      { timestamp: '00:04.6', observation: 'Incoming obstacle and escape lane read in one glance.' },
+      { timestamp: '00:11.2', observation: 'Speed remains high without overwhelming the player.' },
     ],
   },
   {
-    id: 'audio-punch',
-    name: 'Audio Punch',
-    rank: 2,
+    id: '4',
+    name: 'Astro Dodge',
+    rank: 3,
     overallScore: 77.4,
     verdict: 'promising',
-    summary: 'Strong feedback improves game feel, but visual crowding remains unresolved.',
+    summary: 'Strong audiovisual feedback, with slightly weaker moment-to-moment clarity.',
     dimensions: {
-      color: { score: 68, summary: 'Crowds still merge with the track at peak density.' },
+      color: { score: 72, summary: 'Projectiles compete with the background at peak density.' },
       audio: { score: 91, summary: 'The strongest impacts and reward confirmation.' },
-      video: { score: 76, summary: 'Good tempo with one quiet middle interval.' },
+      video: { score: 75, summary: 'Good tempo with occasional visual overload.' },
     },
     evidence: [
-      { timestamp: '00:07.9', observation: 'Impact transient makes the collision immediately legible.' },
-      { timestamp: '00:16.4', observation: 'Overlapping units reduce visual threat recognition.' },
+      { timestamp: '00:07.9', observation: 'Impact transient makes a successful hit immediately legible.' },
+      { timestamp: '00:16.4', observation: 'Overlapping projectiles reduce threat recognition.' },
     ],
   },
   {
-    id: 'original',
-    name: 'Original',
-    rank: 3,
-    overallScore: 62.5,
+    id: '1',
+    name: 'Block Blitz',
+    rank: 4,
+    overallScore: 69.8,
     verdict: 'iterate',
-    summary: 'The core loop reads, but weak contrast and feedback reduce the payoff.',
+    summary: 'Readable interactions, but the visual payoff does not escalate enough.',
     dimensions: {
-      color: { score: 61, summary: 'Enemies blend into the track during crowded encounters.' },
-      audio: { score: 58, summary: 'Important collisions have weak feedback.' },
-      video: { score: 66, summary: 'The opening works, but the middle loses momentum.' },
+      color: { score: 76, summary: 'Blocks are distinct but use a narrow color range.' },
+      audio: { score: 66, summary: 'Repeated hits lack variation and progression.' },
+      video: { score: 67, summary: 'The loop is clear but visually flat after the opening.' },
+    },
+    evidence: [
+      { timestamp: '00:05.8', observation: 'The first break is clear but later hits feel identical.' },
+      { timestamp: '00:13.2', observation: 'No larger reward changes the visual rhythm.' },
+    ],
+  },
+  {
+    id: '3',
+    name: 'Neon Snake',
+    rank: 5,
+    overallScore: 56.8,
+    verdict: 'kill',
+    summary: 'The weakest hook: low event density and limited audiovisual progression.',
+    dimensions: {
+      color: { score: 63, summary: 'Neon contrast is strong but visually monotonous.' },
+      audio: { score: 51, summary: 'Actions receive little differentiated feedback.' },
+      video: { score: 56, summary: 'Long low-intensity intervals weaken retention.' },
     },
     evidence: [
       { timestamp: '00:08.2', observation: 'No new threat or reward appears for several seconds.' },
-      { timestamp: '00:14.7', observation: 'Gate and background colors become difficult to separate.' },
+      { timestamp: '00:14.7', observation: 'Movement continues without a visible escalation.' },
     ],
   },
 ]
 
 const DEMO_VIEW: ComparisonView = {
   model: MODEL,
-  winnerId: 'high-contrast',
-  winnerReason: 'High Contrast leads through better color readability and sustained pacing.',
+  winnerId: '2',
+  winnerReason: 'Sky Hop wins because its mechanic reads instantly and every jump creates a visible anticipation-payoff loop.',
   versions: VERSIONS,
   live: false,
 }
 
-export function renderNvidiaComparison(container: HTMLElement, view: ComparisonView = DEMO_VIEW) {
+export function getNvidiaVersionSummaries(): NvidiaVersionSummary[] {
+  return summariesFromView(DEMO_VIEW)
+}
+
+export function renderNvidiaComparison(
+  container: HTMLElement,
+  onLoaded?: (summaries: NvidiaVersionSummary[]) => void,
+) {
+  renderComparisonView(container, DEMO_VIEW, onLoaded)
+}
+
+function renderComparisonView(
+  container: HTMLElement,
+  view: ComparisonView,
+  onLoaded?: (summaries: NvidiaVersionSummary[]) => void,
+) {
   const winner = view.versions.find(version => version.id === view.winnerId)
   if (!winner) return
 
@@ -125,12 +181,23 @@ export function renderNvidiaComparison(container: HTMLElement, view: ComparisonV
     if (!file) return
     try {
       const parsed: unknown = JSON.parse(await file.text())
-      renderNvidiaComparison(container, parseComparisonView(parsed))
+      const nextView = parseComparisonView(parsed)
+      onLoaded?.(summariesFromView(nextView))
+      renderComparisonView(container, nextView, onLoaded)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Invalid comparison file'
       window.alert(`Could not load NVIDIA comparison: ${message}`)
     }
   })
+}
+
+function summariesFromView(view: ComparisonView): NvidiaVersionSummary[] {
+  return view.versions.map(version => ({
+    id: version.id,
+    rank: version.rank,
+    score: version.overallScore,
+    verdict: version.verdict,
+  }))
 }
 
 function parseComparisonView(value: unknown): ComparisonView {
@@ -216,8 +283,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function renderVersionCard(version: DemoVersionAnalysis): string {
   const winnerClass = version.rank === 1 ? ' nv-version--winner' : ''
+  const strength = Math.max(0, Math.min(1, (version.overallScore - 50) / 50))
+  const tint = strength * 0.12
+  const winnerTint = 0.12 + strength * 0.16
   return `
-    <article class="nv-version${winnerClass}">
+    <article class="nv-version nv-version--rank-${Math.min(version.rank, 3)}${winnerClass}" style="--nv-tint:${tint.toFixed(3)};--nv-winner-tint:${winnerTint.toFixed(3)}">
       <div class="nv-version-head">
         <span class="nv-rank">#${version.rank}</span>
         <div>

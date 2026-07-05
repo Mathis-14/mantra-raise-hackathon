@@ -12,7 +12,7 @@ Mantra uses NVIDIA Nemotron 3 Nano Omni to compare complete gameplay recordings 
 npm run nvidia:compare -- path/to/comparison-input.json > nvidia-comparison.json
 ```
 
-4. Open `http://localhost:5173/#pipeline`, select **NVIDIA Analysis**, choose **Load result JSON**, and load `nvidia-comparison.json`.
+4. Open `http://localhost:5173/#pipeline`, select **Creatives**, choose **Load result JSON** in the NVIDIA ranking section, and load `nvidia-comparison.json`.
 
 The page labels its built-in fixture as a demo comparison. Only an imported worker result is labeled as a live NVIDIA result.
 

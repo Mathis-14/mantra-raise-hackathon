@@ -1,7 +1,11 @@
 // ── Page 3 : Creative pipeline ──
 import { SESSIONS, GAME_FNS } from './games'
 import { createGlobe, type GlobePoint, type GlobeArc } from './globe'
-import { renderNvidiaComparison } from './nvidia-comparison'
+import {
+  getNvidiaVersionSummaries,
+  renderNvidiaComparison,
+  type NvidiaVersionSummary,
+} from './nvidia-comparison'
 
 // One creative per game session, with simulated ad metrics + keep/kill verdict.
 interface Variant {
@@ -67,7 +71,6 @@ const VW = 132
 const VH = 234
 
 const TABS = [
-  { id: 'nvidia',      icon: '◆', label: 'NVIDIA Analysis' },
   { id: 'overview',    icon: '🎬', label: 'Creatives' },
   { id: 'competitors', icon: '🛰️', label: 'Competitors' },
   { id: 'metrics',     icon: '📈', label: 'Metrics' },
@@ -106,16 +109,20 @@ export function renderPipeline(root: HTMLElement) {
         <!-- MAIN: tab panels -->
         <div class="analytics-main" id="analytics-main">
 
-          <!-- NVIDIA gameplay comparison -->
-          <section class="tab-panel tab-panel--active" data-panel="nvidia">
-            <div class="col-title">Gameplay version comparison · color, audio, video</div>
-            <div id="nvidia-comparison"></div>
-          </section>
-
           <!-- Overview -->
-          <section class="tab-panel" data-panel="overview">
-            <div class="col-title">Creatives · 9:16 ad videos</div>
+          <section class="tab-panel tab-panel--active" data-panel="overview">
+            <div class="gameplay-wall-head">
+              <div>
+                <div class="col-title">Gameplay variants · NVIDIA ranked</div>
+                <p>Green wins. Amber needs iteration. Red gets killed.</p>
+              </div>
+              <span class="gameplay-wall-model">NVIDIA Nemotron · multimodal analysis</span>
+            </div>
             <div class="variants-grid" id="variants-grid"></div>
+            <div class="creative-analysis-block">
+              <div class="col-title">Why NVIDIA ranked them this way</div>
+              <div id="nvidia-comparison"></div>
+            </div>
           </section>
 
           <!-- Competitors + globe -->
@@ -174,7 +181,11 @@ export function renderPipeline(root: HTMLElement) {
   const variantsGrid = document.getElementById('variants-grid')!
   const marketList   = document.getElementById('market-list')!
   const marketBench  = document.getElementById('market-bench')!
-  renderNvidiaComparison(document.getElementById('nvidia-comparison')!)
+  let nvidiaSummaries = getNvidiaVersionSummaries()
+  renderNvidiaComparison(document.getElementById('nvidia-comparison')!, summaries => {
+    nvidiaSummaries = summaries
+    applyNvidiaScores(variantsGrid, nvidiaSummaries)
+  })
 
   // ── Tab switching ──
   const tabsBar = document.getElementById('analytics-tabs')!
@@ -245,14 +256,20 @@ export function renderPipeline(root: HTMLElement) {
 
   // ── Creative previews (Overview tab) ──
   const ticks: (() => void)[] = []
-  VARIANTS.forEach((v, i) => {
+  const rankedVariants = [...VARIANTS].sort((left, right) => {
+    return nvidiaRank(left.id, nvidiaSummaries) - nvidiaRank(right.id, nvidiaSummaries)
+  })
+  rankedVariants.forEach((v, i) => {
     setTimeout(() => {
       const session = SESSIONS[v.id]
       const card = document.createElement('div')
       card.className = 'variant-card variant-card--in'
+      card.dataset.versionId = String(v.id)
       card.innerHTML = `
-        <div class="variant-preview" style="border-color:${session.color}55">
+        <div class="variant-preview">
           <canvas id="vcanvas-${v.id}" width="${VW}" height="${VH}"></canvas>
+          <div class="variant-nvidia-rank"></div>
+          <div class="variant-nvidia-score"><span>NVIDIA</span><strong></strong></div>
           <div class="variant-badge variant-badge--${v.status}">${v.status === 'keep' ? 'Keep' : 'Kill'}</div>
           <div class="variant-duration">0:15</div>
           <div class="variant-rec">● REC</div>
@@ -268,6 +285,7 @@ export function renderPipeline(root: HTMLElement) {
         </div>
       `
       variantsGrid.appendChild(card)
+      applyNvidiaScores(variantsGrid, nvidiaSummaries)
       const canvas = document.getElementById('vcanvas-' + v.id) as HTMLCanvasElement
       ticks.push(GAME_FNS[v.id](canvas))
     }, 1500 + i * 200)
@@ -325,4 +343,34 @@ export function renderPipeline(root: HTMLElement) {
     rec.style.opacity = '1'
     badge.innerHTML = '<span style="color:var(--accent);font-weight:600;font-size:13px">✓ Pipeline complete</span>'
   }, totalDelay)
+}
+
+function nvidiaRank(versionId: number, summaries: NvidiaVersionSummary[]): number {
+  return summaries.find(summary => summary.id === String(versionId))?.rank ?? Number.MAX_SAFE_INTEGER
+}
+
+function applyNvidiaScores(container: HTMLElement, summaries: NvidiaVersionSummary[]) {
+  const summaryById = new Map(summaries.map(summary => [summary.id, summary]))
+  const cards = Array.from(container.querySelectorAll<HTMLElement>('.variant-card'))
+  cards.forEach(card => {
+    const summary = summaryById.get(card.dataset.versionId ?? '')
+    if (!summary) return
+    const hue = Math.max(0, Math.min(120, (summary.score - 45) * 2.18))
+    const glow = Math.max(0.18, Math.min(0.85, (summary.score - 45) / 55))
+    card.style.setProperty('--variant-nv-hue', hue.toFixed(0))
+    card.style.setProperty('--variant-nv-glow', glow.toFixed(2))
+    card.classList.toggle('variant-card--nvidia-pick', summary.rank === 1)
+    card.classList.toggle('variant-card--nvidia-kill', summary.verdict === 'kill')
+    const rank = card.querySelector<HTMLElement>('.variant-nvidia-rank')
+    const score = card.querySelector<HTMLElement>('.variant-nvidia-score strong')
+    if (rank) rank.textContent = summary.rank === 1 ? 'NVIDIA PICK' : `#${summary.rank}`
+    if (score) score.textContent = summary.score.toFixed(1)
+  })
+  cards
+    .sort((left, right) => {
+      const leftRank = summaryById.get(left.dataset.versionId ?? '')?.rank ?? Number.MAX_SAFE_INTEGER
+      const rightRank = summaryById.get(right.dataset.versionId ?? '')?.rank ?? Number.MAX_SAFE_INTEGER
+      return leftRank - rightRank
+    })
+    .forEach(card => container.appendChild(card))
 }
