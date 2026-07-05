@@ -14,10 +14,17 @@ import {
   BOOST_ZONE_DEPTH,
   BOOST_SPEED_MULT,
   BOOST_DURATION,
+  SLOW_SAND_MULT,
+  SLOW_MUD_MULT,
+  SLOW_TICK,
+  MIN_PASSAGE,
   TRAUMA,
   COLORS,
 } from '../core/constants.js';
 import { layoutForLevel } from './layouts.js';
+
+const SAND_COLOR = 0xe8c98a;
+const MUD_COLOR = 0x6e4a2e;
 
 const BOOST_Y = 0.06;
 const BOOST_H = 0.08;
@@ -121,16 +128,80 @@ export function createObstacles(ctx) {
     const group = new THREE.Group();
     const count = Math.max(1, Math.round((w.halfW * 2) / CRATE_SIZE));
     const step = (w.halfW * 2) / count;
-    // mélange d'assets Kenney (caisses, caisses renforcées, barils) — mur vivant, pas un motif répété
-    const kinds = [ctx.assets.gltf.crate, ctx.assets.gltf.crateStrong, ctx.assets.gltf.crate, ctx.assets.gltf.barrel];
+    // assets Kenney par nature de mur : caisses/barils (box) ou pierres/rochers (monticule de terre)
+    const kinds = w.kind === 'mound'
+      ? [ctx.assets.gltf.stones, ctx.assets.gltf.rocks, ctx.assets.gltf.stones]
+      : [ctx.assets.gltf.crate, ctx.assets.gltf.crateStrong, ctx.assets.gltf.crate, ctx.assets.gltf.barrel];
     for (let i = 0; i < count; i++) {
       const piece = makeAssetHolder(kinds[i % kinds.length] || ctx.assets.gltf.crate, CRATE_SIZE);
       piece.position.set(w.x - w.halfW + (i + 0.5) * step, 0, w.z + (i % 2) * 0.06);
-      piece.rotation.y = (i % 3 - 1) * 0.08; // pièces légèrement désalignées
+      piece.rotation.y = w.kind === 'mound' ? (i * 1.7) % 3.1 : (i % 3 - 1) * 0.08; // terre : rotations franches
       group.add(piece);
     }
     scene.add(group);
     walls.push({ x: w.x, z: w.z, halfW: w.halfW, halfD: w.halfD || 0.75, group, broken: false });
+  }
+
+  // --- ZONES LENTES (sable / boue) : ralentissent les bleus, ne bloquent JAMAIS ---
+  const slows = [];
+
+  function addSlowZone(s) {
+    const group = new THREE.Group();
+    group.position.set(s.x, 0, s.z);
+    const mud = s.kind === 'mud';
+    const mat = new THREE.MeshBasicMaterial({
+      color: mud ? MUD_COLOR : SAND_COLOR,
+      transparent: true,
+      opacity: mud ? 0.92 : 0.85,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const pad = new THREE.Mesh(new THREE.PlaneGeometry(s.halfW * 2, s.halfD * 2), mat);
+    pad.rotation.x = -Math.PI / 2;
+    pad.position.y = 0.05;
+    group.add(pad);
+    ownedMeshes.push(pad);
+    // petit habillage Kenney sur les bords (jamais au centre : lisibilité du passage)
+    const deco = makeAssetHolder(mud ? ctx.assets.gltf.mushrooms : ctx.assets.gltf.stones, 0.7);
+    deco.position.set(s.halfW * 0.7, 0, -s.halfD * 0.6);
+    group.add(deco);
+    scene.add(group);
+    slows.push({
+      id: 'slow-' + slows.length,
+      x: s.x, z: s.z, halfW: s.halfW, halfD: s.halfD,
+      mult: mud ? SLOW_MUD_MULT : SLOW_SAND_MULT,
+      mud, group, pad,
+    });
+  }
+
+  /**
+   * GARDE ANTI-SOFTLOCK : à toute profondeur z, l'union des murs actifs doit laisser un passage
+   * libre ≥ MIN_PASSAGE. Sinon on rétrécit le mur le plus large de la bande (et on prévient).
+   */
+  function ensurePassable(defs) {
+    const EDGE = LANE_HALF - 0.3;
+    const out = defs.map((w) => ({ ...w }));
+    for (const w of out) {
+      // bande = murs dont l'emprise z chevauche celle de w
+      const band = out.filter((o) => Math.abs(o.z - w.z) <= (o.halfD || 0.75) + (w.halfD || 0.75));
+      for (let guard = 0; guard < 4; guard++) {
+        const iv = band
+          .map((o) => [Math.max(-EDGE, o.x - o.halfW), Math.min(EDGE, o.x + o.halfW)])
+          .sort((a, b) => a[0] - b[0]);
+        let maxGap = 0;
+        let cursor = -EDGE;
+        for (const [a, b] of iv) {
+          if (a > cursor) maxGap = Math.max(maxGap, a - cursor);
+          cursor = Math.max(cursor, b);
+        }
+        maxGap = Math.max(maxGap, EDGE - cursor);
+        if (maxGap >= MIN_PASSAGE) break;
+        const widest = band.reduce((m, o) => (o.halfW > m.halfW ? o : m), band[0]);
+        widest.halfW = Math.max(0.5, widest.halfW - (MIN_PASSAGE - maxGap) / 2 - 0.05);
+        console.warn('[layout] mur rétréci pour garantir un passage', { z: widest.z, halfW: widest.halfW });
+      }
+    }
+    return out;
   }
 
   /** Glissement le long d'un mur : pousse la coordonnée x de l'unité hors de l'emprise. */
@@ -169,6 +240,7 @@ export function createObstacles(ctx) {
     for (const o of state.obstacles) scene.remove(o.group);
     for (const b of state.boosts) scene.remove(b.group);
     for (const w of walls) scene.remove(w.group);
+    for (const s of slows) scene.remove(s.group);
     for (const mesh of ownedMeshes) {
       mesh.geometry?.dispose();
       mesh.material?.dispose();
@@ -176,13 +248,17 @@ export function createObstacles(ctx) {
     state.obstacles.length = 0;
     state.boosts.length = 0;
     walls.length = 0;
+    slows.length = 0;
     ownedMeshes.length = 0;
   }
 
   function build(level) {
     clear();
-    // murs bloquants du layout (slalom / labyrinthe / horde — voir layouts.js)
-    for (const w of layoutForLevel(level).walls) addWall(w);
+    const layout = layoutForLevel(level);
+    // murs bloquants (caisses / monticules de terre), validés anti-softlock
+    for (const w of ensurePassable(layout.walls || [])) addWall(w);
+    // zones lentes (sable / boue) — non bloquantes par nature
+    for (const s of layout.slows || []) addSlowZone(s);
     if (level >= BOOST_MIN_LEVEL) addBoost(0, 12.5);
     if (level < OBSTACLE_MIN_LEVEL) return;
 
@@ -207,6 +283,18 @@ export function createObstacles(ctx) {
       for (const r of state.reds) if (!r.boss) deflect(r, r.giant ? 0.6 : 0.35);
       // le champion fracasse ce qu'il touche
       for (const c of state.champions) smashWallsAt(c.x, c.z, 1.1);
+    }
+    // zones lentes : pose slowT/slowMult sur les bleus dedans (rémanence courte, cf. crowd.moveStep)
+    for (const s of slows) {
+      for (const u of state.blues) {
+        if (Math.abs(u.x - s.x) > s.halfW || Math.abs(u.z - s.z) > s.halfD) continue;
+        u.slowT = SLOW_TICK;
+        u.slowMult = s.mult;
+        if (u.lastSlowId !== s.id) { // FX d'entrée, une fois par zone
+          u.lastSlowId = s.id;
+          ctx.particles.pop(u.x, u.z);
+        }
+      }
     }
     const blues = state.blues;
     for (let i = blues.length - 1; i >= 0; i--) {

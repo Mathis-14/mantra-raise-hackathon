@@ -51,6 +51,9 @@ export function createCrowd(ctx) {
         viaGate,
         boostT: 0,
         lastBoostId: '',
+        slowT: 0,       // rémanence de zone lente (sable/boue) — posée par obstacles.hitStep
+        slowMult: 1,
+        lastSlowId: '',
       });
       return true;
     },
@@ -65,7 +68,11 @@ export function createCrowd(ctx) {
       for (let i = 0; i < blues.length; i++) {
         const u = blues[i];
         u.pz = u.z;                                   // z de début de frame (test de franchissement)
-        const speedMult = u.boostT > 0 ? BOOST_SPEED_MULT : 1;
+        let speedMult = u.boostT > 0 ? BOOST_SPEED_MULT : 1;
+        if (u.slowT > 0) { // sable/boue : ralentit (se cumule avec un boost éventuel)
+          speedMult *= u.slowMult || 1;
+          u.slowT = Math.max(0, u.slowT - dt);
+        }
         u.z -= BLUE_SPEED * speedMult * dt;
         if (u.boostT > 0) u.boostT = Math.max(0, u.boostT - dt);
         u.x += Math.sin(t * BLUE_WOBBLE.freq + u.wob) * dt * BLUE_WOBBLE.amp;

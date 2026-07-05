@@ -102,6 +102,13 @@ export const BOOST_ZONE_DEPTH       = 2.0;
 export const BOOST_SPEED_MULT       = 1.75;
 export const BOOST_DURATION         = 1.0;
 
+// terrain (zones lentes : sable/boue — ralentissent, JAMAIS létales ni bloquantes)
+export const SLOW_SAND_MULT = 0.78;
+export const SLOW_MUD_MULT  = 0.55;
+export const SLOW_TICK      = 0.15;   // rémanence du ralentissement après sortie (s)
+// garde anti-softlock : largeur mini de passage libre garantie à toute profondeur z
+export const MIN_PASSAGE    = 1.6;
+
 // caméra
 export const CAM = Object.freeze({ fov: 55, near: 0.1, far: 200,
   baseY: 17, baseZ: 30, kY: 10, kZ: 12, kBias: 0.55, lookAt: Object.freeze([0, 0, 3]) });
