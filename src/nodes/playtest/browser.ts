@@ -27,11 +27,15 @@ export async function openBrowserSession(args: {
   const artifactDir = path.join(ARTIFACT_ROOT, args.runId);
   await mkdir(artifactDir, { recursive: true });
 
-  const headless = args.headless ?? false;
+  const headless = args.headless ?? true;
+  // Headless Chromium defaults to SwiftShader software WebGL (~7 fps on the demo game);
+  // forcing the GPU restores full speed (~120 fps on Apple Metal, measured 2026-07-05).
+  const gpuArgs =
+    process.platform === "darwin" ? ["--enable-gpu", "--use-angle=metal"] : ["--enable-gpu"];
   const browser = await chromium.launch({
     headless,
     args: headless
-      ? []
+      ? gpuArgs
       : [
           `--window-size=${VIEWPORT.width},${VIEWPORT.height + HEADED_WINDOW_CHROME_HEIGHT_PX}`,
           "--window-position=0,0",

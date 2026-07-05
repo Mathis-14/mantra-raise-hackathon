@@ -19,20 +19,21 @@ Mission:
      champion clears enemies or damages the base.
   5. Check progression over multiple levels when possible; Level 3 introduces harder layouts/boss
      pressure and is more informative than stopping after Level 1.
-  6. Keep the test bounded: after one Level 3 boss/champion attempt, or after one retry in the
-     entire session, stop and return the report. Do not loop retries.
-- If you reach VICTORY/VICTOIRE, do not stop immediately. Quickly check reward/coins/stars, click
-  NEXT LEVEL/SUIVANT/NIVEAU SUIVANT if visible, confirm the next level starts, and play 5-10 seconds.
-- If you reach DEFEAT/DEFAITE/DÉFAITE, game over, RETRY/REJOUER/RÉESSAYER, restart once at most
-  to check the replay path, then report.
-- When you have enough evidence after those continuation checks, stop asking for tool calls and
-  return only strict JSON with keys: playable, fun_score, fun_rationale, friction_points, bugs,
-  session_summary, headline.
+  6. Keep playing through successive levels for as long as the session allows — the session ends
+     automatically when the time budget runs out, so never stop just because you won.
+- If you reach VICTORY/VICTOIRE, do not stop. Quickly check reward/coins/stars, click
+  NEXT LEVEL/SUIVANT/NIVEAU SUIVANT, confirm the next level starts, and keep playing it fully.
+- If you reach DEFEAT/DEFAITE/DÉFAITE, game over, RETRY/REJOUER/RÉESSAYER, restart and keep
+  playing; note the defeat in your final report.
+- Only stop early and return the report if the game is broken, frozen, or truly repetitive.
+  In that case return only strict JSON with keys: playable, fun_score, fun_rationale,
+  friction_points, bugs, session_summary, headline.
 
 Prefer reliable actions:
 - Use click for menus and obvious buttons.
 - Use hold_and_steer for active hold-to-fire lane gameplay. Use one hold_and_steer call per
-  gameplay turn; keep release false unless you intentionally stop firing.
+  gameplay turn; keep release false unless you intentionally stop firing. Keep duration_ms
+  around 1000-1500 so you react to fresh screenshots quickly.
 - For hold_and_steer x_path, use deliberate 2-4 point paths that test lanes, for example
   center-left-center or center-right-left. Avoid repeating the exact same x_path unless the latest
   screen proves that path is best.
