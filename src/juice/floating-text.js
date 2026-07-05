@@ -12,6 +12,18 @@ const FONT_STACK = 'bold FONTPXpx "Arial Rounded MT Bold","Helvetica Rounded",ui
 
 function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
+// Juice : pop-in avec léger dépassement (easeOutBack), fondu sur la fin de vie seulement,
+// et petite inclinaison aléatoire par sprite (les textes « claquent » au lieu d'apparaître secs).
+const POP_DUR = 0.16;   // s de pop-in
+const FADE_FRAC = 0.45; // fraction finale de la vie passée à fondre
+const TILT_MAX = 0.16;  // rad d'inclinaison aléatoire (±)
+function easeOutBack(u) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  const p = u - 1;
+  return 1 + c3 * p * p * p + c1 * p * p;
+}
+
 /**
  * @param {THREE.Scene} scene
  * @returns {{ spawn(text:string,x:number,y:number,z:number,opts?:object):void, update(dt:number):void, reset():void }}
@@ -95,8 +107,9 @@ export function createFloatingText(scene) {
     const s = pick();
     s.material.map = texture;
     s.material.opacity = 1;
+    s.material.rotation = (Math.random() * 2 - 1) * TILT_MAX; // inclinaison aléatoire
     s.material.needsUpdate = true;
-    s.sprite.scale.set(size * aspect, size, 1);
+    s.sprite.scale.set(0.001, 0.001, 1); // le pop-in (update) amène à la taille cible
     s.sprite.position.set(x, y, z);
     s.sprite.visible = true;
     s.active = true;
@@ -104,6 +117,7 @@ export function createFloatingText(scene) {
     s.maxLife = life;
     s.vy = vy;
     s.size = size;
+    s.aspect = aspect;
   }
 
   function update(dt) {
@@ -117,8 +131,14 @@ export function createFloatingText(scene) {
         s.sprite.visible = false;
         continue;
       }
+      const age = s.maxLife - s.life;
+      // pop-in easeOutBack, puis très légère décrue vers 0.94 (le texte « se pose »)
+      const pop = age < POP_DUR ? easeOutBack(clamp01(age / POP_DUR)) : 1 - 0.06 * clamp01((age - POP_DUR) / s.maxLife);
+      const aspect = s.aspect || 1;
+      s.sprite.scale.set(s.size * aspect * pop, s.size * pop, 1);
       s.sprite.position.y += s.vy * dt;       // montée
-      s.material.opacity = clamp01(s.life / s.maxLife); // fondu
+      // fondu uniquement sur la fin de vie (le texte reste net pendant sa montée)
+      s.material.opacity = clamp01(s.life / (s.maxLife * FADE_FRAC));
     }
   }
 
