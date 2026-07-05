@@ -62,8 +62,10 @@ create table creatives (
   run_id uuid not null references runs (id) on delete cascade,
   variant_id uuid references variants (id) on delete set null,
   video_url text not null,
+  duration_s numeric not null check (duration_s > 0),
+  attributes jsonb not null,
   status text not null default 'generated'
-    check (status in ('generated','deployed','kept','killed')),
+    check (status in ('generated','deployed','kept','iterate','killed')),
   created_at timestamptz not null default now()
 );
 
@@ -73,16 +75,22 @@ create table metrics (
   ts timestamptz not null,
   impressions integer not null,
   clicks integer not null,
+  installs integer not null,
+  spend_usd numeric not null check (spend_usd >= 0),
   ctr numeric not null,
   cpi numeric not null,
-  watch_time_s numeric not null
+  watch_time_s numeric not null,
+  completion_rate numeric not null check (completion_rate between 0 and 1)
 );
 create index metrics_creative_id_ts on metrics (creative_id, ts);
 
 create table decisions (
   run_id uuid primary key references runs (id) on delete cascade,
   keep_creative_ids jsonb not null default '[]',
+  iterate_creative_ids jsonb not null default '[]',
   kill_creative_ids jsonb not null default '[]',
+  evaluations jsonb not null default '[]',
+  prototype_recommendation jsonb not null,
   next_build_recommendation text not null,
   rationale text not null,
   created_at timestamptz not null default now()
@@ -123,3 +131,9 @@ create policy anon_read_memory on memory for select using (true);
 -- Realtime feed for the live dashboard.
 alter publication supabase_realtime add table runs;
 alter publication supabase_realtime add table events;
+
+-- Public playtest screenshots for the live dashboard. Writes stay server-side
+-- through the service role; events carry public URLs, never image bytes.
+insert into storage.buckets (id, name, public)
+values ('playtest-media', 'playtest-media', true)
+on conflict (id) do nothing;

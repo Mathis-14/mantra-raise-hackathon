@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MOB RUSH — clone Mob Control</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#1a1240;
+    font-family:'Baloo 2','Fredoka','Arial Rounded MT Bold','Helvetica Rounded',ui-rounded,'Nunito',Arial,sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none; }
+  #game { position:fixed; inset:0; }
+  .hud { position:fixed; z-index:10; color:#fff; pointer-events:none;
+    text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #topbar { top:0; left:0; right:0; display:flex; justify-content:space-between;
+    align-items:flex-start; padding:14px 16px; gap:10px; }
+  .topGroup { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .pill { display:flex; align-items:center; background:rgba(20,12,60,.55); border-radius:999px;
+    padding:8px 16px; font-size:17px; font-weight:bold; backdrop-filter:blur(4px); }
+  .hudIcon { width:22px; height:22px; object-fit:contain; margin-right:7px; }
+  #enemyHp { position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    width:min(220px,calc(100vw - 130px)); text-align:center; z-index:10; pointer-events:none; }
+  #enemyHp .label { display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:4px;
+    font-size:11px; letter-spacing:2px; color:#ffb3c0; font-weight:bold; text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #enemyLvl { padding:1px 7px; border-radius:999px; background:rgba(0,0,0,.35); color:#ffd54a;
+    letter-spacing:1px; font-size:10px; }
+  #enemyBar { position:relative; width:100%; height:16px; background:rgba(0,0,0,.4); border-radius:8px;
+    overflow:hidden; border:2px solid rgba(255,255,255,.25); }
+  #enemyGhost { position:absolute; inset:0; height:100%; width:100%; border-radius:6px; background:#ffd54a; }
+  #enemyFill { position:absolute; inset:0; height:100%; width:100%; border-radius:6px;
+    background:linear-gradient(90deg,#ff4d6d,#ff8fa3); }
+  #enemyHpText { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:11px; font-weight:bold; text-shadow:0 1px 0 rgba(0,0,0,.5); z-index:2; }
+  #playerHp { bottom:18px; left:50%; transform:translateX(-50%); font-size:18px; letter-spacing:1px; }
+  #hint { bottom:52px; left:50%; transform:translateX(-50%); font-size:14px;
+    opacity:.85; animation:bob 1.6s ease-in-out infinite; }
+  #championHud { left:50%; bottom:170px; transform:translateX(-50%); width:min(340px,calc(100vw - 28px));
+    display:flex; align-items:center; gap:10px; pointer-events:auto; }
+  #championPanel { flex:1; min-width:0; background:rgba(20,12,60,.55); border-radius:12px;
+    padding:8px 12px; backdrop-filter:blur(4px); }
+  #championLabel { font-size:11px; letter-spacing:2px; font-weight:bold; color:#bdefff; }
+  #championBar { position:relative; height:10px; background:rgba(0,0,0,.4); border-radius:6px;
+    overflow:hidden; margin-top:5px; border:1px solid rgba(255,255,255,.22); }
+  #championFill { position:absolute; inset:0; width:0; border-radius:6px;
+    background:linear-gradient(90deg,#38b6ff,#45e28d,#ffd54a); }
+  #releaseBtn { pointer-events:auto; cursor:pointer; border:none; font:inherit; color:#fff;
+    min-width:96px; height:48px; font-size:15px; font-weight:bold; letter-spacing:1px; border-radius:999px;
+    background:linear-gradient(180deg,#6b6486,#4a4568); box-shadow:0 5px 0 rgba(0,0,0,.35);
+    opacity:.7; transition:transform .08s; }
+  #releaseBtn.ready { opacity:1; background:linear-gradient(180deg,#57e08a,#28b36a); box-shadow:0 5px 0 #17864a; }
+  #releaseBtn:active { transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #releaseBtn:disabled { cursor:default; }
+  @keyframes bob { 50% { transform:translate(-50%,-6px); } }
+  .overlay { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; text-align:center; color:#fff;
+    background:rgba(18,10,54,.78); backdrop-filter:blur(6px); }
+  .overlay h1 { font-size:44px; text-shadow:0 4px 0 rgba(0,0,0,.4); letter-spacing:1px; }
+  .overlay p { font-size:18px; opacity:.9; max-width:280px; line-height:1.5; }
+  .overlay .coins { font-size:24px; color:#ffd54a; font-weight:bold; display:flex; align-items:center; gap:8px; }
+  .rewardIcon { width:26px; height:26px; object-fit:contain; }
+  .loadoutSelect { display:flex; gap:12px; align-items:center; justify-content:center; }
+  .loadoutBtn { pointer-events:auto; cursor:pointer; border:none; font:inherit; color:#fff;
+    width:64px; height:60px; font-size:22px; font-weight:bold; border-radius:16px;
+    background:rgba(20,12,60,.55); border:2px solid rgba(255,255,255,.18);
+    backdrop-filter:blur(4px); transition:transform .08s; }
+  .loadoutBtn.selected { background:linear-gradient(180deg,#57e08a,#28b36a);
+    border-color:rgba(255,255,255,.5); box-shadow:0 4px 0 #17864a; }
+  .btn { pointer-events:auto; cursor:pointer; border:none; color:#fff; font:inherit;
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    font-size:22px; font-weight:bold; padding:16px 44px; border-radius:999px;
+    background:linear-gradient(180deg,#4dc9ff,#2d7dff); box-shadow:0 6px 0 #1c4fd6,0 10px 24px rgba(0,0,0,.35);
+    transition:transform .08s; letter-spacing:1px; }
+  .btnIcon { width:26px; height:26px; object-fit:contain; }
+  .btn:active { transform:translateY(4px); box-shadow:0 2px 0 #1c4fd6; }
+  #levelFlash { position:fixed; inset:0; z-index:15; display:flex; align-items:center;
+    justify-content:center; pointer-events:none; opacity:0; }
+  #levelFlash span { font-size:52px; font-weight:bold; color:#fff;
+    text-shadow:0 5px 0 rgba(0,0,0,.4); letter-spacing:2px; }
+  #dangerVignette { position:fixed; inset:0; z-index:12; pointer-events:none; opacity:0;
+    box-shadow: inset 0 0 120px 40px rgba(255,40,70,.85); }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="topbar" class="hud">
+  <div class="topGroup">
+    <div class="pill" id="levelPill">LVL 1</div>
+    <div class="pill" id="loadoutPill">1x</div>
+  </div>
+  <div class="topGroup">
+    <div class="pill" id="gemPill"><img class="hudIcon" src="/models/platformer-kit/Previews/jewel.png" alt="">0</div>
+    <div class="pill" id="coinPill"><img class="hudIcon" src="/models/platformer-kit/Previews/coin-gold.png" alt="">0</div>
+  </div>
+</div>
+<div id="enemyHp" class="hud hidden">
+  <div class="label"><span id="enemyName">ENEMY BASE</span><span id="enemyLvl">LVL 1</span></div>
+  <div id="enemyBar"><div id="enemyGhost"></div><div id="enemyFill"></div><div id="enemyHpText">50</div></div>
+</div>
+<div id="playerHp" class="hud hidden">🛡️ <span id="playerHpVal">10</span></div>
+<div id="hint" class="hud hidden">👆 Hold and drag to aim</div>
+<div id="championHud" class="hud hidden">
+  <div id="championPanel">
+    <div id="championLabel">CHAMPION</div>
+    <div id="championBar"><div id="championFill"></div></div>
+  </div>
+  <button id="releaseBtn" disabled>RELEASE</button>
+</div>
+<div id="levelFlash"><span id="levelFlashTxt">LEVEL 1</span></div>
+<div id="dangerVignette"></div>
+
+<div id="startOverlay" class="overlay">
+  <h1>MOB&nbsp;RUSH</h1>
+  <p>Send your blue crowd through the multiplier gates and destroy the red base!</p>
+  <div class="loadoutSelect" aria-label="Cannon choice">
+    <button class="loadoutBtn selected" data-loadout="single">1x</button>
+    <button class="loadoutBtn" data-loadout="double">2x</button>
+    <button class="loadoutBtn" data-loadout="triple">3x</button>
+  </div>
+  <button class="btn" id="startBtn">PLAY</button>
+</div>
+<div id="winOverlay" class="overlay hidden">
+  <h1>VICTORY! 🎉</h1>
+  <p class="coins" id="winCoins">+0 <img class="rewardIcon" src="/models/platformer-kit/Previews/coin-gold.png" alt=""></p>
+  <button class="btn" id="nextBtn">NEXT LEVEL</button>
+</div>
+<div id="loseOverlay" class="overlay hidden">
+  <h1>DEFEAT 💥</h1>
+  <p>The reds crossed your line…</p>
+  <button class="btn" id="retryBtn">RETRY</button>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -6,22 +6,26 @@ node_modules/
 out/
 next-env.d.ts
 
+# vite
+dist/
+.vite/
+
 # env — never commit real keys; .env.example documents every variable
 .env
 .env.*
 !.env.example
 
 # builds & misc
-dist/
 *.tsbuildinfo
+*.log
 .DS_Store
 
 # playtest artifacts (screenshots, recordings) — proof lives in the demo, not git
 playtest-artifacts/
+local-games/
 
 # throwaway verification scripts — means-to-verify, never committed (AGENTS.md)
 .scratch/
 
 # local-only files (reference videos, private notes) — never pushed
 .private/
-local-games/
