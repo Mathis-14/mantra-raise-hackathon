@@ -1,0 +1,72 @@
+[
+  {
+    "clip": "variant-1",
+    "game": "Mob Control clone",
+    "video": "ads/variant-1/ad.mp4",
+    "manifest": "ads/variant-1/manifest.json",
+    "hook": "Watch your army explode in numbers!",
+    "cta": "Download now and dominate the battlefield!",
+    "tone": "humorous",
+    "duration_s": 12,
+    "models": {
+      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+    }
+  },
+  {
+    "clip": "variant-2",
+    "game": "Mob Control clone",
+    "video": "ads/variant-2/ad.mp4",
+    "manifest": "ads/variant-2/manifest.json",
+    "hook": "Ever wondered how fast a crowd can multiply?",
+    "cta": "Tap to multiply your fun – download now!",
+    "tone": "humorous",
+    "duration_s": 10,
+    "models": {
+      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+    }
+  },
+  {
+    "clip": "variant-3",
+    "game": "Mob Control clone",
+    "video": "ads/variant-3/ad.mp4",
+    "manifest": "ads/variant-3/manifest.json",
+    "hook": "Watch your troops explode into a massive army!",
+    "cta": "Tap to download and lead the charge!",
+    "tone": "humorous",
+    "duration_s": 12,
+    "models": {
+      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+    }
+  },
+  {
+    "clip": "variant-4",
+    "game": "Mob Control clone",
+    "video": "ads/variant-4/ad.mp4",
+    "manifest": "ads/variant-4/manifest.json",
+    "hook": "Watch your army multiply in seconds!",
+    "cta": "Download now and lead the horde!",
+    "tone": "competitive",
+    "duration_s": 12,
+    "models": {
+      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+    }
+  },
+  {
+    "clip": "variant-5",
+    "game": "Mob Control clone",
+    "video": "ads/variant-5/ad.mp4",
+    "manifest": "ads/variant-5/manifest.json",
+    "hook": "Ever wondered what happens when you double, triple, double your army?",
+    "cta": "Download now and start multiplying!",
+    "tone": "humorous",
+    "duration_s": 12,
+    "models": {
+      "vlm": "meta/llama-3.2-11b-vision-instruct",
+      "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+    }
+  }
+]

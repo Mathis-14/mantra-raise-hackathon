@@ -1,0 +1,63 @@
+{
+  "game": "Mob Control clone",
+  "source": "variant-2.mp4",
+  "createdAt": "2026-07-05T05:48:27.315Z",
+  "tookMs": 11328,
+  "models": {
+    "vlm": "meta/llama-3.2-11b-vision-instruct",
+    "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+  },
+  "artifacts": {
+    "sceneTimeline": "scene-timeline.json",
+    "adPlan": "ad-plan.json",
+    "assets": "assets.json",
+    "voiceover": "voiceover.json",
+    "video": "ad.mp4"
+  },
+  "plan": {
+    "hook": "Ever wondered how fast a crowd can multiply?",
+    "tone": "humorous",
+    "duration_s": 10,
+    "cta": "Tap to multiply your fun – download now!",
+    "voiceover": "Watch your tiny squad explode into a massive mob in seconds. It’s addictive, it’s chaotic, it’s waiting for you.",
+    "assets": [
+      "download_button",
+      "gold_popup",
+      "mob_icon",
+      "explosion_effect"
+    ],
+    "edl": [
+      {
+        "time": 0,
+        "source_time": 0,
+        "zoom": 1,
+        "caption": "Ever wondered how fast a crowd can multiply?",
+        "overlay": null
+      },
+      {
+        "time": 3,
+        "source_time": 3,
+        "zoom": 1.2,
+        "shake": false,
+        "caption": "x2 x3 x2",
+        "overlay": null
+      },
+      {
+        "time": 6,
+        "source_time": 6,
+        "zoom": 1,
+        "shake": true,
+        "caption": "Keep growing!",
+        "overlay": null
+      },
+      {
+        "time": 9,
+        "source_time": 6,
+        "zoom": 1,
+        "shake": false,
+        "caption": "Tap to multiply your fun – download now!",
+        "overlay": "download_button"
+      }
+    ]
+  }
+}

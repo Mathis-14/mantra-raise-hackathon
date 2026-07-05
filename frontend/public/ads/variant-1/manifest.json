@@ -1,0 +1,46 @@
+{
+  "game": "Mob Control clone",
+  "source": "variant-1.mp4",
+  "createdAt": "2026-07-05T05:48:15.705Z",
+  "tookMs": 10864,
+  "models": {
+    "vlm": "meta/llama-3.2-11b-vision-instruct",
+    "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+  },
+  "artifacts": {
+    "sceneTimeline": "scene-timeline.json",
+    "adPlan": "ad-plan.json",
+    "assets": "assets.json",
+    "voiceover": "voiceover.json",
+    "video": "ad.mp4"
+  },
+  "plan": {
+    "hook": "Watch your army explode in numbers!",
+    "tone": "humorous",
+    "duration_s": 12,
+    "cta": "Download now and dominate the battlefield!",
+    "voiceover": "Start with a tiny squad, multiply your forces, and crush the opposition. Can you handle the chaos?",
+    "assets": [
+      "download_button",
+      "gold_popup",
+      "multiplier_icon"
+    ],
+    "edl": [
+      {
+        "time": 0,
+        "source_time": 0,
+        "zoom": 1,
+        "caption": "x2 | x3",
+        "overlay": "multiply_effect"
+      },
+      {
+        "time": 6,
+        "source_time": 6,
+        "zoom": 1.2,
+        "shake": true,
+        "caption": "Massive Mob!",
+        "overlay": "explosion_effect"
+      }
+    ]
+  }
+}

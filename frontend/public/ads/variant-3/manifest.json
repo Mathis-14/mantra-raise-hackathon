@@ -1,0 +1,52 @@
+{
+  "game": "Mob Control clone",
+  "source": "variant-3.mp4",
+  "createdAt": "2026-07-05T05:48:38.453Z",
+  "tookMs": 10880,
+  "models": {
+    "vlm": "meta/llama-3.2-11b-vision-instruct",
+    "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+  },
+  "artifacts": {
+    "sceneTimeline": "scene-timeline.json",
+    "adPlan": "ad-plan.json",
+    "assets": "assets.json",
+    "voiceover": "voiceover.json",
+    "video": "ad.mp4"
+  },
+  "plan": {
+    "hook": "Watch your troops explode into a massive army!",
+    "tone": "humorous",
+    "duration_s": 12,
+    "cta": "Tap to download and lead the charge!",
+    "voiceover": "Start with a small squad, multiply your forces, and overwhelm the enemy. Can you build the biggest mob?",
+    "assets": [
+      "download_button",
+      "gold_popup",
+      "multiplier_icon"
+    ],
+    "edl": [
+      {
+        "time": 0,
+        "source_time": 0,
+        "zoom": 1,
+        "caption": "x2 | x3",
+        "overlay": ""
+      },
+      {
+        "time": 4,
+        "source_time": 3,
+        "zoom": 1.2,
+        "caption": "x2 x3",
+        "overlay": ""
+      },
+      {
+        "time": 8,
+        "source_time": 6,
+        "zoom": 1.2,
+        "caption": "x2 x3",
+        "overlay": ""
+      }
+    ]
+  }
+}

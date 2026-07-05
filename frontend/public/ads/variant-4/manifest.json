@@ -1,0 +1,62 @@
+{
+  "game": "Mob Control clone",
+  "source": "variant-4.mp4",
+  "createdAt": "2026-07-05T05:48:50.403Z",
+  "tookMs": 11703,
+  "models": {
+    "vlm": "meta/llama-3.2-11b-vision-instruct",
+    "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+  },
+  "artifacts": {
+    "sceneTimeline": "scene-timeline.json",
+    "adPlan": "ad-plan.json",
+    "assets": "assets.json",
+    "voiceover": "voiceover.json",
+    "video": "ad.mp4"
+  },
+  "plan": {
+    "hook": "Watch your army multiply in seconds!",
+    "tone": "competitive",
+    "duration_s": 12,
+    "cta": "Download now and lead the horde!",
+    "voiceover": "Merge your troops, boost your power, and crush the opposition. Can you build the biggest mob?",
+    "assets": [
+      "download_button",
+      "gold_popup",
+      "multiplier_icon",
+      "explosion_effect"
+    ],
+    "edl": [
+      {
+        "time": 0,
+        "source_time": 0,
+        "zoom": 1,
+        "caption": "Watch your army multiply in seconds!"
+      },
+      {
+        "time": 2,
+        "source_time": 3,
+        "zoom": 1.2,
+        "caption": "x3 | x2 | x3 | x2"
+      },
+      {
+        "time": 5,
+        "source_time": 6,
+        "zoom": 1,
+        "caption": "x3 x2 x3 x2"
+      },
+      {
+        "time": 9,
+        "source_time": 3,
+        "overlay": "download_button",
+        "caption": "Download now and lead the horde!"
+      },
+      {
+        "time": 11,
+        "source_time": 3,
+        "zoom": 1.1,
+        "shake": true
+      }
+    ]
+  }
+}

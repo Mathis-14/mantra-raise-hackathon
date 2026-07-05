@@ -1,0 +1,53 @@
+{
+  "game": "Mob Control clone",
+  "source": "variant-5.mp4",
+  "createdAt": "2026-07-05T05:49:04.807Z",
+  "tookMs": 14148,
+  "models": {
+    "vlm": "meta/llama-3.2-11b-vision-instruct",
+    "nemotron": "nvidia/nemotron-3-super-120b-a12b"
+  },
+  "artifacts": {
+    "sceneTimeline": "scene-timeline.json",
+    "adPlan": "ad-plan.json",
+    "assets": "assets.json",
+    "voiceover": "voiceover.json",
+    "video": "ad.mp4"
+  },
+  "plan": {
+    "hook": "Ever wondered what happens when you double, triple, double your army?",
+    "tone": "humorous",
+    "duration_s": 12,
+    "cta": "Download now and start multiplying!",
+    "voiceover": "Watch your troops explode in numbers as you merge and multiply. It's chaotic fun you can't put down!",
+    "assets": [
+      "download_button",
+      "gold_popup",
+      "multiply_icon"
+    ],
+    "edl": [
+      {
+        "time": 0,
+        "source_time": 3,
+        "zoom": 1.2,
+        "caption": "Multiply your army!",
+        "overlay": "x2 x3 x2"
+      },
+      {
+        "time": 6,
+        "source_time": 6,
+        "zoom": 1,
+        "shake": true,
+        "caption": "Chaos unleashed!",
+        "overlay": "x2 x3 x2"
+      },
+      {
+        "time": 10,
+        "source_time": 6,
+        "zoom": 1,
+        "caption": "Tap to download!",
+        "overlay": "download_button"
+      }
+    ]
+  }
+}

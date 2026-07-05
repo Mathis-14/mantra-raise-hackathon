@@ -151,12 +151,12 @@ export function renderPipeline(root: HTMLElement, route: FlowRoute) {
         </div>
       </div>
 
-      <button class="back-fab back-fab--corner" id="back-btn" title="Back to Playtest">←</button>
+      <button class="back-fab back-fab--corner" id="back-btn" title="Back to Ads">←</button>
     </div>
   `
 
   document.getElementById('back-btn')!.addEventListener('click', () => {
-    setRoute('variants', { runId: route.runId, gameUrl: route.gameUrl })
+    setRoute('ads', { runId: route.runId, gameUrl: route.gameUrl })
   })
 
   const badge        = document.getElementById('pipe-badge') as HTMLElement

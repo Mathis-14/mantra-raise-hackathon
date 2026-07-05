@@ -5,6 +5,7 @@ import { startGame } from './game'
 import { renderPlaytest } from './playtest'
 import { renderPipeline } from './pipeline'
 import { renderVariants } from './variants'
+import { renderAds } from './ads'
 
 const app = document.querySelector<HTMLDivElement>('#app')
 
@@ -15,6 +16,7 @@ function route() {
   const currentRoute = parseRoute()
   if (currentRoute.screen === 'playtest') { renderPlaytest(app, currentRoute); return }
   if (currentRoute.screen === 'variants') { renderVariants(app, currentRoute); return }
+  if (currentRoute.screen === 'ads') { renderAds(app, currentRoute); return }
   if (currentRoute.screen === 'pipeline') { renderPipeline(app, currentRoute); return }
   renderLanding(app)
 }
